@@ -1,0 +1,13 @@
+{
+  "$schema": "https://raw.githubusercontent.com/nicedoc/spec/master/schema/tauri-capability.schema.json",
+  "identifier": "default",
+  "description": "Default capability for Tasuki main window",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "clipboard-manager:default",
+    "clipboard-manager:allow-write-text",
+    "clipboard-manager:allow-read-text",
+    "shell:allow-open"
+  ]
+}
