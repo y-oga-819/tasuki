@@ -8,6 +8,7 @@ import type {
   ReviewComment,
   DocComment,
   ReviewVerdict,
+  ReviewRestoreMode,
 } from "../types";
 
 /** Target line where the comment form is being shown */
@@ -62,15 +63,21 @@ interface TasukiState {
   addComment: (comment: ReviewComment) => void;
   removeComment: (id: string) => void;
   updateComment: (id: string, body: string) => void;
+  setComments: (comments: ReviewComment[]) => void;
 
   // Doc comments
   docComments: DocComment[];
   addDocComment: (comment: DocComment) => void;
   removeDocComment: (id: string) => void;
+  setDocComments: (comments: DocComment[]) => void;
 
   // Review
   verdict: ReviewVerdict;
   setVerdict: (verdict: ReviewVerdict) => void;
+
+  // Review persistence
+  reviewRestoreMode: ReviewRestoreMode;
+  setReviewRestoreMode: (mode: ReviewRestoreMode) => void;
 
   // Loading
   isLoading: boolean;
@@ -149,9 +156,18 @@ export const useStore = create<TasukiState>((set) => ({
       docComments: state.docComments.filter((c) => c.id !== id),
     })),
 
+  setComments: (comments) => set({ comments }),
+
+  // Doc comments (cont.)
+  setDocComments: (docComments) => set({ docComments }),
+
   // Review
   verdict: null,
   setVerdict: (verdict) => set({ verdict }),
+
+  // Review persistence
+  reviewRestoreMode: "none",
+  setReviewRestoreMode: (mode) => set({ reviewRestoreMode: mode }),
 
   // Loading
   isLoading: false,

@@ -1,11 +1,12 @@
 use git2::{Delta, DiffFormat, DiffOptions, Repository, Sort};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use std::path::Path;
 
 use crate::error::TasukiError;
 
 /// A single changed file in a diff
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DiffFile {
     pub path: String,
     pub old_path: Option<String>,
@@ -17,7 +18,7 @@ pub struct DiffFile {
 }
 
 /// A diff hunk (section of changes)
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DiffHunk {
     pub header: String,
     pub old_start: u32,
@@ -28,7 +29,7 @@ pub struct DiffHunk {
 }
 
 /// A single line in a diff
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DiffLine {
     pub origin: char,
     pub old_lineno: Option<u32>,
@@ -37,7 +38,7 @@ pub struct DiffLine {
 }
 
 /// Complete diff result for a single file
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FileDiff {
     pub file: DiffFile,
     pub hunks: Vec<DiffHunk>,
@@ -46,14 +47,14 @@ pub struct FileDiff {
 }
 
 /// Complete diff result
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DiffResult {
     pub files: Vec<FileDiff>,
     pub stats: DiffStats,
 }
 
 /// Diff statistics
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DiffStats {
     pub files_changed: usize,
     pub additions: usize,
@@ -520,4 +521,23 @@ pub fn list_doc_files(repo_path: &str) -> Result<Vec<String>, TasukiError> {
 pub fn read_file(repo_path: &str, file_path: &str) -> Result<String, TasukiError> {
     let repo = open_repo(repo_path)?;
     read_working_file(&repo, file_path)
+}
+
+/// Get the HEAD commit SHA
+pub fn get_head_sha(repo_path: &str) -> Result<String, TasukiError> {
+    let repo = open_repo(repo_path)?;
+    let head = repo
+        .head()
+        .map_err(|e| TasukiError::Git(e.message().to_string()))?;
+    let commit = head
+        .peel_to_commit()
+        .map_err(|e| TasukiError::Git(e.message().to_string()))?;
+    Ok(commit.id().to_string())
+}
+
+/// Compute a SHA-256 hash of a DiffResult for change detection
+pub fn compute_diff_hash(diff_result: &DiffResult) -> String {
+    let json = serde_json::to_string(diff_result).unwrap_or_default();
+    let hash = Sha256::digest(json.as_bytes());
+    format!("{:x}", hash)
 }

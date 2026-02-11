@@ -1,4 +1,6 @@
 use tauri::{AppHandle, Emitter, State};
+use std::fs;
+use std::path::PathBuf;
 use std::sync::Mutex;
 
 use crate::error::TasukiError;
@@ -100,4 +102,69 @@ pub fn get_repo_path(state: State<AppState>) -> String {
 #[tauri::command]
 pub fn get_cli_args(cli_args: State<CliArgs>) -> CliArgs {
     cli_args.inner().clone()
+}
+
+/// Get the HEAD commit SHA
+#[tauri::command]
+pub fn get_head_sha(state: State<AppState>) -> Result<String, TasukiError> {
+    let repo_path = state.repo_path.lock().unwrap().clone();
+    git::get_head_sha(&repo_path)
+}
+
+/// Compute a SHA-256 hash of the current diff for change detection
+#[tauri::command]
+pub fn get_diff_hash(state: State<AppState>, diff_result: DiffResult) -> String {
+    let _ = state;
+    git::compute_diff_hash(&diff_result)
+}
+
+/// Build the path for a review session file
+fn review_file_path(repo_path: &str, head_sha: &str, source_type: &str) -> PathBuf {
+    let short_sha = &head_sha[..head_sha.len().min(8)];
+    PathBuf::from(repo_path)
+        .join(".tasuki")
+        .join("reviews")
+        .join(format!("{}_{}.json", short_sha, source_type))
+}
+
+/// Save a review session to disk
+#[tauri::command]
+pub fn save_review(
+    state: State<AppState>,
+    head_sha: String,
+    source_type: String,
+    json_data: String,
+) -> Result<(), TasukiError> {
+    let repo_path = state.repo_path.lock().unwrap().clone();
+    let path = review_file_path(&repo_path, &head_sha, &source_type);
+
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)
+            .map_err(|e| TasukiError::Io(format!("Cannot create reviews dir: {}", e)))?;
+    }
+
+    fs::write(&path, json_data)
+        .map_err(|e| TasukiError::Io(format!("Cannot write review file: {}", e)))?;
+
+    Ok(())
+}
+
+/// Load a review session from disk. Returns None if no saved session exists.
+#[tauri::command]
+pub fn load_review(
+    state: State<AppState>,
+    head_sha: String,
+    source_type: String,
+) -> Result<Option<String>, TasukiError> {
+    let repo_path = state.repo_path.lock().unwrap().clone();
+    let path = review_file_path(&repo_path, &head_sha, &source_type);
+
+    if !path.exists() {
+        return Ok(None);
+    }
+
+    let content = fs::read_to_string(&path)
+        .map_err(|e| TasukiError::Io(format!("Cannot read review file: {}", e)))?;
+
+    Ok(Some(content))
 }

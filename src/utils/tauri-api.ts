@@ -1,4 +1,4 @@
-import type { DiffResult, CommitInfo } from "../types";
+import type { DiffResult, CommitInfo, ReviewSession } from "../types";
 
 /**
  * Bridge to Tauri backend commands.
@@ -57,6 +57,32 @@ export async function startWatching(): Promise<void> {
 
 export async function getRepoPath(): Promise<string> {
   return invoke<string>("get_repo_path");
+}
+
+export async function getHeadSha(): Promise<string> {
+  return invoke<string>("get_head_sha");
+}
+
+export async function getDiffHash(diffResult: DiffResult): Promise<string> {
+  return invoke<string>("get_diff_hash", { diffResult });
+}
+
+export async function saveReview(
+  headSha: string,
+  sourceType: string,
+  session: ReviewSession,
+): Promise<void> {
+  const jsonData = JSON.stringify(session);
+  return invoke<void>("save_review", { headSha, sourceType, jsonData });
+}
+
+export async function loadReview(
+  headSha: string,
+  sourceType: string,
+): Promise<ReviewSession | null> {
+  const json = await invoke<string | null>("load_review", { headSha, sourceType });
+  if (json === null) return null;
+  return JSON.parse(json) as ReviewSession;
 }
 
 export async function copyToClipboard(text: string): Promise<void> {

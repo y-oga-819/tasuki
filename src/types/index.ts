@@ -67,6 +67,14 @@ export interface ReviewComment {
   body: string;
   type: "comment" | "suggestion" | "question" | "approval";
   created_at: number;
+  /** null for root comments, ID of parent for replies */
+  parent_id: string | null;
+  /** Who authored this comment */
+  author: "human" | "claude";
+  /** Whether this comment has been resolved */
+  resolved: boolean;
+  /** Timestamp when resolved, null if unresolved */
+  resolved_at: number | null;
 }
 
 /** Review comment on a document section */
@@ -77,7 +85,28 @@ export interface DocComment {
   body: string;
   type: "comment" | "suggestion" | "question" | "approval";
   created_at: number;
+  /** Who authored this comment */
+  author: "human" | "claude";
+  /** Whether this comment has been resolved */
+  resolved: boolean;
+  /** Timestamp when resolved, null if unresolved */
+  resolved_at: number | null;
 }
+
+/** Persisted review session */
+export interface ReviewSession {
+  head_commit: string;
+  diff_hash: string;
+  diff_source: DiffSource;
+  created_at: number;
+  updated_at: number;
+  verdict: ReviewVerdict;
+  comments: ReviewComment[];
+  doc_comments: DocComment[];
+}
+
+/** How to restore a saved review session */
+export type ReviewRestoreMode = "full" | "checklist" | "none";
 
 /** Overall review verdict */
 export type ReviewVerdict = "approve" | "request_changes" | null;

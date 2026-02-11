@@ -123,6 +123,10 @@ pub fn run() {
             commands::start_watching,
             commands::get_repo_path,
             commands::get_cli_args,
+            commands::get_head_sha,
+            commands::get_diff_hash,
+            commands::save_review,
+            commands::load_review,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Tasuki");

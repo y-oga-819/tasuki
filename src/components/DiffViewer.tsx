@@ -200,6 +200,10 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({ fileDiff }) => {
                 body,
                 type: "comment",
                 created_at: Date.now(),
+                parent_id: null,
+                author: "human",
+                resolved: false,
+                resolved_at: null,
               });
               setCommentFormTarget(null);
               setSelectedLineRange(null);
