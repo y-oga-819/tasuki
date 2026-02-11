@@ -1,4 +1,5 @@
 import React, { useEffect, useCallback } from "react";
+import { WorkerPoolContextProvider } from "@pierre/diffs/react";
 import { Toolbar } from "./components/Toolbar";
 import { FileSidebar } from "./components/FileSidebar";
 import { MainContent } from "./components/MainContent";
@@ -43,14 +44,27 @@ const App: React.FC = () => {
   useFileWatcher(handleFilesChanged);
 
   return (
-    <div className="app">
-      <Toolbar />
-      <div className="app-body">
-        <FileSidebar />
-        <MainContent />
+    <WorkerPoolContextProvider
+      poolOptions={{
+        workerFactory: () =>
+          new Worker(
+            new URL("@pierre/diffs/worker/worker.js", import.meta.url),
+            { type: "module" },
+          ),
+      }}
+      highlighterOptions={{
+        theme: { dark: "github-dark", light: "github-light" },
+      }}
+    >
+      <div className="app">
+        <Toolbar />
+        <div className="app-body">
+          <FileSidebar />
+          <MainContent />
+        </div>
+        <ReviewPanel />
       </div>
-      <ReviewPanel />
-    </div>
+    </WorkerPoolContextProvider>
   );
 };
 

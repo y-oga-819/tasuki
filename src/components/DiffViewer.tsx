@@ -1,546 +1,399 @@
-import React, { useState, useCallback, useRef } from "react";
+import React, { useMemo, useCallback, useState } from "react";
+import { MultiFileDiff, PatchDiff } from "@pierre/diffs/react";
+import type {
+  DiffLineAnnotation,
+  RenderHeaderMetadataProps,
+} from "@pierre/diffs/react";
+import type {
+  SelectedLineRange,
+  AnnotationSide,
+  FileContents,
+  FileDiffOptions,
+} from "@pierre/diffs";
+import { getFiletypeFromFileName, cleanLastNewline } from "@pierre/diffs";
 import { useStore } from "../store";
-import type { FileDiff, DiffHunk, DiffLine, ReviewComment } from "../types";
-import { getCodeSnippet, getFileName } from "../utils/diff-utils";
+import type { CommentFormTarget } from "../store";
+import type { FileDiff, ReviewComment } from "../types";
+import { generateGitPatch, getCodeSnippet } from "../utils/diff-utils";
+
+// --- Annotation metadata types ---
+
+type AnnotationMeta =
+  | { kind: "comment"; comment: ReviewComment }
+  | { kind: "form"; target: CommentFormTarget };
+
+// --- Main component ---
 
 interface DiffViewerProps {
   fileDiff: FileDiff;
 }
 
 export const DiffViewer: React.FC<DiffViewerProps> = ({ fileDiff }) => {
-  const { diffLayout, comments, addComment } = useStore();
+  const {
+    diffLayout,
+    collapsedFiles,
+    toggleFileCollapse,
+    comments,
+    addComment,
+    selectedLineRange,
+    setSelectedLineRange,
+    commentFormTarget,
+    setCommentFormTarget,
+  } = useStore();
 
-  return (
-    <div className="diff-viewer">
-      <DiffFileHeader fileDiff={fileDiff} />
-      {fileDiff.file.is_binary ? (
-        <div className="diff-binary">Binary file changed</div>
-      ) : (
-        <div className={`diff-content diff-${diffLayout}`}>
-          {fileDiff.hunks.map((hunk, i) => (
-            <DiffHunkView
-              key={i}
-              hunk={hunk}
-              fileDiff={fileDiff}
-              layout={diffLayout}
-              comments={comments.filter(
-                (c) => c.file_path === fileDiff.file.path,
-              )}
-              onAddComment={addComment}
-            />
-          ))}
-        </div>
-      )}
-    </div>
+  const filePath = fileDiff.file.path;
+  const isCollapsed = collapsedFiles.has(filePath);
+
+  // Map Tasuki DiffLayout → Pierre diffStyle
+  const diffStyle = diffLayout === "split" ? "split" : "unified";
+
+  // Detect language via Pierre's built-in detection
+  const lang = useMemo(
+    () => getFiletypeFromFileName(filePath),
+    [filePath],
   );
-};
 
-const DiffFileHeader: React.FC<{ fileDiff: FileDiff }> = ({ fileDiff }) => {
-  const { collapsedFiles, toggleFileCollapse } = useStore();
-  const isCollapsed = collapsedFiles.has(fileDiff.file.path);
+  // Build Pierre FileContents from Tasuki's old_content / new_content
+  const hasFileContents = fileDiff.old_content != null || fileDiff.new_content != null;
 
-  return (
-    <div className="diff-file-header">
-      <button
-        className="collapse-toggle"
-        onClick={() => toggleFileCollapse(fileDiff.file.path)}
-      >
-        {isCollapsed ? "▶" : "▼"}
-      </button>
-      <span className="diff-file-path">{fileDiff.file.path}</span>
-      {fileDiff.file.old_path && (
-        <span className="diff-file-renamed">
-          ← {fileDiff.file.old_path}
-        </span>
-      )}
-      <span className="diff-file-stats">
-        {fileDiff.file.additions > 0 && (
-          <span className="stat-added">+{fileDiff.file.additions}</span>
-        )}
-        {fileDiff.file.deletions > 0 && (
-          <span className="stat-deleted">-{fileDiff.file.deletions}</span>
-        )}
-      </span>
-      {fileDiff.file.is_generated && (
-        <span className="generated-badge">Generated</span>
-      )}
-    </div>
+  const oldFile = useMemo<FileContents | undefined>(() => {
+    if (!hasFileContents) return undefined;
+    const oldName = fileDiff.file.old_path || fileDiff.file.path;
+    return {
+      name: oldName,
+      contents: fileDiff.old_content ? cleanLastNewline(fileDiff.old_content) : "",
+      lang: lang || undefined,
+    };
+  }, [hasFileContents, fileDiff.old_content, fileDiff.file.old_path, fileDiff.file.path, lang]);
+
+  const newFile = useMemo<FileContents | undefined>(() => {
+    if (!hasFileContents) return undefined;
+    return {
+      name: fileDiff.file.path,
+      contents: fileDiff.new_content ? cleanLastNewline(fileDiff.new_content) : "",
+      lang: lang || undefined,
+    };
+  }, [hasFileContents, fileDiff.new_content, fileDiff.file.path, lang]);
+
+  // Fallback: generate patch string only when file contents are unavailable
+  const patch = useMemo(
+    () => (hasFileContents ? "" : generateGitPatch(fileDiff)),
+    [hasFileContents, fileDiff],
   );
-};
 
-interface DiffHunkViewProps {
-  hunk: DiffHunk;
-  fileDiff: FileDiff;
-  layout: "split" | "stacked";
-  comments: ReviewComment[];
-  onAddComment: (comment: ReviewComment) => void;
-}
+  // --- Comments for this file ---
+  const fileComments = useMemo(
+    () => comments.filter((c) => c.file_path === filePath),
+    [comments, filePath],
+  );
 
-const DiffHunkView: React.FC<DiffHunkViewProps> = ({
-  hunk,
-  fileDiff,
-  layout,
-  comments,
-  onAddComment,
-}) => {
-  const [commentLineStart, setCommentLineStart] = useState<number | null>(null);
-  const [commentLineEnd, setCommentLineEnd] = useState<number | null>(null);
-  const [commentText, setCommentText] = useState("");
-  const [isSelecting, setIsSelecting] = useState(false);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  // --- Build annotations: saved comments + active form ---
+  const lineAnnotations = useMemo(() => {
+    const annotations: DiffLineAnnotation<AnnotationMeta>[] = [];
 
-  const handleLineClick = useCallback(
-    (lineNo: number, isShift: boolean) => {
-      if (isShift && commentLineStart !== null) {
-        // Extend selection
-        setCommentLineEnd(lineNo);
-      } else {
-        // Start new selection
-        setCommentLineStart(lineNo);
-        setCommentLineEnd(lineNo);
-        setIsSelecting(true);
+    for (const comment of fileComments) {
+      annotations.push({
+        side: "additions",
+        lineNumber: comment.line_end,
+        metadata: { kind: "comment", comment },
+      });
+    }
+
+    if (commentFormTarget && commentFormTarget.filePath === filePath) {
+      annotations.push({
+        side: commentFormTarget.side,
+        lineNumber: commentFormTarget.lineNumber,
+        metadata: { kind: "form", target: commentFormTarget },
+      });
+    }
+
+    return annotations;
+  }, [fileComments, commentFormTarget, filePath]);
+
+  // --- Line selection handling ---
+  const handleLineSelected = useCallback(
+    (range: SelectedLineRange | null) => {
+      setSelectedLineRange(range);
+      if (commentFormTarget?.filePath === filePath) {
+        setCommentFormTarget(null);
       }
     },
-    [commentLineStart],
+    [setSelectedLineRange, setCommentFormTarget, commentFormTarget, filePath],
   );
 
-  const handleStartComment = useCallback(() => {
-    if (commentLineStart === null) return;
-    setIsSelecting(false);
-    setTimeout(() => textareaRef.current?.focus(), 0);
-  }, [commentLineStart]);
+  // --- Mouse event handlers ---
+  const handleLineNumberClick = useCallback(
+    (props: { lineNumber: number; annotationSide: AnnotationSide; event: PointerEvent }) => {
+      // Open comment form on line number click (single click = single line comment)
+      if (commentFormTarget?.filePath === filePath) return;
+      setCommentFormTarget({
+        filePath,
+        lineNumber: props.lineNumber,
+        side: props.annotationSide,
+        selectionStart: props.lineNumber,
+        selectionEnd: props.lineNumber,
+      });
+    },
+    [commentFormTarget, filePath, setCommentFormTarget],
+  );
 
-  const handleSubmitComment = useCallback(() => {
-    if (!commentText.trim() || commentLineStart === null) return;
+  // --- Hover utility: floating "+" button ---
+  const renderHoverUtility = useCallback(
+    (
+      getHoveredLine: () =>
+        | { lineNumber: number; side: AnnotationSide }
+        | undefined,
+    ) => {
+      const hovered = getHoveredLine();
+      if (!hovered) return null;
+      if (commentFormTarget?.filePath === filePath) return null;
 
-    const lineStart = Math.min(
-      commentLineStart,
-      commentLineEnd ?? commentLineStart,
-    );
-    const lineEnd = Math.max(
-      commentLineStart,
-      commentLineEnd ?? commentLineStart,
-    );
+      return (
+        <button
+          className="dv-hover-comment-btn"
+          onPointerDown={(e) => {
+            e.stopPropagation();
+            const line = getHoveredLine();
+            if (!line) return;
+            setCommentFormTarget({
+              filePath,
+              lineNumber: line.lineNumber,
+              side: line.side,
+              selectionStart: line.lineNumber,
+              selectionEnd: line.lineNumber,
+            });
+            setSelectedLineRange(null);
+          }}
+        >
+          +
+        </button>
+      );
+    },
+    [commentFormTarget, filePath, setCommentFormTarget, setSelectedLineRange],
+  );
 
-    const snippet = getCodeSnippet(fileDiff, lineStart, lineEnd);
+  // --- Render annotations ---
+  const renderAnnotation = useCallback(
+    (annotation: DiffLineAnnotation<AnnotationMeta>) => {
+      if (annotation.metadata.kind === "comment") {
+        return <CommentDisplay comment={annotation.metadata.comment} />;
+      }
 
-    onAddComment({
-      id: crypto.randomUUID(),
-      file_path: fileDiff.file.path,
-      line_start: lineStart,
-      line_end: lineEnd,
-      code_snippet: snippet,
-      body: commentText.trim(),
-      type: "comment",
-      created_at: Date.now(),
-    });
+      if (annotation.metadata.kind === "form") {
+        return (
+          <CommentFormInline
+            fileDiff={fileDiff}
+            target={annotation.metadata.target}
+            onSubmit={(body) => {
+              const t = annotation.metadata as { kind: "form"; target: CommentFormTarget };
+              const start = Math.min(t.target.selectionStart, t.target.selectionEnd);
+              const end = Math.max(t.target.selectionStart, t.target.selectionEnd);
+              const snippet = getCodeSnippet(fileDiff, start, end);
+              addComment({
+                id: crypto.randomUUID(),
+                file_path: filePath,
+                line_start: start,
+                line_end: end,
+                code_snippet: snippet,
+                body,
+                type: "comment",
+                created_at: Date.now(),
+              });
+              setCommentFormTarget(null);
+              setSelectedLineRange(null);
+            }}
+            onCancel={() => setCommentFormTarget(null)}
+          />
+        );
+      }
 
-    setCommentText("");
-    setCommentLineStart(null);
-    setCommentLineEnd(null);
-    setIsSelecting(false);
-  }, [
-    commentText,
-    commentLineStart,
-    commentLineEnd,
-    fileDiff,
-    onAddComment,
-  ]);
+      return null;
+    },
+    [fileDiff, filePath, addComment, setCommentFormTarget, setSelectedLineRange],
+  );
 
-  const handleCancelComment = useCallback(() => {
-    setCommentText("");
-    setCommentLineStart(null);
-    setCommentLineEnd(null);
-    setIsSelecting(false);
-  }, []);
+  // --- Header metadata ---
+  const renderHeaderMetadata = useCallback(
+    (_props: RenderHeaderMetadataProps) => (
+      <>
+        {fileDiff.file.old_path && (
+          <span className="dv-renamed">{"\u2190 " + fileDiff.file.old_path}</span>
+        )}
+        <span className="dv-stats">
+          {fileDiff.file.additions > 0 && (
+            <span className="dv-stat-add">+{fileDiff.file.additions}</span>
+          )}
+          {fileDiff.file.deletions > 0 && (
+            <span className="dv-stat-del">-{fileDiff.file.deletions}</span>
+          )}
+        </span>
+        {fileDiff.file.is_generated && (
+          <span className="dv-generated">Generated</span>
+        )}
+        <button
+          className="dv-collapse-btn"
+          onClick={(e) => {
+            e.stopPropagation();
+            toggleFileCollapse(filePath);
+          }}
+        >
+          {"\u25BC"}
+        </button>
+      </>
+    ),
+    [fileDiff.file, filePath, toggleFileCollapse],
+  );
 
-  if (layout === "split") {
+  // --- selectedLines prop ---
+  const selectedLines = useMemo(() => {
+    if (commentFormTarget?.filePath === filePath) {
+      return {
+        start: commentFormTarget.selectionStart,
+        end: commentFormTarget.selectionEnd,
+        side: commentFormTarget.side,
+      } satisfies SelectedLineRange;
+    }
+    return selectedLineRange;
+  }, [selectedLineRange, commentFormTarget, filePath]);
+
+  // --- Shared Pierre options ---
+  const options = useMemo<FileDiffOptions<AnnotationMeta>>(
+    () => ({
+      diffStyle,
+      theme: { dark: "github-dark", light: "github-light" },
+      themeType: "dark",
+      enableLineSelection: true,
+      onLineSelected: handleLineSelected,
+      onLineNumberClick: handleLineNumberClick,
+      enableHoverUtility: true,
+      expandUnchanged: true,
+      diffIndicators: "classic",
+      lineDiffType: "word",
+      overflow: "scroll",
+      hunkSeparators: "line-info",
+    }),
+    [diffStyle, handleLineSelected, handleLineNumberClick],
+  );
+
+  // Shared render props
+  const sharedProps = {
+    options,
+    selectedLines,
+    lineAnnotations,
+    renderAnnotation,
+    renderHeaderMetadata,
+    renderHoverUtility,
+  };
+
+  // --- Collapsed ---
+  if (isCollapsed) {
     return (
-      <SplitHunk
-        hunk={hunk}
-        comments={comments}
-        commentLineStart={commentLineStart}
-        commentLineEnd={commentLineEnd}
-        commentText={commentText}
-        isSelecting={isSelecting}
-        textareaRef={textareaRef}
-        onLineClick={handleLineClick}
-        onStartComment={handleStartComment}
-        onSubmitComment={handleSubmitComment}
-        onCancelComment={handleCancelComment}
-        onCommentTextChange={setCommentText}
+      <div className="dv-collapsed">
+        <button
+          className="dv-expand-btn"
+          onClick={() => toggleFileCollapse(filePath)}
+        >
+          {"\u25B6"}
+        </button>
+        <span className="dv-collapsed-path">{filePath}</span>
+        <span className="dv-stats">
+          {fileDiff.file.additions > 0 && (
+            <span className="dv-stat-add">+{fileDiff.file.additions}</span>
+          )}
+          {fileDiff.file.deletions > 0 && (
+            <span className="dv-stat-del">-{fileDiff.file.deletions}</span>
+          )}
+        </span>
+        {fileDiff.file.is_generated && (
+          <span className="dv-generated">Generated</span>
+        )}
+      </div>
+    );
+  }
+
+  // --- Binary ---
+  if (fileDiff.file.is_binary) {
+    return (
+      <div className="dv-binary">
+        <div className="dv-binary-header">{filePath}</div>
+        <div className="dv-binary-body">Binary file changed</div>
+      </div>
+    );
+  }
+
+  // --- Render: prefer MultiFileDiff (file contents), fallback to PatchDiff ---
+  if (hasFileContents && oldFile && newFile) {
+    return (
+      <MultiFileDiff<AnnotationMeta>
+        oldFile={oldFile}
+        newFile={newFile}
+        {...sharedProps}
       />
     );
   }
 
   return (
-    <StackedHunk
-      hunk={hunk}
-      comments={comments}
-      commentLineStart={commentLineStart}
-      commentLineEnd={commentLineEnd}
-      commentText={commentText}
-      isSelecting={isSelecting}
-      textareaRef={textareaRef}
-      onLineClick={handleLineClick}
-      onStartComment={handleStartComment}
-      onSubmitComment={handleSubmitComment}
-      onCancelComment={handleCancelComment}
-      onCommentTextChange={setCommentText}
+    <PatchDiff<AnnotationMeta>
+      patch={patch}
+      {...sharedProps}
     />
   );
 };
 
-interface HunkProps {
-  hunk: DiffHunk;
-  comments: ReviewComment[];
-  commentLineStart: number | null;
-  commentLineEnd: number | null;
-  commentText: string;
-  isSelecting: boolean;
-  textareaRef: React.RefObject<HTMLTextAreaElement | null>;
-  onLineClick: (lineNo: number, isShift: boolean) => void;
-  onStartComment: () => void;
-  onSubmitComment: () => void;
-  onCancelComment: () => void;
-  onCommentTextChange: (text: string) => void;
-}
+// --- Sub-components ---
 
-const SplitHunk: React.FC<HunkProps> = ({
-  hunk,
-  comments,
-  commentLineStart,
-  commentLineEnd,
-  commentText,
-  isSelecting,
-  textareaRef,
-  onLineClick,
-  onStartComment,
-  onSubmitComment,
-  onCancelComment,
-  onCommentTextChange,
-}) => {
-  // Build split view lines: pair up old/new lines
-  const oldLines: (DiffLine | null)[] = [];
-  const newLines: (DiffLine | null)[] = [];
-
-  let oi = 0;
-  let ni = 0;
-  const deletions: DiffLine[] = [];
-  const additions: DiffLine[] = [];
-
-  for (const line of hunk.lines) {
-    if (line.origin === "-") {
-      deletions.push(line);
-    } else if (line.origin === "+") {
-      additions.push(line);
-    } else {
-      // Flush paired deletions/additions
-      const maxLen = Math.max(deletions.length, additions.length);
-      for (let i = 0; i < maxLen; i++) {
-        oldLines.push(i < deletions.length ? deletions[i] : null);
-        newLines.push(i < additions.length ? additions[i] : null);
-      }
-      deletions.length = 0;
-      additions.length = 0;
-      // Context line
-      oldLines.push(line);
-      newLines.push(line);
-    }
-  }
-  // Flush remaining
-  const maxLen = Math.max(deletions.length, additions.length);
-  for (let i = 0; i < maxLen; i++) {
-    oldLines.push(i < deletions.length ? deletions[i] : null);
-    newLines.push(i < additions.length ? additions[i] : null);
-  }
-
-  const isInSelection = (lineNo: number | null | undefined) => {
-    if (!lineNo || commentLineStart === null) return false;
-    const start = Math.min(
-      commentLineStart,
-      commentLineEnd ?? commentLineStart,
-    );
-    const end = Math.max(
-      commentLineStart,
-      commentLineEnd ?? commentLineStart,
-    );
-    return lineNo >= start && lineNo <= end;
-  };
+const CommentDisplay: React.FC<{ comment: ReviewComment }> = ({ comment }) => {
+  const { removeComment } = useStore();
 
   return (
-    <div className="diff-hunk">
-      <div className="hunk-header">{hunk.header}</div>
-      <table className="diff-table split">
-        <tbody>
-          {oldLines.map((oldLine, i) => {
-            const newLine = newLines[i];
-            const lineNo = newLine?.new_lineno ?? oldLine?.old_lineno;
-            const lineComments = lineNo
-              ? comments.filter(
-                  (c) => lineNo >= c.line_start && lineNo <= c.line_end,
-                )
-              : [];
-
-            const showCommentForm =
-              !isSelecting &&
-              commentLineStart !== null &&
-              lineNo !== undefined &&
-              lineNo ===
-                Math.max(
-                  commentLineStart,
-                  commentLineEnd ?? commentLineStart,
-                );
-
-            return (
-              <React.Fragment key={i}>
-                <tr
-                  className={`diff-line ${isInSelection(lineNo) ? "selected" : ""}`}
-                >
-                  {/* Old side */}
-                  <td
-                    className="line-number old"
-                    onClick={(e) =>
-                      oldLine?.old_lineno &&
-                      onLineClick(oldLine.old_lineno, e.shiftKey)
-                    }
-                  >
-                    {oldLine?.old_lineno ?? ""}
-                  </td>
-                  <td
-                    className={`line-content old ${
-                      oldLine?.origin === "-" ? "deletion" : ""
-                    } ${!oldLine ? "empty" : ""}`}
-                  >
-                    {oldLine
-                      ? oldLine.content.replace(/\n$/, "")
-                      : ""}
-                  </td>
-                  {/* New side */}
-                  <td
-                    className="line-number new"
-                    onClick={(e) =>
-                      newLine?.new_lineno &&
-                      onLineClick(newLine.new_lineno, e.shiftKey)
-                    }
-                  >
-                    {newLine?.new_lineno ?? ""}
-                  </td>
-                  <td
-                    className={`line-content new ${
-                      newLine?.origin === "+" ? "addition" : ""
-                    } ${!newLine ? "empty" : ""}`}
-                  >
-                    {newLine
-                      ? newLine.content.replace(/\n$/, "")
-                      : ""}
-                  </td>
-                </tr>
-                {/* Inline comments */}
-                {lineComments.map((c) => (
-                  <tr key={c.id} className="comment-row">
-                    <td colSpan={4}>
-                      <div className="inline-comment">
-                        <div className="comment-body">{c.body}</div>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-                {/* Comment form */}
-                {showCommentForm && (
-                  <tr className="comment-form-row">
-                    <td colSpan={4}>
-                      <CommentForm
-                        textareaRef={textareaRef}
-                        commentText={commentText}
-                        onCommentTextChange={onCommentTextChange}
-                        onSubmit={onSubmitComment}
-                        onCancel={onCancelComment}
-                      />
-                    </td>
-                  </tr>
-                )}
-                {/* "Add comment" button for selected line */}
-                {isSelecting &&
-                  lineNo !== undefined &&
-                  lineNo ===
-                    Math.max(
-                      commentLineStart ?? 0,
-                      commentLineEnd ?? 0,
-                    ) && (
-                    <tr className="add-comment-row">
-                      <td colSpan={4}>
-                        <button
-                          className="add-comment-btn"
-                          onClick={onStartComment}
-                        >
-                          + Add comment
-                        </button>
-                      </td>
-                    </tr>
-                  )}
-              </React.Fragment>
-            );
-          })}
-        </tbody>
-      </table>
+    <div className="dv-comment">
+      <div className="dv-comment-header">
+        <span className="dv-comment-location">
+          L{comment.line_start}
+          {comment.line_start !== comment.line_end && `-L${comment.line_end}`}
+        </span>
+        <span className="dv-comment-type">{comment.type}</span>
+        <button
+          className="dv-comment-delete"
+          onClick={() => removeComment(comment.id)}
+          title="Remove comment"
+        >
+          {"\u00D7"}
+        </button>
+      </div>
+      {comment.code_snippet && (
+        <pre className="dv-comment-snippet">{comment.code_snippet}</pre>
+      )}
+      <div className="dv-comment-body">{comment.body}</div>
     </div>
   );
 };
 
-const StackedHunk: React.FC<HunkProps> = ({
-  hunk,
-  comments,
-  commentLineStart,
-  commentLineEnd,
-  commentText,
-  isSelecting,
-  textareaRef,
-  onLineClick,
-  onStartComment,
-  onSubmitComment,
-  onCancelComment,
-  onCommentTextChange,
-}) => {
-  const isInSelection = (lineNo: number | null | undefined) => {
-    if (!lineNo || commentLineStart === null) return false;
-    const start = Math.min(
-      commentLineStart,
-      commentLineEnd ?? commentLineStart,
-    );
-    const end = Math.max(
-      commentLineStart,
-      commentLineEnd ?? commentLineStart,
-    );
-    return lineNo >= start && lineNo <= end;
-  };
-
-  return (
-    <div className="diff-hunk">
-      <div className="hunk-header">{hunk.header}</div>
-      <table className="diff-table stacked">
-        <tbody>
-          {hunk.lines.map((line, i) => {
-            const lineNo = line.new_lineno ?? line.old_lineno;
-            const lineComments = lineNo
-              ? comments.filter(
-                  (c) => lineNo >= c.line_start && lineNo <= c.line_end,
-                )
-              : [];
-            const showCommentForm =
-              !isSelecting &&
-              commentLineStart !== null &&
-              lineNo !== undefined &&
-              lineNo ===
-                Math.max(
-                  commentLineStart,
-                  commentLineEnd ?? commentLineStart,
-                );
-
-            return (
-              <React.Fragment key={i}>
-                <tr
-                  className={`diff-line ${line.origin === "+" ? "addition" : line.origin === "-" ? "deletion" : ""} ${isInSelection(lineNo) ? "selected" : ""}`}
-                >
-                  <td
-                    className="line-number old"
-                    onClick={(e) =>
-                      line.old_lineno &&
-                      onLineClick(line.old_lineno, e.shiftKey)
-                    }
-                  >
-                    {line.old_lineno ?? ""}
-                  </td>
-                  <td
-                    className="line-number new"
-                    onClick={(e) =>
-                      line.new_lineno &&
-                      onLineClick(line.new_lineno, e.shiftKey)
-                    }
-                  >
-                    {line.new_lineno ?? ""}
-                  </td>
-                  <td className="line-origin">{line.origin}</td>
-                  <td className="line-content">
-                    {line.content.replace(/\n$/, "")}
-                  </td>
-                </tr>
-                {lineComments.map((c) => (
-                  <tr key={c.id} className="comment-row">
-                    <td colSpan={4}>
-                      <div className="inline-comment">
-                        <div className="comment-body">{c.body}</div>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-                {showCommentForm && (
-                  <tr className="comment-form-row">
-                    <td colSpan={4}>
-                      <CommentForm
-                        textareaRef={textareaRef}
-                        commentText={commentText}
-                        onCommentTextChange={onCommentTextChange}
-                        onSubmit={onSubmitComment}
-                        onCancel={onCancelComment}
-                      />
-                    </td>
-                  </tr>
-                )}
-                {isSelecting &&
-                  lineNo !== undefined &&
-                  lineNo ===
-                    Math.max(
-                      commentLineStart ?? 0,
-                      commentLineEnd ?? 0,
-                    ) && (
-                    <tr className="add-comment-row">
-                      <td colSpan={4}>
-                        <button
-                          className="add-comment-btn"
-                          onClick={onStartComment}
-                        >
-                          + Add comment
-                        </button>
-                      </td>
-                    </tr>
-                  )}
-              </React.Fragment>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
-  );
-};
-
-interface CommentFormProps {
-  textareaRef: React.RefObject<HTMLTextAreaElement | null>;
-  commentText: string;
-  onCommentTextChange: (text: string) => void;
-  onSubmit: () => void;
+const CommentFormInline: React.FC<{
+  fileDiff: FileDiff;
+  target: CommentFormTarget;
+  onSubmit: (body: string) => void;
   onCancel: () => void;
-}
+}> = ({ target, onSubmit, onCancel }) => {
+  const [text, setText] = useState("");
 
-const CommentForm: React.FC<CommentFormProps> = ({
-  textareaRef,
-  commentText,
-  onCommentTextChange,
-  onSubmit,
-  onCancel,
-}) => {
   return (
-    <div className="comment-form">
+    <div className="dv-comment-form">
+      <div className="dv-form-header">
+        L{Math.min(target.selectionStart, target.selectionEnd)}
+        {target.selectionStart !== target.selectionEnd &&
+          `-L${Math.max(target.selectionStart, target.selectionEnd)}`}
+      </div>
       <textarea
-        ref={textareaRef}
-        className="comment-textarea"
+        className="dv-form-textarea"
+        autoFocus
         placeholder="Write a review comment..."
-        value={commentText}
-        onChange={(e) => onCommentTextChange(e.target.value)}
+        value={text}
+        onChange={(e) => setText(e.target.value)}
         onKeyDown={(e) => {
           if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
             e.preventDefault();
-            onSubmit();
+            if (text.trim()) onSubmit(text.trim());
           }
           if (e.key === "Escape") {
             onCancel();
@@ -548,14 +401,14 @@ const CommentForm: React.FC<CommentFormProps> = ({
         }}
         rows={3}
       />
-      <div className="comment-form-actions">
+      <div className="dv-form-actions">
         <button className="btn btn-secondary" onClick={onCancel}>
           Cancel
         </button>
         <button
           className="btn btn-primary"
-          onClick={onSubmit}
-          disabled={!commentText.trim()}
+          onClick={() => text.trim() && onSubmit(text.trim())}
+          disabled={!text.trim()}
         >
           Add Comment
           <kbd>Ctrl+Enter</kbd>
