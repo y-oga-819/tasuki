@@ -175,39 +175,28 @@ export interface ReviewComment {
 
 ## 6. Claude Code ↔ Tasuki 連携
 
-### 通信方式：ファイル監視ベース
+> **ステータス: 未定**
+>
+> Claude Code から Tasuki へのコメント書き戻し（リプライの追加等）の具体的な連携方式は未検討。
+> Phase 1・2 の実装を進めた上で、実際のワークフローを踏まえて改めて設計する。
+>
+> 検討すべき論点：
+> - 通信方式（ファイル直接書き込み / Tauri IPC / その他）
+> - 排他制御の要否と方式
+> - Claude Code 側が Tasuki のデータ構造をどこまで知る必要があるか
 
-Claude Code が `.tasuki/reviews/{sha}_{source}.json` に直接書き込み、Tasuki がファイル変更を検知して再読み込みする。
+### Tasuki → Claude Code（確定済み）
 
-```
-Claude Code                          Tasuki
-    │                                   │
-    │  .tasuki/reviews/abc_uncommitted.json を読む
-    │  ← 未解決コメントを取得           │
-    │                                   │
-    │  コード修正                        │
-    │                                   │
-    │  JSON にリプライコメントを追記 →   │
-    │                                   │  ファイル変更検知
-    │                                   │  JSON を再読み込み
-    │                                   │  UI にリプライを反映
-    │                                   │
-```
-
-### 排他制御
-
-- JSON ファイルの読み書きには `flock` 等のファイルロックを使用する
-- Tauri 側（Rust）: `fs2` crate の `lock_exclusive()` / `lock_shared()`
-- Claude Code 側: ファイル全体を読み → 追記 → 書き戻す際にロックを取得
-
-### Claude Code 向け未解決コメントのプロンプト生成
-
-既存の `format-review.ts` を拡張し、未解決のルートコメントのみをフィルタリングして出力する。
+未解決コメントからプロンプトを生成してクリップボードにコピーする方向は既存の「Copy All」の延長で実現可能。
 
 ```typescript
 const unresolvedRoots = comments.filter(c => !c.resolved && !c.parent_id);
 const prompt = formatReviewPrompt(unresolvedRoots, docComments, verdict);
 ```
+
+### Claude Code → Tasuki（未定）
+
+Claude Code が修正後にリプライコメントを Tasuki に返す方式は今後検討する。
 
 ## 7. ワークフロー全体像
 
@@ -222,12 +211,12 @@ const prompt = formatReviewPrompt(unresolvedRoots, docComments, verdict);
 │     → クリップボードにコピー or 直接送信                        │
 ├─────────────────────────────────────────────────────────────┤
 │  3. Claude Code: プロンプトを受け取り修正                      │
-│     → 修正完了後 .tasuki/reviews/ の JSON にリプライを追記     │
-│     → author: "claude", parent_id: "元のコメントID"           │
+│     → コードを修正（コミットはしない）                          │
+│     → Tasuki への書き戻し方式は未定（将来検討）                 │
 ├─────────────────────────────────────────────────────────────┤
-│  4. Human: Tasuki を再開（または自動リロード）                  │
-│     → ファイル変更検知 → JSON 再読み込み                       │
-│     → Claude のリプライがスレッドとして表示される                │
+│  4. Human: Tasuki を再開                                      │
+│     → HEAD 同じ → コメント復元                                │
+│     → diff の変化を確認し、コメントを resolved にしていく       │
 ├─────────────────────────────────────────────────────────────┤
 │  5. Human: 納得したら「resolved」にする                        │
 │     → まだ未解決があればステップ 2 に戻る                       │
@@ -253,12 +242,9 @@ const prompt = formatReviewPrompt(unresolvedRoots, docComments, verdict);
 7. **Frontend**: `format-review.ts` を拡張（未解決のみフィルタ）
 8. **Frontend**: ReviewPanel に outdated コメントセクションを追加
 
-### Phase 3: Claude Code 連携
+### Phase 3: Claude Code 連携（未定）
 
-9. **Backend**: `.tasuki/reviews/` のファイル変更監視を追加
-10. **Frontend**: JSON 変更検知時の再読み込みロジック
-11. **排他制御**: ファイルロック実装
-12. **ドキュメント**: Claude Code 向けの JSON 書き込み仕様を整備
+Claude Code → Tasuki の書き戻し方式が決まり次第、具体的なタスクを定義する。
 
 ## 9. 既知の制約・注意点
 
