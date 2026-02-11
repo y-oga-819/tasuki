@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeSlug from "rehype-slug";
 import rehypeRaw from "rehype-raw";
+import { renderMermaid, THEMES } from "beautiful-mermaid";
 import { useStore } from "../store";
 import * as api from "../utils/tauri-api";
 
@@ -127,17 +128,55 @@ export const MarkdownViewer: React.FC = () => {
   );
 };
 
-/** Placeholder for Mermaid diagram rendering.
- *  In Phase 1, we show the source code with a note.
- *  beautiful-mermaid integration will come later.
- */
 const MermaidBlock: React.FC<{ code: string }> = ({ code }) => {
+  const [state, setState] = useState<
+    { status: "loading" } | { status: "ok"; svg: string } | { status: "error"; message: string }
+  >({ status: "loading" });
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    renderMermaid(code, THEMES["github-dark"])
+      .then((result) => {
+        if (!cancelled) setState({ status: "ok", svg: result });
+      })
+      .catch((e) => {
+        if (!cancelled) setState({ status: "error", message: e instanceof Error ? e.message : String(e) });
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [code]);
+
+  if (state.status === "error") {
+    return (
+      <div className="mermaid-block mermaid-error">
+        <div className="mermaid-label">Mermaid Diagram (Error)</div>
+        <pre className="mermaid-source">
+          <code>{code}</code>
+        </pre>
+      </div>
+    );
+  }
+
+  if (state.status === "loading") {
+    return (
+      <div className="mermaid-block mermaid-loading">
+        <div className="mermaid-label">Mermaid Diagram</div>
+        <div className="mermaid-render-area">Loading...</div>
+      </div>
+    );
+  }
+
   return (
     <div className="mermaid-block">
-      <div className="mermaid-label">Mermaid Diagram</div>
-      <pre className="mermaid-source">
-        <code>{code}</code>
-      </pre>
+      <div
+        ref={containerRef}
+        className="mermaid-render-area"
+        dangerouslySetInnerHTML={{ __html: state.svg }}
+      />
     </div>
   );
 };
