@@ -7,11 +7,15 @@ import { ReviewPanel } from "./components/ReviewPanel";
 import { useStore } from "./store";
 import { useDiff } from "./hooks/useDiff";
 import { useFileWatcher } from "./hooks/useFileWatcher";
+import { useReviewPersistence } from "./hooks/useReviewPersistence";
 import * as api from "./utils/tauri-api";
 
 const App: React.FC = () => {
   const { setRepoPath, setDocFiles, setSelectedDoc } = useStore();
   const { refetch } = useDiff();
+
+  // Persist and restore review comments
+  useReviewPersistence();
 
   // Initialize: get repo path and doc files
   useEffect(() => {
