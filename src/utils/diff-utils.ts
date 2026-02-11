@@ -1,4 +1,4 @@
-import type { FileDiff, DiffHunk } from "../types";
+import type { FileDiff } from "../types";
 
 /** Get a code snippet from a file diff at specified line range */
 export function getCodeSnippet(
@@ -80,6 +80,44 @@ export function generateUnifiedDiff(fileDiff: FileDiff): string {
 
   lines.push(`--- a/${fileDiff.file.old_path || fileDiff.file.path}`);
   lines.push(`+++ b/${fileDiff.file.path}`);
+
+  for (const hunk of fileDiff.hunks) {
+    lines.push(hunk.header);
+    for (const line of hunk.lines) {
+      lines.push(`${line.origin}${line.content.replace(/\n$/, "")}`);
+    }
+  }
+
+  return lines.join("\n");
+}
+
+/** Generate a full git-format patch string for use with @pierre/diffs PatchDiff */
+export function generateGitPatch(fileDiff: FileDiff): string {
+  const lines: string[] = [];
+  const oldPath = fileDiff.file.old_path || fileDiff.file.path;
+  const newPath = fileDiff.file.path;
+
+  if (fileDiff.file.status === "added") {
+    lines.push(`diff --git a/${newPath} b/${newPath}`);
+    lines.push("new file mode 100644");
+    lines.push("--- /dev/null");
+    lines.push(`+++ b/${newPath}`);
+  } else if (fileDiff.file.status === "deleted") {
+    lines.push(`diff --git a/${oldPath} b/${oldPath}`);
+    lines.push("deleted file mode 100644");
+    lines.push(`--- a/${oldPath}`);
+    lines.push("+++ /dev/null");
+  } else if (fileDiff.file.status === "renamed") {
+    lines.push(`diff --git a/${oldPath} b/${newPath}`);
+    lines.push(`rename from ${oldPath}`);
+    lines.push(`rename to ${newPath}`);
+    lines.push(`--- a/${oldPath}`);
+    lines.push(`+++ b/${newPath}`);
+  } else {
+    lines.push(`diff --git a/${oldPath} b/${newPath}`);
+    lines.push(`--- a/${oldPath}`);
+    lines.push(`+++ b/${newPath}`);
+  }
 
   for (const hunk of fileDiff.hunks) {
     lines.push(hunk.header);
