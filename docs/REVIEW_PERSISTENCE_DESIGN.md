@@ -58,24 +58,23 @@ staged 上のコメントと uncommitted 上のコメントは別物であるた
 ### 問題
 
 HEAD が同じでもワーキングツリーが変われば diff が変わるため、コメントが指す行が移動・消滅しうる。
+さらに、コメントした行はまさに「変更すべき」と指摘した行であるため、修正後は code_snippet が一致しないのが通常のケースである。
+つまりファジーマッチングはリレーワークフローでは原理的にほぼ失敗する。
 
-例：
-1. Human が `L42` にコメント
-2. Claude Code がファイルを修正（コミットなし）
-3. Human が Tasuki 再開 → HEAD 同じ → コメント復元
-4. しかし `L42` は別のコードになっている
+### 対策：diff ハッシュによるモード分け
 
-### 対策：code_snippet によるファジーマッチング
+ファジーマッチングではなく、diff の内容が変わったかどうかで復元方式を切り替える。
+保存時に diff 全体のハッシュを記録しておく。
 
-1. コメント保存時に `code_snippet`（対象行の実際のコード）を記録する（既存の動作）
-2. 復元時に、現在の diff から `code_snippet` を検索し、マッチする行にコメントを再配置する
-3. マッチしない場合は `outdated` としてマークする
+| `head_commit` | `diff_hash` | 復元方式 |
+|---------------|-------------|---------|
+| 同じ | 同じ | **完全復元** — line_number でインライン表示 |
+| 同じ | 違う | **チェックリスト表示** — ReviewPanel にのみ表示（インラインには出さない） |
+| 違う | - | **新規セッション** — コメントを読み込まない |
 
-### outdated コメントの表示
-
-- diff のインラインには表示しない（行番号が不正確なため）
-- ReviewPanel に「Outdated」バッジ付きで表示する
-- ユーザーは outdated コメントを確認し、解決済みにするか手動で再配置できる
+- 「完全復元」は純粋な中断・再開のケース（diff が一切変わっていない）
+- 「チェックリスト表示」はリレーワークフロー後のケース（コメントは修正確認用のチェックリストとして機能する）
+- ReviewPanel のチェックリスト表示では「Outdated」バッジを付け、ユーザーが確認後に resolved にできる
 
 ## 5. データ構造
 
@@ -98,7 +97,6 @@ export interface ReviewComment {
   author: "human" | "claude";     // 誰が書いたか
   resolved: boolean;              // 解決済みかどうか
   resolved_at: number | null;     // 解決した時刻
-  outdated: boolean;              // ファジーマッチ失敗時に true
 }
 ```
 
@@ -108,6 +106,7 @@ export interface ReviewComment {
 // .tasuki/reviews/{head_sha}_{source_type}.json
 {
   "head_commit": "abc1234def5678...",
+  "diff_hash": "sha256_of_diff_content",
   "diff_source": { "type": "uncommitted" },
   "created_at": 1234567890000,
   "updated_at": 1234567891000,
@@ -125,7 +124,7 @@ export interface ReviewComment {
       "type": "suggestion",
       "resolved": false,
       "resolved_at": null,
-      "outdated": false,
+
       "created_at": 1234567890000
     },
     {
@@ -140,7 +139,7 @@ export interface ReviewComment {
       "type": "comment",
       "resolved": false,
       "resolved_at": null,
-      "outdated": false,
+
       "created_at": 1234567891000
     }
   ],
@@ -189,9 +188,23 @@ export interface ReviewComment {
 
 未解決コメントからプロンプトを生成してクリップボードにコピーする方向は既存の「Copy All」の延長で実現可能。
 
+プロンプトに含めるのは、未解決スレッドごとに**人間の最後のコメント**とする。
+スレッド全体を含めるとコンテキスト量が過大になるため、直近の人間の指摘に絞る。
+
 ```typescript
+// 未解決のルートコメントを抽出
 const unresolvedRoots = comments.filter(c => !c.resolved && !c.parent_id);
-const prompt = formatReviewPrompt(unresolvedRoots, docComments, verdict);
+
+// 各スレッドから人間の最後のコメントを取得
+const latestHumanComments = unresolvedRoots.map(root => {
+  const humanReplies = comments
+    .filter(c => c.parent_id === root.id && c.author === "human")
+    .sort((a, b) => b.created_at - a.created_at);
+  // リプライがあればその最新、なければルート自身
+  return humanReplies[0] ?? root;
+});
+
+const prompt = formatReviewPrompt(latestHumanComments, docComments, verdict);
 ```
 
 ### Claude Code → Tasuki（未定）
@@ -230,9 +243,9 @@ Claude Code が修正後にリプライコメントを Tasuki に返す方式は
 
 ### Phase 1: 基本的な永続化（中断・再開）
 
-1. **Backend**: `get_head_sha` コマンドを `git.rs` に追加
-2. **Backend**: `save_review` / `load_review` コマンドを追加
-3. **Frontend**: `ReviewComment` 型に `parent_id`, `author`, `resolved`, `resolved_at`, `outdated` を追加
+1. **Backend**: `get_head_sha` コマンドと diff ハッシュ生成を `git.rs` に追加
+2. **Backend**: `save_review` / `load_review` コマンドを追加（`diff_hash` による復元モード判定を含む）
+3. **Frontend**: `ReviewComment` 型に `parent_id`, `author`, `resolved`, `resolved_at` を追加
 4. **Frontend**: `useReviewPersistence` hook を作成（保存・復元ロジック）
 5. **Frontend**: `App.tsx` に hook を組み込み
 
@@ -240,7 +253,7 @@ Claude Code が修正後にリプライコメントを Tasuki に返す方式は
 
 6. **Frontend**: コメント UI にリプライ表示・解決トグルを追加
 7. **Frontend**: `format-review.ts` を拡張（未解決のみフィルタ）
-8. **Frontend**: ReviewPanel に outdated コメントセクションを追加
+8. **Frontend**: ReviewPanel に diff 変更時のチェックリスト表示を追加
 
 ### Phase 3: Claude Code 連携（未定）
 
@@ -251,6 +264,5 @@ Claude Code → Tasuki の書き戻し方式が決まり次第、具体的なタ
 | 項目 | 内容 |
 |------|------|
 | **ローカルのみ** | `.tasuki/` は `.gitignore` に入れるため、マシン間でレビュー状態は共有されない |
-| **ファジーマッチの限界** | 同一コードが複数箇所にある場合、誤った行にマッチする可能性がある |
 | **range diff のキー** | `{ type: "range", from, to }` の場合は `to` の SHA をキーに使用する |
 | **amend** | `git commit --amend` で SHA が変わるため、旧レビューは orphaned になる（正しい動作） |
