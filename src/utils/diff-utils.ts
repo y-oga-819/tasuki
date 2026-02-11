@@ -1,3 +1,4 @@
+import { cleanLastNewline } from "@pierre/diffs";
 import type { FileDiff } from "../types";
 
 /** Get a code snippet from a file diff at specified line range */
@@ -6,24 +7,24 @@ export function getCodeSnippet(
   lineStart: number,
   lineEnd: number,
 ): string {
-  const lines: string[] = [];
+  // Prefer extracting from new_content directly (Pierre-native path)
+  if (fileDiff.new_content != null) {
+    const allLines = fileDiff.new_content.split("\n");
+    // lineStart/lineEnd are 1-indexed
+    return allLines.slice(lineStart - 1, lineEnd).join("\n");
+  }
 
+  // Fallback: extract from hunk line data
+  const lines: string[] = [];
   for (const hunk of fileDiff.hunks) {
     for (const line of hunk.lines) {
       const lineNo = line.new_lineno ?? line.old_lineno;
       if (lineNo && lineNo >= lineStart && lineNo <= lineEnd) {
-        lines.push(line.content.replace(/\n$/, ""));
+        lines.push(cleanLastNewline(line.content));
       }
     }
   }
-
   return lines.join("\n");
-}
-
-/** Get the file extension for syntax highlighting */
-export function getFileExtension(path: string): string {
-  const parts = path.split(".");
-  return parts.length > 1 ? parts[parts.length - 1] : "";
 }
 
 /** Get a display-friendly file name */
@@ -39,9 +40,7 @@ export function getFileDir(path: string): string {
 }
 
 /** Get status badge color */
-export function getStatusColor(
-  status: string,
-): string {
+export function getStatusColor(status: string): string {
   switch (status) {
     case "added":
       return "var(--color-added)";
@@ -74,24 +73,10 @@ export function getStatusLabel(status: string): string {
   }
 }
 
-/** Generate a unified diff string for a file */
-export function generateUnifiedDiff(fileDiff: FileDiff): string {
-  const lines: string[] = [];
-
-  lines.push(`--- a/${fileDiff.file.old_path || fileDiff.file.path}`);
-  lines.push(`+++ b/${fileDiff.file.path}`);
-
-  for (const hunk of fileDiff.hunks) {
-    lines.push(hunk.header);
-    for (const line of hunk.lines) {
-      lines.push(`${line.origin}${line.content.replace(/\n$/, "")}`);
-    }
-  }
-
-  return lines.join("\n");
-}
-
-/** Generate a full git-format patch string for use with @pierre/diffs PatchDiff */
+/**
+ * Generate a full git-format patch string for use with PatchDiff.
+ * Only used as fallback when old_content/new_content are unavailable.
+ */
 export function generateGitPatch(fileDiff: FileDiff): string {
   const lines: string[] = [];
   const oldPath = fileDiff.file.old_path || fileDiff.file.path;
@@ -122,7 +107,7 @@ export function generateGitPatch(fileDiff: FileDiff): string {
   for (const hunk of fileDiff.hunks) {
     lines.push(hunk.header);
     for (const line of hunk.lines) {
-      lines.push(`${line.origin}${line.content.replace(/\n$/, "")}`);
+      lines.push(`${line.origin}${cleanLastNewline(line.content)}`);
     }
   }
 

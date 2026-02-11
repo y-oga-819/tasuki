@@ -1,10 +1,16 @@
 import React, { useMemo, useCallback, useState } from "react";
-import { PatchDiff } from "@pierre/diffs/react";
+import { MultiFileDiff, PatchDiff } from "@pierre/diffs/react";
 import type {
   DiffLineAnnotation,
   RenderHeaderMetadataProps,
 } from "@pierre/diffs/react";
-import type { SelectedLineRange, AnnotationSide } from "@pierre/diffs";
+import type {
+  SelectedLineRange,
+  AnnotationSide,
+  FileContents,
+  FileDiffOptions,
+} from "@pierre/diffs";
+import { getFiletypeFromFileName, cleanLastNewline } from "@pierre/diffs";
 import { useStore } from "../store";
 import type { CommentFormTarget } from "../store";
 import type { FileDiff, ReviewComment } from "../types";
@@ -38,11 +44,42 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({ fileDiff }) => {
   const filePath = fileDiff.file.path;
   const isCollapsed = collapsedFiles.has(filePath);
 
-  // Generate patch string from Tasuki data
-  const patch = useMemo(() => generateGitPatch(fileDiff), [fileDiff]);
-
   // Map Tasuki DiffLayout → Pierre diffStyle
   const diffStyle = diffLayout === "split" ? "split" : "unified";
+
+  // Detect language via Pierre's built-in detection
+  const lang = useMemo(
+    () => getFiletypeFromFileName(filePath),
+    [filePath],
+  );
+
+  // Build Pierre FileContents from Tasuki's old_content / new_content
+  const hasFileContents = fileDiff.old_content != null || fileDiff.new_content != null;
+
+  const oldFile = useMemo<FileContents | undefined>(() => {
+    if (!hasFileContents) return undefined;
+    const oldName = fileDiff.file.old_path || fileDiff.file.path;
+    return {
+      name: oldName,
+      contents: fileDiff.old_content ? cleanLastNewline(fileDiff.old_content) : "",
+      lang: lang || undefined,
+    };
+  }, [hasFileContents, fileDiff.old_content, fileDiff.file.old_path, fileDiff.file.path, lang]);
+
+  const newFile = useMemo<FileContents | undefined>(() => {
+    if (!hasFileContents) return undefined;
+    return {
+      name: fileDiff.file.path,
+      contents: fileDiff.new_content ? cleanLastNewline(fileDiff.new_content) : "",
+      lang: lang || undefined,
+    };
+  }, [hasFileContents, fileDiff.new_content, fileDiff.file.path, lang]);
+
+  // Fallback: generate patch string only when file contents are unavailable
+  const patch = useMemo(
+    () => (hasFileContents ? "" : generateGitPatch(fileDiff)),
+    [hasFileContents, fileDiff],
+  );
 
   // --- Comments for this file ---
   const fileComments = useMemo(
@@ -54,7 +91,6 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({ fileDiff }) => {
   const lineAnnotations = useMemo(() => {
     const annotations: DiffLineAnnotation<AnnotationMeta>[] = [];
 
-    // Saved comments
     for (const comment of fileComments) {
       annotations.push({
         side: "additions",
@@ -63,15 +99,11 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({ fileDiff }) => {
       });
     }
 
-    // Active comment form (injected as an annotation at the target line)
     if (commentFormTarget && commentFormTarget.filePath === filePath) {
       annotations.push({
         side: commentFormTarget.side,
         lineNumber: commentFormTarget.lineNumber,
-        metadata: {
-          kind: "form",
-          target: commentFormTarget,
-        },
+        metadata: { kind: "form", target: commentFormTarget },
       });
     }
 
@@ -82,7 +114,6 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({ fileDiff }) => {
   const handleLineSelected = useCallback(
     (range: SelectedLineRange | null) => {
       setSelectedLineRange(range);
-      // Close form when selection changes
       if (commentFormTarget?.filePath === filePath) {
         setCommentFormTarget(null);
       }
@@ -90,7 +121,23 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({ fileDiff }) => {
     [setSelectedLineRange, setCommentFormTarget, commentFormTarget, filePath],
   );
 
-  // --- Hover utility: floating "+" button to start a comment ---
+  // --- Mouse event handlers ---
+  const handleLineNumberClick = useCallback(
+    (props: { lineNumber: number; annotationSide: AnnotationSide; event: PointerEvent }) => {
+      // Open comment form on line number click (single click = single line comment)
+      if (commentFormTarget?.filePath === filePath) return;
+      setCommentFormTarget({
+        filePath,
+        lineNumber: props.lineNumber,
+        side: props.annotationSide,
+        selectionStart: props.lineNumber,
+        selectionEnd: props.lineNumber,
+      });
+    },
+    [commentFormTarget, filePath, setCommentFormTarget],
+  );
+
+  // --- Hover utility: floating "+" button ---
   const renderHoverUtility = useCallback(
     (
       getHoveredLine: () =>
@@ -99,8 +146,6 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({ fileDiff }) => {
     ) => {
       const hovered = getHoveredLine();
       if (!hovered) return null;
-
-      // Don't show if there's already a form open on this file
       if (commentFormTarget?.filePath === filePath) return null;
 
       return (
@@ -127,13 +172,11 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({ fileDiff }) => {
     [commentFormTarget, filePath, setCommentFormTarget, setSelectedLineRange],
   );
 
-  // --- Render annotations (both saved comments and form) ---
+  // --- Render annotations ---
   const renderAnnotation = useCallback(
     (annotation: DiffLineAnnotation<AnnotationMeta>) => {
       if (annotation.metadata.kind === "comment") {
-        return (
-          <CommentDisplay comment={annotation.metadata.comment} />
-        );
+        return <CommentDisplay comment={annotation.metadata.comment} />;
       }
 
       if (annotation.metadata.kind === "form") {
@@ -159,9 +202,7 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({ fileDiff }) => {
               setCommentFormTarget(null);
               setSelectedLineRange(null);
             }}
-            onCancel={() => {
-              setCommentFormTarget(null);
-            }}
+            onCancel={() => setCommentFormTarget(null)}
           />
         );
       }
@@ -171,41 +212,39 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({ fileDiff }) => {
     [fileDiff, filePath, addComment, setCommentFormTarget, setSelectedLineRange],
   );
 
-  // --- Header metadata: stats, badges, collapse toggle ---
+  // --- Header metadata ---
   const renderHeaderMetadata = useCallback(
-    (_props: RenderHeaderMetadataProps) => {
-      return (
-        <>
-          {fileDiff.file.old_path && (
-            <span className="dv-renamed">{"\u2190 " + fileDiff.file.old_path}</span>
+    (_props: RenderHeaderMetadataProps) => (
+      <>
+        {fileDiff.file.old_path && (
+          <span className="dv-renamed">{"\u2190 " + fileDiff.file.old_path}</span>
+        )}
+        <span className="dv-stats">
+          {fileDiff.file.additions > 0 && (
+            <span className="dv-stat-add">+{fileDiff.file.additions}</span>
           )}
-          <span className="dv-stats">
-            {fileDiff.file.additions > 0 && (
-              <span className="dv-stat-add">+{fileDiff.file.additions}</span>
-            )}
-            {fileDiff.file.deletions > 0 && (
-              <span className="dv-stat-del">-{fileDiff.file.deletions}</span>
-            )}
-          </span>
-          {fileDiff.file.is_generated && (
-            <span className="dv-generated">Generated</span>
+          {fileDiff.file.deletions > 0 && (
+            <span className="dv-stat-del">-{fileDiff.file.deletions}</span>
           )}
-          <button
-            className="dv-collapse-btn"
-            onClick={(e) => {
-              e.stopPropagation();
-              toggleFileCollapse(filePath);
-            }}
-          >
-            {"\u25BC"}
-          </button>
-        </>
-      );
-    },
+        </span>
+        {fileDiff.file.is_generated && (
+          <span className="dv-generated">Generated</span>
+        )}
+        <button
+          className="dv-collapse-btn"
+          onClick={(e) => {
+            e.stopPropagation();
+            toggleFileCollapse(filePath);
+          }}
+        >
+          {"\u25BC"}
+        </button>
+      </>
+    ),
     [fileDiff.file, filePath, toggleFileCollapse],
   );
 
-  // --- selectedLines prop: use line range or selection from form target ---
+  // --- selectedLines prop ---
   const selectedLines = useMemo(() => {
     if (commentFormTarget?.filePath === filePath) {
       return {
@@ -217,7 +256,36 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({ fileDiff }) => {
     return selectedLineRange;
   }, [selectedLineRange, commentFormTarget, filePath]);
 
-  // --- Collapsed state: show minimal header ---
+  // --- Shared Pierre options ---
+  const options = useMemo<FileDiffOptions<AnnotationMeta>>(
+    () => ({
+      diffStyle,
+      theme: { dark: "github-dark", light: "github-light" },
+      themeType: "dark",
+      enableLineSelection: true,
+      onLineSelected: handleLineSelected,
+      onLineNumberClick: handleLineNumberClick,
+      enableHoverUtility: true,
+      expandUnchanged: true,
+      diffIndicators: "classic",
+      lineDiffType: "word",
+      overflow: "scroll",
+      hunkSeparators: "line-info",
+    }),
+    [diffStyle, handleLineSelected, handleLineNumberClick],
+  );
+
+  // Shared render props
+  const sharedProps = {
+    options,
+    selectedLines,
+    lineAnnotations,
+    renderAnnotation,
+    renderHeaderMetadata,
+    renderHoverUtility,
+  };
+
+  // --- Collapsed ---
   if (isCollapsed) {
     return (
       <div className="dv-collapsed">
@@ -243,7 +311,7 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({ fileDiff }) => {
     );
   }
 
-  // --- Binary files ---
+  // --- Binary ---
   if (fileDiff.file.is_binary) {
     return (
       <div className="dv-binary">
@@ -253,28 +321,21 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({ fileDiff }) => {
     );
   }
 
-  // --- Full diff render via Pierre ---
+  // --- Render: prefer MultiFileDiff (file contents), fallback to PatchDiff ---
+  if (hasFileContents && oldFile && newFile) {
+    return (
+      <MultiFileDiff<AnnotationMeta>
+        oldFile={oldFile}
+        newFile={newFile}
+        {...sharedProps}
+      />
+    );
+  }
+
   return (
     <PatchDiff<AnnotationMeta>
       patch={patch}
-      options={{
-        diffStyle,
-        theme: { dark: "github-dark", light: "github-light" },
-        themeType: "dark",
-        enableLineSelection: true,
-        onLineSelected: handleLineSelected,
-        enableHoverUtility: true,
-        expandUnchanged: true,
-        diffIndicators: "classic",
-        lineDiffType: "word",
-        overflow: "scroll",
-        hunkSeparators: "line-info",
-      }}
-      selectedLines={selectedLines}
-      lineAnnotations={lineAnnotations}
-      renderAnnotation={renderAnnotation}
-      renderHeaderMetadata={renderHeaderMetadata}
-      renderHoverUtility={renderHoverUtility}
+      {...sharedProps}
     />
   );
 };
