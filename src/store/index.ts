@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import type { SelectedLineRange } from "@pierre/diffs";
 import type {
   DiffResult,
   DiffSource,
@@ -8,6 +9,15 @@ import type {
   DocComment,
   ReviewVerdict,
 } from "../types";
+
+/** Target line where the comment form is being shown */
+export interface CommentFormTarget {
+  filePath: string;
+  lineNumber: number;
+  side: "deletions" | "additions";
+  selectionStart: number;
+  selectionEnd: number;
+}
 
 interface TasukiState {
   // Display
@@ -33,6 +43,12 @@ interface TasukiState {
   setDocContent: (content: string | null) => void;
   collapsedFiles: Set<string>;
   toggleFileCollapse: (path: string) => void;
+
+  // Pierre-native diff state
+  selectedLineRange: SelectedLineRange | null;
+  setSelectedLineRange: (range: SelectedLineRange | null) => void;
+  commentFormTarget: CommentFormTarget | null;
+  setCommentFormTarget: (target: CommentFormTarget | null) => void;
 
   // Review comments
   comments: ReviewComment[];
@@ -93,6 +109,12 @@ export const useStore = create<TasukiState>((set) => ({
       }
       return { collapsedFiles: next };
     }),
+
+  // Pierre-native diff state
+  selectedLineRange: null,
+  setSelectedLineRange: (range) => set({ selectedLineRange: range }),
+  commentFormTarget: null,
+  setCommentFormTarget: (target) => set({ commentFormTarget: target }),
 
   // Review comments
   comments: [],
