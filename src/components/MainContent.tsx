@@ -1,6 +1,6 @@
 import React from "react";
 import { useStore } from "../store";
-import { DiffView } from "./DiffView";
+import { DiffViewer } from "./DiffViewer";
 import { MarkdownViewer } from "./MarkdownViewer";
 
 export const MainContent: React.FC = () => {
@@ -41,7 +41,7 @@ export const MainContent: React.FC = () => {
       {displayMode === "diff" && (
         <div className="content-panel diff-only">
           {selectedFileDiff ? (
-            <DiffView fileDiff={selectedFileDiff} />
+            <DiffViewer fileDiff={selectedFileDiff} />
           ) : diffResult && diffResult.files.length > 0 ? (
             <div className="no-selection">
               <p>Select a file from the sidebar to view changes.</p>
@@ -61,7 +61,7 @@ export const MainContent: React.FC = () => {
         <div className="content-panel split-view">
           <div className="split-left">
             {selectedFileDiff ? (
-              <DiffView fileDiff={selectedFileDiff} />
+              <DiffViewer fileDiff={selectedFileDiff} />
             ) : (
               <div className="no-selection">
                 <p>Select a file from the sidebar to view changes.</p>

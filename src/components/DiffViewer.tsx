@@ -18,11 +18,11 @@ type AnnotationMeta =
 
 // --- Main component ---
 
-interface DiffViewProps {
+interface DiffViewerProps {
   fileDiff: FileDiff;
 }
 
-export const DiffView: React.FC<DiffViewProps> = ({ fileDiff }) => {
+export const DiffViewer: React.FC<DiffViewerProps> = ({ fileDiff }) => {
   const {
     diffLayout,
     collapsedFiles,
