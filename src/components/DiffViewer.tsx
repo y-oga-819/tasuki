@@ -1,5 +1,5 @@
 import React, { useMemo, useCallback, useState } from "react";
-import { MultiFileDiff, PatchDiff } from "@pierre/diffs/react";
+import { MultiFileDiff, PatchDiff, File as PierreFile } from "@pierre/diffs/react";
 import type {
   DiffLineAnnotation,
   RenderHeaderMetadataProps,
@@ -31,6 +31,8 @@ interface DiffViewerProps {
 export const DiffViewer: React.FC<DiffViewerProps> = ({ fileDiff }) => {
   const {
     diffLayout,
+    diffOverflow,
+    expandUnchanged,
     collapsedFiles,
     toggleFileCollapse,
     comments,
@@ -44,8 +46,8 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({ fileDiff }) => {
   const filePath = fileDiff.file.path;
   const isCollapsed = collapsedFiles.has(filePath);
 
-  // Map Tasuki DiffLayout → Pierre diffStyle
-  const diffStyle = diffLayout === "split" ? "split" : "unified";
+  // DiffLayout now uses Pierre-native naming directly
+  const diffStyle = diffLayout;
 
   // Detect language via Pierre's built-in detection
   const lang = useMemo(
@@ -261,18 +263,18 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({ fileDiff }) => {
     () => ({
       diffStyle,
       theme: { dark: "github-dark", light: "github-light" },
-      themeType: "dark",
+      themeType: "system",
       enableLineSelection: true,
       onLineSelected: handleLineSelected,
       onLineNumberClick: handleLineNumberClick,
       enableHoverUtility: true,
-      expandUnchanged: true,
-      diffIndicators: "classic",
-      lineDiffType: "word",
-      overflow: "scroll",
-      hunkSeparators: "line-info",
+      expandUnchanged,
+      diffIndicators: "bars",
+      lineDiffType: "word-alt",
+      overflow: diffOverflow,
+      hunkSeparators: "metadata",
     }),
-    [diffStyle, handleLineSelected, handleLineNumberClick],
+    [diffStyle, diffOverflow, expandUnchanged, handleLineSelected, handleLineNumberClick],
   );
 
   // Shared render props
@@ -318,6 +320,22 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({ fileDiff }) => {
         <div className="dv-binary-header">{filePath}</div>
         <div className="dv-binary-body">Binary file changed</div>
       </div>
+    );
+  }
+
+  // --- Render: new files use Pierre File component for cleaner display ---
+  if (fileDiff.file.status === "added" && newFile) {
+    return (
+      <PierreFile
+        file={newFile}
+        options={{
+          theme: { dark: "github-dark", light: "github-light" },
+          themeType: "system",
+          overflow: diffOverflow,
+        }}
+        selectedLines={selectedLines}
+        renderHeaderMetadata={renderHeaderMetadata}
+      />
     );
   }
 

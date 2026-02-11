@@ -19,12 +19,19 @@ export interface CommentFormTarget {
   selectionEnd: number;
 }
 
+/** Overflow mode for diff lines (Pierre-native) */
+export type DiffOverflow = "scroll" | "wrap";
+
 interface TasukiState {
   // Display
   displayMode: DisplayMode;
   setDisplayMode: (mode: DisplayMode) => void;
   diffLayout: DiffLayout;
   setDiffLayout: (layout: DiffLayout) => void;
+  diffOverflow: DiffOverflow;
+  setDiffOverflow: (overflow: DiffOverflow) => void;
+  expandUnchanged: boolean;
+  setExpandUnchanged: (expand: boolean) => void;
 
   // Data
   diffResult: DiffResult | null;
@@ -82,6 +89,10 @@ export const useStore = create<TasukiState>((set) => ({
   setDisplayMode: (mode) => set({ displayMode: mode }),
   diffLayout: "split",
   setDiffLayout: (layout) => set({ diffLayout: layout }),
+  diffOverflow: "scroll",
+  setDiffOverflow: (overflow) => set({ diffOverflow: overflow }),
+  expandUnchanged: true,
+  setExpandUnchanged: (expand) => set({ expandUnchanged: expand }),
 
   // Data
   diffResult: null,
