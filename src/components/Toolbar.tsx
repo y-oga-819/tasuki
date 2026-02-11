@@ -1,6 +1,6 @@
 import React from "react";
 import { useStore } from "../store";
-import type { DisplayMode, DiffLayout } from "../types";
+import type { DisplayMode } from "../types";
 
 export const Toolbar: React.FC = () => {
   const {
@@ -8,6 +8,10 @@ export const Toolbar: React.FC = () => {
     setDisplayMode,
     diffLayout,
     setDiffLayout,
+    diffOverflow,
+    setDiffOverflow,
+    expandUnchanged,
+    setExpandUnchanged,
     diffResult,
     repoPath,
   } = useStore();
@@ -45,22 +49,47 @@ export const Toolbar: React.FC = () => {
 
       <div className="toolbar-right">
         {(displayMode === "diff" || displayMode === "diff-docs") && (
-          <div className="layout-toggle">
+          <>
+            <div className="layout-toggle">
+              <button
+                className={`layout-btn ${diffLayout === "split" ? "active" : ""}`}
+                onClick={() => setDiffLayout("split")}
+                title="Split view (side-by-side)"
+              >
+                Split
+              </button>
+              <button
+                className={`layout-btn ${diffLayout === "unified" ? "active" : ""}`}
+                onClick={() => setDiffLayout("unified")}
+                title="Unified view (stacked)"
+              >
+                Unified
+              </button>
+            </div>
+            <div className="layout-toggle">
+              <button
+                className={`layout-btn ${diffOverflow === "scroll" ? "active" : ""}`}
+                onClick={() => setDiffOverflow("scroll")}
+                title="Scroll long lines"
+              >
+                Scroll
+              </button>
+              <button
+                className={`layout-btn ${diffOverflow === "wrap" ? "active" : ""}`}
+                onClick={() => setDiffOverflow("wrap")}
+                title="Wrap long lines"
+              >
+                Wrap
+              </button>
+            </div>
             <button
-              className={`layout-btn ${diffLayout === "split" ? "active" : ""}`}
-              onClick={() => setDiffLayout("split")}
-              title="Split view (side-by-side)"
+              className={`layout-btn ${!expandUnchanged ? "active" : ""}`}
+              onClick={() => setExpandUnchanged(!expandUnchanged)}
+              title={expandUnchanged ? "Collapse unchanged lines" : "Expand all lines"}
             >
-              Split
+              {expandUnchanged ? "Collapse" : "Expand"}
             </button>
-            <button
-              className={`layout-btn ${diffLayout === "stacked" ? "active" : ""}`}
-              onClick={() => setDiffLayout("stacked")}
-              title="Stacked view (unified)"
-            >
-              Stacked
-            </button>
-          </div>
+          </>
         )}
 
         {diffResult && (

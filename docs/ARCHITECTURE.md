@@ -210,7 +210,7 @@ App
 | `diff` | 差分ビューアのみ表示 | コード変更のレビュー |
 | `diff-docs` | 差分 + ドキュメントを横並び表示 | 設計書を参照しながらレビュー |
 
-差分ビューアは `split`（左右分割）と `stacked`（上下積み重ね）の 2 レイアウトに対応。
+差分ビューアは `split`（左右分割）と `unified`（統合表示）の 2 レイアウトに対応（Pierre の `diffStyle` と同一命名）。
 
 ### 状態管理 (`store/index.ts`)
 
@@ -220,7 +220,7 @@ Zustand による単一ストアで全アプリ状態を管理する。
 TasukiState
 ├── 表示設定
 │   ├── displayMode: "docs" | "diff" | "diff-docs"
-│   └── diffLayout: "split" | "stacked"
+│   └── diffLayout: "split" | "unified"
 │
 ├── 差分データ
 │   ├── diffResult: DiffResult | null

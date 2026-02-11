@@ -74,6 +74,15 @@
   --radius-sm: 4px;
   --radius-md: 6px;
   --radius-lg: 8px;
+
+  /* Pierre (@pierre/diffs) integration — sync with Tasuki design system */
+  --diffs-font-family: var(--font-mono);
+  --diffs-font-fallback: Menlo, Consolas, monospace;
+  --diffs-header-font-family: var(--font-sans);
+  --diffs-font-size: var(--font-size-base);
+  --diffs-line-height: 20px;
+  --diffs-tab-size: 4;
+  --diffs-gap-inline: var(--space-2);
 }
 
 /* --- Reset & Base --- */

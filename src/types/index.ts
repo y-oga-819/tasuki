@@ -85,8 +85,8 @@ export type ReviewVerdict = "approve" | "request_changes" | null;
 /** Display mode for the main content area */
 export type DisplayMode = "docs" | "diff" | "diff-docs";
 
-/** Diff view layout */
-export type DiffLayout = "split" | "stacked";
+/** Diff view layout (matches Pierre's diffStyle naming) */
+export type DiffLayout = "split" | "unified";
 
 /** Diff source specification */
 export type DiffSource =
