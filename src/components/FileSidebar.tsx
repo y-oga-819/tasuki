@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useCallback } from "react";
 import { useStore } from "../store";
 import {
   getFileName,
@@ -29,6 +29,27 @@ export const FileSidebar: React.FC = () => {
   // Count comments per file
   const commentCount = (path: string) =>
     comments.filter((c) => c.file_path === path).length;
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (!diffResult) return;
+      const files = diffResult.files;
+      const currentIndex = files.findIndex(
+        (f) => f.file.path === selectedFile,
+      );
+
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        const next = Math.min(currentIndex + 1, files.length - 1);
+        setSelectedFile(files[next].file.path);
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        const prev = Math.max(currentIndex - 1, 0);
+        setSelectedFile(files[prev].file.path);
+      }
+    },
+    [diffResult, selectedFile, setSelectedFile],
+  );
 
   return (
     <aside className="file-sidebar">
@@ -90,7 +111,7 @@ export const FileSidebar: React.FC = () => {
             <span className="stat-added">+{diffResult.stats.additions}</span>
             <span className="stat-deleted">-{diffResult.stats.deletions}</span>
           </div>
-          <ul className="file-list">
+          <ul className="file-list" tabIndex={0} onKeyDown={handleKeyDown}>
             {diffResult.files.map((fd) => {
               const isCollapsed = collapsedFiles.has(fd.file.path);
               const isGenerated = fd.file.is_generated;
