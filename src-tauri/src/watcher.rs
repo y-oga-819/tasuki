@@ -22,12 +22,9 @@ const IGNORE_PATTERNS: &[&str] = &[
 ];
 
 /// .git paths that should trigger refresh (HEAD changes, ref updates)
-const GIT_WATCH_PATTERNS: &[&str] = &[
-    ".git/HEAD",
-    ".git/refs/",
-];
+const GIT_WATCH_PATTERNS: &[&str] = &["HEAD", "refs/"];
 
-fn should_ignore(path: &Path) -> bool {
+fn should_ignore(path: &Path, git_dir: Option<&Path>) -> bool {
     let path_str = path.to_string_lossy();
 
     // Check general ignore patterns
@@ -35,12 +32,41 @@ fn should_ignore(path: &Path) -> bool {
         return true;
     }
 
-    // For .git paths: only allow specific patterns through
+    // Events from the worktree git dir (e.g. .git/worktrees/<name>/)
+    if let Some(gd) = git_dir {
+        if path.starts_with(gd) {
+            let rel = path.strip_prefix(gd).unwrap_or(path);
+            let rel_str = rel.to_string_lossy();
+            return !GIT_WATCH_PATTERNS.iter().any(|p| rel_str.starts_with(p));
+        }
+    }
+
+    // For .git paths in the working directory
     if path_str.contains(".git/") || path_str.ends_with(".git") {
-        return !GIT_WATCH_PATTERNS.iter().any(|p| path_str.contains(p));
+        let git_idx = path_str.rfind(".git/").unwrap_or(path_str.len());
+        let after_git = &path_str[git_idx + 5..]; // skip ".git/"
+        return !GIT_WATCH_PATTERNS.iter().any(|p| after_git.starts_with(p));
     }
 
     false
+}
+
+/// Resolve the actual git directory for worktree environments.
+/// If .git is a file (worktree), reads the gitdir path from it.
+fn resolve_git_dir(repo_path: &Path) -> Option<PathBuf> {
+    let dot_git = repo_path.join(".git");
+    if dot_git.is_file() {
+        let content = std::fs::read_to_string(&dot_git).ok()?;
+        let gitdir = content.strip_prefix("gitdir: ")?.trim();
+        let gitdir_path = PathBuf::from(gitdir);
+        if gitdir_path.is_absolute() {
+            Some(gitdir_path)
+        } else {
+            Some(repo_path.join(gitdir_path))
+        }
+    } else {
+        None
+    }
 }
 
 /// Start watching a directory for changes and emit events to the frontend
@@ -56,6 +82,8 @@ pub fn start_watching(
         )));
     }
 
+    let git_dir = resolve_git_dir(&path);
+
     std::thread::spawn(move || {
         let (tx, rx) = mpsc::channel();
 
@@ -67,13 +95,22 @@ pub fn start_watching(
             .watch(&path, RecursiveMode::Recursive)
             .expect("Failed to watch path");
 
+        // Also watch the worktree git dir for HEAD/refs changes
+        if let Some(ref gd) = git_dir {
+            if gd.exists() {
+                let _ = debouncer
+                    .watcher()
+                    .watch(gd, RecursiveMode::Recursive);
+            }
+        }
+
         loop {
             match rx.recv() {
                 Ok(Ok(events)) => {
                     let changed_paths: Vec<String> = events
                         .iter()
                         .filter(|e| e.kind == DebouncedEventKind::Any)
-                        .filter(|e| !should_ignore(&e.path))
+                        .filter(|e| !should_ignore(&e.path, git_dir.as_deref()))
                         .map(|e| e.path.to_string_lossy().to_string())
                         .collect();
 
