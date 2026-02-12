@@ -167,6 +167,36 @@ a:hover {
   border-radius: var(--radius-sm);
 }
 
+.toolbar-branch {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  font-family: var(--font-mono);
+}
+
+.branch-icon {
+  flex-shrink: 0;
+  color: var(--color-text-tertiary);
+}
+
+.toolbar-worktree-badge {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  padding: 1px 6px;
+  background: var(--color-bg-overlay);
+  border-radius: 10px;
+  font-weight: 500;
+}
+
+.toolbar-separator {
+  width: 1px;
+  height: 20px;
+  background: var(--color-border-primary);
+  flex-shrink: 0;
+}
+
 .toolbar-center {
   display: flex;
   align-items: center;
@@ -239,7 +269,9 @@ a:hover {
   display: flex;
   gap: var(--space-2);
   font-size: var(--font-size-sm);
+  font-weight: 600;
   color: var(--color-text-secondary);
+  font-family: var(--font-mono);
 }
 
 /* --- File Sidebar --- */

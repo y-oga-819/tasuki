@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use std::sync::Mutex;
 
 use crate::error::TasukiError;
-use crate::git::{self, CommitInfo, DiffResult};
+use crate::git::{self, CommitInfo, DiffResult, RepoInfo};
 use crate::watcher;
 use crate::CliArgs;
 
@@ -90,6 +90,13 @@ pub fn start_watching(
 ) -> Result<(), TasukiError> {
     let repo_path = state.repo_path.lock().unwrap().clone();
     watcher::start_watching(app_handle, repo_path)
+}
+
+/// Get repository info (name, branch, worktree status)
+#[tauri::command]
+pub fn get_repo_info(state: State<AppState>) -> Result<RepoInfo, TasukiError> {
+    let repo_path = state.repo_path.lock().unwrap().clone();
+    git::get_repo_info(&repo_path)
 }
 
 /// Get the current repository path

@@ -9,6 +9,7 @@ import type {
   DocComment,
   ReviewVerdict,
   ReviewRestoreMode,
+  RepoInfo,
 } from "../types";
 
 /** Target line where the comment form is being shown */
@@ -88,6 +89,8 @@ interface TasukiState {
   // Repo info
   repoPath: string;
   setRepoPath: (path: string) => void;
+  repoInfo: RepoInfo | null;
+  setRepoInfo: (info: RepoInfo | null) => void;
 }
 
 export const useStore = create<TasukiState>((set) => ({
@@ -178,4 +181,6 @@ export const useStore = create<TasukiState>((set) => ({
   // Repo info
   repoPath: "",
   setRepoPath: (path) => set({ repoPath: path }),
+  repoInfo: null,
+  setRepoInfo: (info) => set({ repoInfo: info }),
 }));

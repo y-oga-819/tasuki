@@ -71,6 +71,50 @@ pub struct CommitInfo {
     pub time: i64,
 }
 
+/// Repository information (branch, worktree status)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RepoInfo {
+    pub repo_name: String,
+    pub branch_name: Option<String>,
+    pub is_worktree: bool,
+}
+
+/// Resolve the repository name. For worktrees, trace back through commondir()
+/// to find the original repository name.
+fn resolve_repo_name(repo: &Repository) -> String {
+    if repo.is_worktree() {
+        let commondir = repo.commondir();
+        commondir
+            .ancestors()
+            .find(|p| p.file_name().map_or(false, |n| n == ".git"))
+            .and_then(|git_dir| git_dir.parent())
+            .and_then(|p| p.file_name())
+            .map(|n| n.to_string_lossy().to_string())
+            .unwrap_or_else(|| "unknown".to_string())
+    } else {
+        repo.workdir()
+            .and_then(|p| p.file_name())
+            .map(|n| n.to_string_lossy().to_string())
+            .unwrap_or_else(|| "unknown".to_string())
+    }
+}
+
+/// Get repository info (name, branch, worktree status)
+pub fn get_repo_info(repo_path: &str) -> Result<RepoInfo, TasukiError> {
+    let repo = open_repo(repo_path)?;
+    let repo_name = resolve_repo_name(&repo);
+    let branch_name = repo
+        .head()
+        .ok()
+        .and_then(|h| h.shorthand().map(|s| s.to_string()));
+    let is_worktree = repo.is_worktree();
+    Ok(RepoInfo {
+        repo_name,
+        branch_name,
+        is_worktree,
+    })
+}
+
 /// Known generated file patterns
 const GENERATED_PATTERNS: &[&str] = &[
     "package-lock.json",
@@ -508,6 +552,23 @@ mod tests {
         let new_file = result.files.iter().find(|f| f.file.path == "new_file.txt");
         assert!(new_file.is_some(), "Untracked file should appear in diff");
         assert_eq!(new_file.unwrap().file.status, "added");
+    }
+
+    #[test]
+    fn test_get_repo_info_branch_name() {
+        let (_dir, repo_path) = setup_repo();
+        let info = get_repo_info(&repo_path).unwrap();
+        // Default branch after init is typically "master" or "main"
+        assert!(info.branch_name.is_some());
+        assert!(!info.is_worktree);
+        assert!(!info.repo_name.is_empty());
+    }
+
+    #[test]
+    fn test_get_repo_info_not_worktree() {
+        let (_dir, repo_path) = setup_repo();
+        let info = get_repo_info(&repo_path).unwrap();
+        assert!(!info.is_worktree);
     }
 
     #[test]

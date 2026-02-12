@@ -127,6 +127,7 @@ pub fn run() {
             commands::get_diff_hash,
             commands::save_review,
             commands::load_review,
+            commands::get_repo_info,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Tasuki");
