@@ -7,6 +7,11 @@ import {
   getStatusColor,
   getStatusLabel,
 } from "../utils/diff-utils";
+import {
+  getFileIcon,
+  FolderOpenIcon,
+  FolderClosedIcon,
+} from "../utils/file-icons";
 
 interface FileTreeNode {
   name: string;
@@ -169,6 +174,9 @@ export const FileSidebar: React.FC = () => {
             <span className="tree-toggle">
               {isCollapsed ? "▶" : "▼"}
             </span>
+            <span className="file-icon">
+              {isCollapsed ? <FolderClosedIcon /> : <FolderOpenIcon />}
+            </span>
             <span className="file-name">{node.name}</span>
           </li>
           {!isCollapsed &&
@@ -203,6 +211,7 @@ export const FileSidebar: React.FC = () => {
         >
           {getStatusLabel(fd.file.status)}
         </span>
+        <span className="file-icon">{getFileIcon(node.name)}</span>
         <span className="file-name">{node.name}</span>
         <span className="file-changes">
           {fd.file.additions > 0 && (
