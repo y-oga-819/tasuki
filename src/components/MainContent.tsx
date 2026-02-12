@@ -6,13 +6,18 @@ import { ResizablePane } from "./ResizablePane";
 
 /** Render all file diffs, scrolling to selectedFile on change */
 const AllFileDiffs: React.FC = () => {
-  const { diffResult, selectedFile } = useStore();
+  const { diffResult, selectedFile, collapsedFiles, toggleFileCollapse } =
+    useStore();
   const containerRef = useRef<HTMLDivElement>(null);
   const prevFileRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!selectedFile || selectedFile === prevFileRef.current) return;
     prevFileRef.current = selectedFile;
+
+    if (collapsedFiles.has(selectedFile)) {
+      toggleFileCollapse(selectedFile);
+    }
 
     const el = containerRef.current?.querySelector(
       `[data-file-path="${CSS.escape(selectedFile)}"]`,
