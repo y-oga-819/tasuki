@@ -285,7 +285,7 @@ a:hover {
 }
 
 .sidebar-section {
-  padding: var(--space-3) 0;
+  padding: 0;
 }
 
 .sidebar-section + .sidebar-section {
@@ -298,16 +298,59 @@ a:hover {
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--color-text-secondary);
-  padding: 0 var(--space-3) var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  margin: 0;
   display: flex;
   align-items: center;
   gap: var(--space-2);
+  background: var(--color-bg-tertiary);
+  border-bottom: 1px solid var(--color-border-secondary);
+}
+
+.sidebar-section-toggle {
+  cursor: pointer;
+  user-select: none;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.sidebar-section-toggle:hover {
+  color: var(--color-text-primary);
+  background: var(--color-bg-overlay);
+}
+
+.section-chevron {
+  flex-shrink: 0;
+  width: 14px;
+  font-size: var(--font-size-xs);
+  text-align: center;
+  color: var(--color-text-tertiary);
+  transition: transform 0.2s ease;
+}
+
+.sidebar-section.collapsed .section-chevron {
+  transform: rotate(-90deg);
+}
+
+/* Collapsible content animation using grid */
+.section-collapse {
+  display: grid;
+  grid-template-rows: 1fr;
+  transition: grid-template-rows 0.2s ease;
+}
+
+.section-collapse.collapsed {
+  grid-template-rows: 0fr;
+}
+
+.section-collapse-inner {
+  overflow: hidden;
+  min-height: 0;
 }
 
 .sidebar-stats {
   display: flex;
   gap: var(--space-2);
-  padding: 0 var(--space-3) var(--space-2);
+  padding: var(--space-2) var(--space-3);
   font-size: var(--font-size-xs);
 }
 

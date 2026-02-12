@@ -1,12 +1,7 @@
 import React, { useCallback, useMemo, useState } from "react";
 import { useStore } from "../store";
 import type { FileDiff } from "../types";
-import {
-  getFileName,
-  getFileDir,
-  getStatusColor,
-  getStatusLabel,
-} from "../utils/diff-utils";
+import { getStatusColor, getStatusLabel } from "../utils/diff-utils";
 import {
   getFileIcon,
   FolderOpenIcon,
@@ -19,6 +14,36 @@ interface FileTreeNode {
   isDir: boolean;
   children: FileTreeNode[];
   fileDiff?: FileDiff;
+}
+
+/** Collapse single-child directories (e.g., src/components → src/components) */
+function collapseNode(node: FileTreeNode): FileTreeNode {
+  if (
+    node.isDir &&
+    node.children.length === 1 &&
+    node.children[0].isDir
+  ) {
+    const child = node.children[0];
+    return collapseNode({
+      ...child,
+      name: `${node.name}/${child.name}`,
+      path: child.path,
+    });
+  }
+  return {
+    ...node,
+    children: node.children.map(collapseNode),
+  };
+}
+
+/** Sort: directories first, then alphabetically */
+function sortTreeNodes(nodes: FileTreeNode[]): FileTreeNode[] {
+  return nodes
+    .map((n) => ({ ...n, children: sortTreeNodes(n.children) }))
+    .sort((a, b) => {
+      if (a.isDir !== b.isDir) return a.isDir ? -1 : 1;
+      return a.name.localeCompare(b.name);
+    });
 }
 
 /** Build a tree from flat file paths, collapsing single-child directories */
@@ -64,38 +89,52 @@ function buildFileTree(files: FileDiff[]): FileTreeNode[] {
     }
   }
 
-  // Collapse single-child directories (e.g., src/components → src/components)
-  function collapse(node: FileTreeNode): FileTreeNode {
-    if (
-      node.isDir &&
-      node.children.length === 1 &&
-      node.children[0].isDir
-    ) {
-      const child = node.children[0];
-      return collapse({
-        ...child,
-        name: `${node.name}/${child.name}`,
-        path: child.path,
-      });
+  return sortTreeNodes(root.children.map(collapseNode));
+}
+
+/** Build a tree from plain path strings (no FileDiff) */
+function buildPathTree(paths: string[]): FileTreeNode[] {
+  const root: FileTreeNode = {
+    name: "",
+    path: "",
+    isDir: true,
+    children: [],
+  };
+
+  for (const p of paths) {
+    const parts = p.split("/");
+    let current = root;
+
+    for (let i = 0; i < parts.length; i++) {
+      const part = parts[i];
+      const isLast = i === parts.length - 1;
+
+      if (isLast) {
+        current.children.push({
+          name: part,
+          path: p,
+          isDir: false,
+          children: [],
+        });
+      } else {
+        let dirNode = current.children.find(
+          (c) => c.isDir && c.name === part,
+        );
+        if (!dirNode) {
+          dirNode = {
+            name: part,
+            path: parts.slice(0, i + 1).join("/"),
+            isDir: true,
+            children: [],
+          };
+          current.children.push(dirNode);
+        }
+        current = dirNode;
+      }
     }
-    return {
-      ...node,
-      children: node.children.map(collapse),
-    };
   }
 
-  // Sort: directories first, then alphabetically
-  function sortTree(nodes: FileTreeNode[]): FileTreeNode[] {
-    return nodes
-      .map((n) => ({ ...n, children: sortTree(n.children) }))
-      .sort((a, b) => {
-        if (a.isDir !== b.isDir) return a.isDir ? -1 : 1;
-        return a.name.localeCompare(b.name);
-      });
-  }
-
-  const collapsed = root.children.map(collapse);
-  return sortTree(collapsed);
+  return sortTreeNodes(root.children.map(collapseNode));
 }
 
 export const FileSidebar: React.FC = () => {
@@ -115,6 +154,21 @@ export const FileSidebar: React.FC = () => {
   } = useStore();
 
   const [collapsedDirs, setCollapsedDirs] = useState<Set<string>>(new Set());
+  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(
+    new Set(),
+  );
+
+  const toggleSection = useCallback((sectionId: string) => {
+    setCollapsedSections((prev) => {
+      const next = new Set(prev);
+      if (next.has(sectionId)) {
+        next.delete(sectionId);
+      } else {
+        next.add(sectionId);
+      }
+      return next;
+    });
+  }, []);
 
   const showDiffFiles = displayMode === "diff" || displayMode === "diff-docs";
   const showDocFiles = displayMode === "docs" || displayMode === "diff-docs";
@@ -127,6 +181,8 @@ export const FileSidebar: React.FC = () => {
     () => (diffResult ? buildFileTree(diffResult.files) : []),
     [diffResult],
   );
+
+  const docTree = useMemo(() => buildPathTree(docFiles), [docFiles]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -238,69 +294,142 @@ export const FileSidebar: React.FC = () => {
     );
   };
 
+  const renderDocTreeNode = (node: FileTreeNode, depth: number) => {
+    if (node.isDir) {
+      const isCollapsed = collapsedDirs.has(node.path);
+      return (
+        <React.Fragment key={node.path}>
+          <li
+            className="file-item tree-dir"
+            style={{ paddingLeft: `${depth * 12 + 12}px` }}
+            onClick={() => toggleDir(node.path)}
+          >
+            <span className="tree-toggle">
+              {isCollapsed ? "▶" : "▼"}
+            </span>
+            <span className="file-icon">
+              {isCollapsed ? <FolderClosedIcon /> : <FolderOpenIcon />}
+            </span>
+            <span className="file-name">{node.name}</span>
+          </li>
+          {!isCollapsed &&
+            node.children.map((child) =>
+              renderDocTreeNode(child, depth + 1),
+            )}
+        </React.Fragment>
+      );
+    }
+
+    return (
+      <li
+        key={node.path}
+        className={`file-item ${selectedDoc === node.path ? "selected" : ""}`}
+        style={{ paddingLeft: `${depth * 12 + 12}px` }}
+        onClick={() => {
+          setDocSource("repo");
+          setSelectedDoc(node.path);
+        }}
+        title={node.path}
+      >
+        <span className="file-icon">{getFileIcon(node.name)}</span>
+        <span className="file-name">{node.name}</span>
+      </li>
+    );
+  };
+
   return (
     <aside className="file-sidebar">
       {showDocFiles && docFiles.length > 0 && (
-        <div className="sidebar-section">
-          <h3 className="sidebar-section-title">Documents</h3>
-          <ul className="file-list">
-            {docFiles.map((path) => (
-              <li
-                key={path}
-                className={`file-item ${selectedDoc === path ? "selected" : ""}`}
-                onClick={() => {
-                  setDocSource("repo");
-                  setSelectedDoc(path);
-                }}
-                title={path}
-              >
-                <span className="file-icon">📄</span>
-                <span className="file-name">{getFileName(path)}</span>
-                <span className="file-dir">{getFileDir(path)}</span>
-              </li>
-            ))}
-          </ul>
+        <div
+          className={`sidebar-section ${collapsedSections.has("documents") ? "collapsed" : ""}`}
+        >
+          <h3
+            className="sidebar-section-title sidebar-section-toggle"
+            onClick={() => toggleSection("documents")}
+          >
+            <span className="section-chevron">▼</span>
+            Documents
+          </h3>
+          <div
+            className={`section-collapse ${collapsedSections.has("documents") ? "collapsed" : ""}`}
+          >
+            <div className="section-collapse-inner">
+              <ul className="file-list">
+                {docTree.map((node) => renderDocTreeNode(node, 0))}
+              </ul>
+            </div>
+          </div>
         </div>
       )}
 
       {showDocFiles && designDocs.length > 0 && (
-        <div className="sidebar-section">
-          <h3 className="sidebar-section-title">Design Docs</h3>
-          <ul className="file-list">
-            {designDocs.map((filename) => {
-              const docId = `design:${filename}`;
-              return (
-                <li
-                  key={docId}
-                  className={`file-item ${selectedDoc === docId ? "selected" : ""}`}
-                  onClick={() => {
-                    setDocSource("design");
-                    setSelectedDoc(docId);
-                  }}
-                  title={filename}
-                >
-                  <span className="file-icon">📐</span>
-                  <span className="file-name">{filename}</span>
-                </li>
-              );
-            })}
-          </ul>
+        <div
+          className={`sidebar-section ${collapsedSections.has("design-docs") ? "collapsed" : ""}`}
+        >
+          <h3
+            className="sidebar-section-title sidebar-section-toggle"
+            onClick={() => toggleSection("design-docs")}
+          >
+            <span className="section-chevron">▼</span>
+            Design Docs
+          </h3>
+          <div
+            className={`section-collapse ${collapsedSections.has("design-docs") ? "collapsed" : ""}`}
+          >
+            <div className="section-collapse-inner">
+              <ul className="file-list">
+                {designDocs.map((filename) => {
+                  const docId = `design:${filename}`;
+                  return (
+                    <li
+                      key={docId}
+                      className={`file-item ${selectedDoc === docId ? "selected" : ""}`}
+                      onClick={() => {
+                        setDocSource("design");
+                        setSelectedDoc(docId);
+                      }}
+                      title={filename}
+                    >
+                      <span className="file-icon">📐</span>
+                      <span className="file-name">{filename}</span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          </div>
         </div>
       )}
 
       {showDiffFiles && diffResult && (
-        <div className="sidebar-section">
-          <h3 className="sidebar-section-title">
+        <div
+          className={`sidebar-section ${collapsedSections.has("changed-files") ? "collapsed" : ""}`}
+        >
+          <h3
+            className="sidebar-section-title sidebar-section-toggle"
+            onClick={() => toggleSection("changed-files")}
+          >
+            <span className="section-chevron">▼</span>
             Changed Files
             <span className="badge">{diffResult.stats.files_changed}</span>
           </h3>
-          <div className="sidebar-stats">
-            <span className="stat-added">+{diffResult.stats.additions}</span>
-            <span className="stat-deleted">-{diffResult.stats.deletions}</span>
+          <div
+            className={`section-collapse ${collapsedSections.has("changed-files") ? "collapsed" : ""}`}
+          >
+            <div className="section-collapse-inner">
+              <div className="sidebar-stats">
+                <span className="stat-added">
+                  +{diffResult.stats.additions}
+                </span>
+                <span className="stat-deleted">
+                  -{diffResult.stats.deletions}
+                </span>
+              </div>
+              <ul className="file-list" tabIndex={0} onKeyDown={handleKeyDown}>
+                {fileTree.map((node) => renderTreeNode(node, 0))}
+              </ul>
+            </div>
           </div>
-          <ul className="file-list" tabIndex={0} onKeyDown={handleKeyDown}>
-            {fileTree.map((node) => renderTreeNode(node, 0))}
-          </ul>
         </div>
       )}
     </aside>
