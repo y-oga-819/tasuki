@@ -24,7 +24,7 @@ const IGNORE_PATTERNS: &[&str] = &[
 /// .git paths that should trigger refresh (HEAD changes, ref updates)
 const GIT_WATCH_PATTERNS: &[&str] = &["HEAD", "refs/"];
 
-fn should_ignore(path: &Path, git_dir: Option<&Path>) -> bool {
+fn should_ignore(path: &Path, git_dirs: &[PathBuf]) -> bool {
     let path_str = path.to_string_lossy();
 
     // Check general ignore patterns
@@ -32,8 +32,8 @@ fn should_ignore(path: &Path, git_dir: Option<&Path>) -> bool {
         return true;
     }
 
-    // Events from the worktree git dir (e.g. .git/worktrees/<name>/)
-    if let Some(gd) = git_dir {
+    // Events from watched git directories (worktree gitdir or commondir)
+    for gd in git_dirs {
         if path.starts_with(gd) {
             let rel = path.strip_prefix(gd).unwrap_or(path);
             let rel_str = rel.to_string_lossy();
@@ -51,22 +51,42 @@ fn should_ignore(path: &Path, git_dir: Option<&Path>) -> bool {
     false
 }
 
-/// Resolve the actual git directory for worktree environments.
-/// If .git is a file (worktree), reads the gitdir path from it.
-fn resolve_git_dir(repo_path: &Path) -> Option<PathBuf> {
+/// Resolve extra git directories to watch for worktree environments.
+/// Returns the worktree gitdir and the commondir (main repo's .git/).
+fn resolve_worktree_git_dirs(repo_path: &Path) -> Vec<PathBuf> {
     let dot_git = repo_path.join(".git");
-    if dot_git.is_file() {
-        let content = std::fs::read_to_string(&dot_git).ok()?;
-        let gitdir = content.strip_prefix("gitdir: ")?.trim();
-        let gitdir_path = PathBuf::from(gitdir);
-        if gitdir_path.is_absolute() {
-            Some(gitdir_path)
-        } else {
-            Some(repo_path.join(gitdir_path))
-        }
-    } else {
-        None
+    if !dot_git.is_file() {
+        return vec![];
     }
+
+    let mut dirs = vec![];
+
+    // Parse gitdir from .git file
+    let content = match std::fs::read_to_string(&dot_git) {
+        Ok(c) => c,
+        Err(_) => return dirs,
+    };
+    let Some(gitdir_str) = content.strip_prefix("gitdir: ") else {
+        return dirs;
+    };
+    let gitdir_path = PathBuf::from(gitdir_str.trim());
+    let gitdir = if gitdir_path.is_absolute() {
+        gitdir_path
+    } else {
+        repo_path.join(gitdir_path)
+    };
+
+    // Resolve commondir (main repo's .git/) from the gitdir
+    let commondir_file = gitdir.join("commondir");
+    if let Ok(rel) = std::fs::read_to_string(&commondir_file) {
+        let commondir = gitdir.join(rel.trim());
+        if let Ok(canonical) = commondir.canonicalize() {
+            dirs.push(canonical);
+        }
+    }
+
+    dirs.push(gitdir);
+    dirs
 }
 
 /// Start watching a directory for changes and emit events to the frontend
@@ -82,7 +102,7 @@ pub fn start_watching(
         )));
     }
 
-    let git_dir = resolve_git_dir(&path);
+    let git_dirs = resolve_worktree_git_dirs(&path);
 
     std::thread::spawn(move || {
         let (tx, rx) = mpsc::channel();
@@ -95,12 +115,10 @@ pub fn start_watching(
             .watch(&path, RecursiveMode::Recursive)
             .expect("Failed to watch path");
 
-        // Also watch the worktree git dir for HEAD/refs changes
-        if let Some(ref gd) = git_dir {
+        // Also watch worktree git dirs (gitdir + commondir) for HEAD/refs changes
+        for gd in &git_dirs {
             if gd.exists() {
-                let _ = debouncer
-                    .watcher()
-                    .watch(gd, RecursiveMode::Recursive);
+                let _ = debouncer.watcher().watch(gd, RecursiveMode::Recursive);
             }
         }
 
@@ -110,7 +128,7 @@ pub fn start_watching(
                     let changed_paths: Vec<String> = events
                         .iter()
                         .filter(|e| e.kind == DebouncedEventKind::Any)
-                        .filter(|e| !should_ignore(&e.path, git_dir.as_deref()))
+                        .filter(|e| !should_ignore(&e.path, &git_dirs))
                         .map(|e| e.path.to_string_lossy().to_string())
                         .collect();
 
