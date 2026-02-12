@@ -1,4 +1,4 @@
-use git2::{Delta, DiffFormat, DiffOptions, Repository, Sort};
+use git2::{Delta, DiffFindOptions, DiffFormat, DiffOptions, Repository, Sort};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::path::Path;
@@ -88,14 +88,12 @@ const GENERATED_PATTERNS: &[&str] = &[
 ];
 
 fn is_generated_file(path: &str) -> bool {
-    GENERATED_PATTERNS
-        .iter()
-        .any(|pattern| path.contains(pattern) || path.ends_with(pattern))
+    GENERATED_PATTERNS.iter().any(|pattern| path.contains(pattern))
 }
 
 fn delta_to_status(delta: Delta) -> &'static str {
     match delta {
-        Delta::Added => "added",
+        Delta::Added | Delta::Untracked => "added",
         Delta::Deleted => "deleted",
         Delta::Modified => "modified",
         Delta::Renamed => "renamed",
@@ -107,7 +105,7 @@ fn delta_to_status(delta: Delta) -> &'static str {
 
 /// Open a git repository at the given path
 pub fn open_repo(repo_path: &str) -> Result<Repository, TasukiError> {
-    Repository::discover(repo_path).map_err(|e| TasukiError::Git(e.message().to_string()))
+    Ok(Repository::discover(repo_path)?)
 }
 
 /// Get the diff between working tree and index (unstaged changes)
@@ -116,63 +114,43 @@ pub fn get_working_diff(repo_path: &str) -> Result<DiffResult, TasukiError> {
     let mut opts = DiffOptions::new();
     opts.include_untracked(true);
     opts.recurse_untracked_dirs(true);
+    opts.show_untracked_content(true);
 
-    let diff = repo
-        .diff_index_to_workdir(None, Some(&mut opts))
-        .map_err(|e| TasukiError::Git(e.message().to_string()))?;
-
-    parse_diff(&repo, &diff)
+    let mut diff = repo.diff_index_to_workdir(None, Some(&mut opts))?;
+    parse_diff(&repo, &mut diff)
 }
 
 /// Get the diff of staged changes (index vs HEAD)
 pub fn get_staged_diff(repo_path: &str) -> Result<DiffResult, TasukiError> {
     let repo = open_repo(repo_path)?;
-
-    let head = repo
-        .head()
-        .and_then(|h| h.peel_to_tree())
-        .map_err(|e| TasukiError::Git(e.message().to_string()))?;
-
-    let diff = repo
-        .diff_tree_to_index(Some(&head), None, None)
-        .map_err(|e| TasukiError::Git(e.message().to_string()))?;
-
-    parse_diff(&repo, &diff)
+    let head = repo.head().and_then(|h| h.peel_to_tree())?;
+    let mut diff = repo.diff_tree_to_index(Some(&head), None, None)?;
+    parse_diff(&repo, &mut diff)
 }
 
 /// Get all uncommitted changes (staged + unstaged)
 pub fn get_uncommitted_diff(repo_path: &str) -> Result<DiffResult, TasukiError> {
     let repo = open_repo(repo_path)?;
-
-    let head_tree = repo
-        .head()
-        .and_then(|h| h.peel_to_tree())
-        .ok();
+    let head_tree = repo.head().and_then(|h| h.peel_to_tree()).ok();
 
     let mut opts = DiffOptions::new();
     opts.include_untracked(true);
     opts.recurse_untracked_dirs(true);
+    opts.show_untracked_content(true);
 
-    let diff = if let Some(tree) = head_tree {
-        let staged = repo
-            .diff_tree_to_index(Some(&tree), None, None)
-            .map_err(|e| TasukiError::Git(e.message().to_string()))?;
-        let working = repo
-            .diff_index_to_workdir(None, Some(&mut opts))
-            .map_err(|e| TasukiError::Git(e.message().to_string()))?;
+    let mut diff = if let Some(tree) = head_tree {
+        let staged = repo.diff_tree_to_index(Some(&tree), None, None)?;
+        let working = repo.diff_index_to_workdir(None, Some(&mut opts))?;
 
         let mut merged = staged;
-        merged
-            .merge(&working)
-            .map_err(|e| TasukiError::Git(e.message().to_string()))?;
+        merged.merge(&working)?;
         merged
     } else {
         // No HEAD yet (initial commit scenario)
-        repo.diff_index_to_workdir(None, Some(&mut opts))
-            .map_err(|e| TasukiError::Git(e.message().to_string()))?
+        repo.diff_index_to_workdir(None, Some(&mut opts))?
     };
 
-    parse_diff(&repo, &diff)
+    parse_diff(&repo, &mut diff)
 }
 
 /// Get diff between two refs (commits, branches, tags)
@@ -186,18 +164,10 @@ pub fn get_ref_diff(repo_path: &str, from_ref: &str, to_ref: &str) -> Result<Dif
         .revparse_single(to_ref)
         .map_err(|e| TasukiError::Git(format!("Cannot resolve '{}': {}", to_ref, e.message())))?;
 
-    let from_tree = from_obj
-        .peel_to_tree()
-        .map_err(|e| TasukiError::Git(e.message().to_string()))?;
-    let to_tree = to_obj
-        .peel_to_tree()
-        .map_err(|e| TasukiError::Git(e.message().to_string()))?;
-
-    let diff = repo
-        .diff_tree_to_tree(Some(&from_tree), Some(&to_tree), None)
-        .map_err(|e| TasukiError::Git(e.message().to_string()))?;
-
-    parse_diff(&repo, &diff)
+    let from_tree = from_obj.peel_to_tree()?;
+    let to_tree = to_obj.peel_to_tree()?;
+    let mut diff = repo.diff_tree_to_tree(Some(&from_tree), Some(&to_tree), None)?;
+    parse_diff(&repo, &mut diff)
 }
 
 /// Get diff for a specific commit (commit vs its parent)
@@ -208,38 +178,28 @@ pub fn get_commit_diff(repo_path: &str, commit_ref: &str) -> Result<DiffResult, 
         .revparse_single(commit_ref)
         .map_err(|e| TasukiError::Git(format!("Cannot resolve '{}': {}", commit_ref, e.message())))?;
 
-    let commit = obj
-        .peel_to_commit()
-        .map_err(|e| TasukiError::Git(e.message().to_string()))?;
-
-    let commit_tree = commit
-        .tree()
-        .map_err(|e| TasukiError::Git(e.message().to_string()))?;
-
+    let commit = obj.peel_to_commit()?;
+    let commit_tree = commit.tree()?;
     let parent_tree = if commit.parent_count() > 0 {
-        Some(
-            commit
-                .parent(0)
-                .and_then(|p| p.tree())
-                .map_err(|e| TasukiError::Git(e.message().to_string()))?,
-        )
+        Some(commit.parent(0).and_then(|p| p.tree())?)
     } else {
         None
     };
 
-    let diff = repo
-        .diff_tree_to_tree(parent_tree.as_ref(), Some(&commit_tree), None)
-        .map_err(|e| TasukiError::Git(e.message().to_string()))?;
-
-    parse_diff(&repo, &diff)
+    let mut diff = repo.diff_tree_to_tree(parent_tree.as_ref(), Some(&commit_tree), None)?;
+    parse_diff(&repo, &mut diff)
 }
 
 /// Parse a git2::Diff into our DiffResult structure
-fn parse_diff(repo: &Repository, diff: &git2::Diff) -> Result<DiffResult, TasukiError> {
+fn parse_diff(repo: &Repository, diff: &mut git2::Diff) -> Result<DiffResult, TasukiError> {
+    // Enable rename/copy detection
+    let mut find_opts = DiffFindOptions::new();
+    find_opts.renames(true);
+    find_opts.copies(true);
+    diff.find_similar(Some(&mut find_opts))?;
+
     let mut files: Vec<FileDiff> = Vec::new();
-    let stats = diff
-        .stats()
-        .map_err(|e| TasukiError::Git(e.message().to_string()))?;
+    let stats = diff.stats()?;
 
     let num_deltas = diff.deltas().len();
     for i in 0..num_deltas {
@@ -249,21 +209,17 @@ fn parse_diff(repo: &Repository, diff: &git2::Diff) -> Result<DiffResult, Tasuki
             .path()
             .map(|p| p.to_string_lossy().to_string())
             .unwrap_or_default();
-        let old_file_path = delta
-            .old_file()
-            .path()
-            .map(|p| p.to_string_lossy().to_string());
+        let old_path = if delta.status() == Delta::Renamed {
+            delta.old_file().path().map(|p| p.to_string_lossy().to_string())
+        } else {
+            None
+        };
 
-        let is_binary =
-            delta.new_file().is_binary() || delta.old_file().is_binary();
+        let is_binary = delta.new_file().is_binary() || delta.old_file().is_binary();
 
         let diff_file = DiffFile {
             path: new_file_path.clone(),
-            old_path: if delta.status() == Delta::Renamed {
-                old_file_path.clone()
-            } else {
-                None
-            },
+            old_path,
             status: delta_to_status(delta.status()).to_string(),
             additions: 0,
             deletions: 0,
@@ -355,7 +311,7 @@ fn parse_diff(repo: &Repository, diff: &git2::Diff) -> Result<DiffResult, Tasuki
             _ => {}
         }
 
-        if origin == '+' || origin == '-' || origin == ' ' {
+        if matches!(origin, '+' | '-' | ' ') {
             current_lines.push(DiffLine {
                 origin,
                 old_lineno: line.old_lineno(),
@@ -365,8 +321,7 @@ fn parse_diff(repo: &Repository, diff: &git2::Diff) -> Result<DiffResult, Tasuki
         }
 
         true
-    })
-    .map_err(|e| TasukiError::Git(e.message().to_string()))?;
+    })?;
 
     // Flush the last hunk
     if let Some(idx) = current_file_idx {
@@ -412,18 +367,10 @@ fn get_file_content_at_ref(
     ref_name: &str,
     file_path: &str,
 ) -> Result<String, TasukiError> {
-    let obj = repo
-        .revparse_single(ref_name)
-        .map_err(|e| TasukiError::Git(e.message().to_string()))?;
-    let tree = obj
-        .peel_to_tree()
-        .map_err(|e| TasukiError::Git(e.message().to_string()))?;
-    let entry = tree
-        .get_path(Path::new(file_path))
-        .map_err(|e| TasukiError::Git(e.message().to_string()))?;
-    let blob = repo
-        .find_blob(entry.id())
-        .map_err(|e| TasukiError::Git(e.message().to_string()))?;
+    let obj = repo.revparse_single(ref_name)?;
+    let tree = obj.peel_to_tree()?;
+    let entry = tree.get_path(Path::new(file_path))?;
+    let blob = repo.find_blob(entry.id())?;
 
     if blob.is_binary() {
         return Err(TasukiError::Git("Binary file".to_string()));
@@ -445,12 +392,8 @@ fn read_working_file(repo: &Repository, file_path: &str) -> Result<String, Tasuk
 /// Get recent commit log
 pub fn get_log(repo_path: &str, max_count: usize) -> Result<Vec<CommitInfo>, TasukiError> {
     let repo = open_repo(repo_path)?;
-    let mut revwalk = repo
-        .revwalk()
-        .map_err(|e| TasukiError::Git(e.message().to_string()))?;
-    revwalk
-        .push_head()
-        .map_err(|e| TasukiError::Git(e.message().to_string()))?;
+    let mut revwalk = repo.revwalk()?;
+    revwalk.push_head()?;
     revwalk.set_sorting(Sort::TIME)?;
 
     let mut commits = Vec::new();
@@ -458,10 +401,8 @@ pub fn get_log(repo_path: &str, max_count: usize) -> Result<Vec<CommitInfo>, Tas
         if i >= max_count {
             break;
         }
-        let oid = oid.map_err(|e| TasukiError::Git(e.message().to_string()))?;
-        let commit = repo
-            .find_commit(oid)
-            .map_err(|e| TasukiError::Git(e.message().to_string()))?;
+        let oid = oid?;
+        let commit = repo.find_commit(oid)?;
 
         let short_id = commit
             .as_object()
@@ -526,12 +467,8 @@ pub fn read_file(repo_path: &str, file_path: &str) -> Result<String, TasukiError
 /// Get the HEAD commit SHA
 pub fn get_head_sha(repo_path: &str) -> Result<String, TasukiError> {
     let repo = open_repo(repo_path)?;
-    let head = repo
-        .head()
-        .map_err(|e| TasukiError::Git(e.message().to_string()))?;
-    let commit = head
-        .peel_to_commit()
-        .map_err(|e| TasukiError::Git(e.message().to_string()))?;
+    let head = repo.head()?;
+    let commit = head.peel_to_commit()?;
     Ok(commit.id().to_string())
 }
 

@@ -1,6 +1,6 @@
 use notify::RecursiveMode;
 use notify_debouncer_mini::{new_debouncer, DebouncedEventKind};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::mpsc;
 use std::time::Duration;
 use tauri::{AppHandle, Emitter};
@@ -10,9 +10,8 @@ use crate::error::TasukiError;
 /// Event emitted when files change
 const FILE_CHANGED_EVENT: &str = "files-changed";
 
-/// Paths to ignore when watching
+/// Paths to always ignore when watching
 const IGNORE_PATTERNS: &[&str] = &[
-    ".git",
     "node_modules",
     "target",
     "dist",
@@ -22,11 +21,26 @@ const IGNORE_PATTERNS: &[&str] = &[
     ".nuxt",
 ];
 
-fn should_ignore(path: &PathBuf) -> bool {
+/// .git paths that should trigger refresh (HEAD changes, ref updates)
+const GIT_WATCH_PATTERNS: &[&str] = &[
+    ".git/HEAD",
+    ".git/refs/",
+];
+
+fn should_ignore(path: &Path) -> bool {
     let path_str = path.to_string_lossy();
-    IGNORE_PATTERNS
-        .iter()
-        .any(|pattern| path_str.contains(pattern))
+
+    // Check general ignore patterns
+    if IGNORE_PATTERNS.iter().any(|p| path_str.contains(p)) {
+        return true;
+    }
+
+    // For .git paths: only allow specific patterns through
+    if path_str.contains(".git/") || path_str.ends_with(".git") {
+        return !GIT_WATCH_PATTERNS.iter().any(|p| path_str.contains(p));
+    }
+
+    false
 }
 
 /// Start watching a directory for changes and emit events to the frontend
@@ -59,9 +73,8 @@ pub fn start_watching(
                     let changed_paths: Vec<String> = events
                         .iter()
                         .filter(|e| e.kind == DebouncedEventKind::Any)
-                        .map(|e| e.path.clone())
-                        .filter(|p| !should_ignore(p))
-                        .map(|p| p.to_string_lossy().to_string())
+                        .filter(|e| !should_ignore(&e.path))
+                        .map(|e| e.path.to_string_lossy().to_string())
                         .collect();
 
                     if !changed_paths.is_empty() {
