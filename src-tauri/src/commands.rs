@@ -5,12 +5,13 @@ use std::sync::Mutex;
 
 use crate::error::TasukiError;
 use crate::git::{self, CommitInfo, DiffResult, RepoInfo};
-use crate::watcher;
+use crate::watcher::{self, WatcherHandle};
 use crate::CliArgs;
 
 /// Application state shared across commands
 pub struct AppState {
     pub repo_path: Mutex<String>,
+    pub watcher_handle: Mutex<Option<WatcherHandle>>,
 }
 
 /// Get uncommitted diff (default: all uncommitted changes)
@@ -89,8 +90,13 @@ pub fn start_watching(
     state: State<AppState>,
 ) -> Result<(), TasukiError> {
     let repo_path = state.repo_path.lock().unwrap().clone();
-    // TODO: Phase 2 - store WatcherHandle in AppState for singleton management
-    let _handle = watcher::start_watching(app_handle, repo_path)?;
+
+    // Stop the previous watcher (if any) before creating a new one
+    let mut watcher_guard = state.watcher_handle.lock().unwrap();
+    watcher_guard.take();
+
+    let handle = watcher::start_watching(app_handle, repo_path)?;
+    *watcher_guard = Some(handle);
     Ok(())
 }
 

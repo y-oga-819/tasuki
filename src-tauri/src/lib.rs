@@ -109,6 +109,7 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .manage(AppState {
             repo_path: Mutex::new(repo_path),
+            watcher_handle: Mutex::new(None),
         })
         .manage(cli_args)
         .invoke_handler(tauri::generate_handler![
