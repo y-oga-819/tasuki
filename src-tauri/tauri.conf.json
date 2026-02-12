@@ -10,7 +10,6 @@
     "beforeBuildCommand": "pnpm build"
   },
   "app": {
-    "title": "Tasuki",
     "windows": [
       {
         "title": "Tasuki",
@@ -39,9 +38,7 @@
     ]
   },
   "plugins": {
-    "clipboard-manager": {
-      "all": true
-    },
+    "clipboard-manager": {},
     "shell": {
       "open": true
     }
