@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback } from "react";
+import React, { useEffect, useCallback, useRef, useState } from "react";
 import { WorkerPoolContextProvider } from "@pierre/diffs/react";
 import { Toolbar } from "./components/Toolbar";
 import { FileSidebar } from "./components/FileSidebar";
@@ -10,10 +10,47 @@ import { useFileWatcher } from "./hooks/useFileWatcher";
 import { useReviewPersistence } from "./hooks/useReviewPersistence";
 import * as api from "./utils/tauri-api";
 
+const DEFAULT_SIDEBAR_WIDTH = 260;
+const MIN_SIDEBAR_WIDTH = 160;
+const MAX_SIDEBAR_WIDTH = 500;
+
 const App: React.FC = () => {
   const { setRepoPath, setRepoInfo, setDocFiles, setDesignDocs, setSelectedDoc } =
     useStore();
   const { refetch } = useDiff();
+
+  // Sidebar resize
+  const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_SIDEBAR_WIDTH);
+  const draggingRef = useRef(false);
+  const rafIdRef = useRef(0);
+
+  const handleSidebarPointerDown = useCallback((e: React.PointerEvent) => {
+    e.preventDefault();
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    draggingRef.current = true;
+    document.body.style.userSelect = "none";
+  }, []);
+
+  const handleSidebarPointerMove = useCallback((e: React.PointerEvent) => {
+    if (!draggingRef.current) return;
+    const { clientX } = e;
+    cancelAnimationFrame(rafIdRef.current);
+    rafIdRef.current = requestAnimationFrame(() => {
+      setSidebarWidth(
+        Math.max(MIN_SIDEBAR_WIDTH, Math.min(MAX_SIDEBAR_WIDTH, clientX)),
+      );
+    });
+  }, []);
+
+  const handleSidebarPointerUp = useCallback(() => {
+    draggingRef.current = false;
+    document.body.style.userSelect = "";
+    cancelAnimationFrame(rafIdRef.current);
+  }, []);
+
+  useEffect(() => {
+    return () => cancelAnimationFrame(rafIdRef.current);
+  }, []);
 
   // Persist and restore review comments
   useReviewPersistence();
@@ -78,7 +115,13 @@ const App: React.FC = () => {
       <div className="app">
         <Toolbar />
         <div className="app-body">
-          <FileSidebar />
+          <FileSidebar style={{ width: sidebarWidth }} />
+          <div
+            className="sidebar-resize-handle"
+            onPointerDown={handleSidebarPointerDown}
+            onPointerMove={handleSidebarPointerMove}
+            onPointerUp={handleSidebarPointerUp}
+          />
           <MainContent />
         </div>
         <ReviewPanel />

@@ -137,7 +137,11 @@ function buildPathTree(paths: string[]): FileTreeNode[] {
   return sortTreeNodes(root.children.map(collapseNode));
 }
 
-export const FileSidebar: React.FC = () => {
+interface FileSidebarProps {
+  style?: React.CSSProperties;
+}
+
+export const FileSidebar: React.FC<FileSidebarProps> = ({ style }) => {
   const {
     diffResult,
     selectedFile,
@@ -338,7 +342,7 @@ export const FileSidebar: React.FC = () => {
   };
 
   return (
-    <aside className="file-sidebar">
+    <aside className="file-sidebar" style={style}>
       {showDocFiles && docFiles.length > 0 && (
         <div
           className={`sidebar-section ${collapsedSections.has("documents") ? "collapsed" : ""}`}
