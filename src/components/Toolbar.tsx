@@ -41,11 +41,6 @@ export const Toolbar: React.FC = () => {
       <div className="toolbar-center">
         <div className="tab-group" role="tablist">
           <TabButton
-            active={displayMode === "docs"}
-            onClick={() => setDisplayMode("docs")}
-            label="Docs"
-          />
-          <TabButton
             active={displayMode === "diff"}
             onClick={() => setDisplayMode("diff")}
             label="Diff"

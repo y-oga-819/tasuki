@@ -103,7 +103,7 @@ interface TasukiState {
 
 export const useStore = create<TasukiState>((set) => ({
   // Display
-  displayMode: "diff",
+  displayMode: "diff-docs",
   setDisplayMode: (mode) => set({ displayMode: mode }),
   diffLayout: "split",
   setDiffLayout: (layout) => set({ diffLayout: layout }),
