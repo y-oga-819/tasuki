@@ -1,17 +1,20 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeSlug from "rehype-slug";
 import rehypeRaw from "rehype-raw";
+import GithubSlugger from "github-slugger";
 import { renderMermaid, THEMES } from "beautiful-mermaid";
 import { useStore } from "../store";
 import * as api from "../utils/tauri-api";
 
 export const MarkdownViewer: React.FC = () => {
-  const { selectedDoc, docContent, setDocContent } = useStore();
+  const { selectedDoc, docContent, setDocContent, tocOpen, setTocOpen } =
+    useStore();
   const [tocItems, setTocItems] = useState<
     { id: string; text: string; level: number }[]
   >([]);
+  const tocRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!selectedDoc) {
@@ -23,17 +26,15 @@ export const MarkdownViewer: React.FC = () => {
       try {
         const content = await api.readFile(selectedDoc);
         setDocContent(content);
-        // Extract TOC from headings
+        // Extract TOC from headings using github-slugger (matches rehype-slug)
+        const slugger = new GithubSlugger();
         const headingRegex = /^(#{1,6})\s+(.+)$/gm;
         const items: { id: string; text: string; level: number }[] = [];
         let match;
         while ((match = headingRegex.exec(content)) !== null) {
           const level = match[1].length;
           const text = match[2].trim();
-          const id = text
-            .toLowerCase()
-            .replace(/[^\w\s-]/g, "")
-            .replace(/\s+/g, "-");
+          const id = slugger.slug(text);
           items.push({ id, text, level });
         }
         setTocItems(items);
@@ -42,6 +43,30 @@ export const MarkdownViewer: React.FC = () => {
       }
     })();
   }, [selectedDoc, setDocContent]);
+
+  // Close TOC on outside click
+  useEffect(() => {
+    if (!tocOpen) return;
+    const handleClick = (e: MouseEvent) => {
+      if (tocRef.current && !tocRef.current.contains(e.target as Node)) {
+        setTocOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [tocOpen, setTocOpen]);
+
+  const handleTocClick = useCallback(
+    (e: React.MouseEvent, id: string) => {
+      e.preventDefault();
+      const el = document.getElementById(id);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+      setTocOpen(false);
+    },
+    [setTocOpen],
+  );
 
   if (!selectedDoc) {
     return (
@@ -62,19 +87,37 @@ export const MarkdownViewer: React.FC = () => {
   return (
     <div className="markdown-viewer">
       {tocItems.length > 3 && (
-        <nav className="toc">
-          <h4 className="toc-title">Table of Contents</h4>
-          <ul className="toc-list">
-            {tocItems.map((item) => (
-              <li
-                key={item.id}
-                className={`toc-item toc-level-${item.level}`}
-              >
-                <a href={`#${item.id}`}>{item.text}</a>
-              </li>
-            ))}
-          </ul>
-        </nav>
+        <div className="toc-container" ref={tocRef}>
+          <button
+            className="toc-toggle-btn"
+            onClick={() => setTocOpen(!tocOpen)}
+            title="Table of Contents"
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+              <path d="M1 2.75A.75.75 0 0 1 1.75 2h12.5a.75.75 0 0 1 0 1.5H1.75A.75.75 0 0 1 1 2.75zm0 5A.75.75 0 0 1 1.75 7h12.5a.75.75 0 0 1 0 1.5H1.75A.75.75 0 0 1 1 7.75zM1.75 12a.75.75 0 0 0 0 1.5h12.5a.75.75 0 0 0 0-1.5H1.75z" />
+            </svg>
+          </button>
+          {tocOpen && (
+            <nav className="toc-dropdown">
+              <h4 className="toc-title">Table of Contents</h4>
+              <ul className="toc-list">
+                {tocItems.map((item, i) => (
+                  <li
+                    key={`${item.id}-${i}`}
+                    className={`toc-item toc-level-${item.level}`}
+                  >
+                    <a
+                      href={`#${item.id}`}
+                      onClick={(e) => handleTocClick(e, item.id)}
+                    >
+                      {item.text}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </nav>
+          )}
+        </div>
       )}
       <article className="markdown-content">
         <ReactMarkdown

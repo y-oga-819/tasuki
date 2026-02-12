@@ -943,12 +943,43 @@ kbd {
 }
 
 /* TOC */
-.toc {
-  margin-bottom: var(--space-5);
+.toc-container {
+  position: relative;
+  margin-bottom: var(--space-3);
+}
+
+.toc-toggle-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--color-border-primary);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-secondary);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.toc-toggle-btn:hover {
+  color: var(--color-text-primary);
+  background: var(--color-bg-tertiary);
+}
+
+.toc-dropdown {
+  position: absolute;
+  top: 36px;
+  left: 0;
+  z-index: 10;
+  width: 320px;
+  max-height: 400px;
+  overflow-y: auto;
   padding: var(--space-3);
   background: var(--color-bg-secondary);
   border: 1px solid var(--color-border-primary);
   border-radius: var(--radius-md);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
 .toc-title {
@@ -969,6 +1000,11 @@ kbd {
 
 .toc-item a {
   color: var(--color-text-link);
+  cursor: pointer;
+}
+
+.toc-item a:hover {
+  color: var(--color-text-primary);
 }
 
 .toc-level-2 {

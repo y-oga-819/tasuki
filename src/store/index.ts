@@ -34,6 +34,8 @@ interface TasukiState {
   setDiffOverflow: (overflow: DiffOverflow) => void;
   expandUnchanged: boolean;
   setExpandUnchanged: (expand: boolean) => void;
+  tocOpen: boolean;
+  setTocOpen: (open: boolean) => void;
 
   // Data
   diffResult: DiffResult | null;
@@ -103,6 +105,8 @@ export const useStore = create<TasukiState>((set) => ({
   setDiffOverflow: (overflow) => set({ diffOverflow: overflow }),
   expandUnchanged: false,
   setExpandUnchanged: (expand) => set({ expandUnchanged: expand }),
+  tocOpen: false,
+  setTocOpen: (open) => set({ tocOpen: open }),
 
   // Data
   diffResult: null,
