@@ -1,6 +1,6 @@
 import React from "react";
 import { useStore } from "../store";
-import type { DisplayMode } from "../types";
+
 
 export const Toolbar: React.FC = () => {
   const {

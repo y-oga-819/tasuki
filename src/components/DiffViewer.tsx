@@ -338,7 +338,7 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({ fileDiff }) => {
           overflow: diffOverflow,
         }}
         selectedLines={selectedLines}
-        renderHeaderMetadata={renderHeaderMetadata}
+        renderHeaderMetadata={() => renderHeaderMetadata({} as RenderHeaderMetadataProps)}
       />
     );
   }

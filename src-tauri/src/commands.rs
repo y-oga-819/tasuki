@@ -1,4 +1,4 @@
-use tauri::{AppHandle, Emitter, State};
+use tauri::{AppHandle, State};
 use std::fs;
 use std::path::PathBuf;
 use std::sync::Mutex;
