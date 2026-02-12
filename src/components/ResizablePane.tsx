@@ -59,6 +59,20 @@ export const ResizablePane: React.FC<ResizablePaneProps> = ({
     cancelAnimationFrame(rafIdRef.current);
   }, []);
 
+  // Clamp ratio to respect maxRightWidth on mount and window resize
+  useEffect(() => {
+    if (maxRightWidth == null || !containerRef.current) return;
+    const clamp = () => {
+      if (!containerRef.current) return;
+      const width = containerRef.current.getBoundingClientRect().width;
+      const effectiveMinRatio = Math.max(minRatio, 1 - maxRightWidth / width);
+      setRatio((prev) => Math.max(effectiveMinRatio, prev));
+    };
+    clamp();
+    window.addEventListener("resize", clamp);
+    return () => window.removeEventListener("resize", clamp);
+  }, [maxRightWidth, minRatio]);
+
   useEffect(() => {
     return () => cancelAnimationFrame(rafIdRef.current);
   }, []);
