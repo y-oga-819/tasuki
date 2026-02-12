@@ -98,7 +98,7 @@ export const useStore = create<TasukiState>((set) => ({
   setDiffLayout: (layout) => set({ diffLayout: layout }),
   diffOverflow: "scroll",
   setDiffOverflow: (overflow) => set({ diffOverflow: overflow }),
-  expandUnchanged: true,
+  expandUnchanged: false,
   setExpandUnchanged: (expand) => set({ expandUnchanged: expand }),
 
   // Data

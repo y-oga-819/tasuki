@@ -14,8 +14,8 @@
     "windows": [
       {
         "title": "Tasuki",
-        "width": 1280,
-        "height": 800,
+        "width": 2400,
+        "height": 1400,
         "minWidth": 900,
         "minHeight": 600,
         "resizable": true,
