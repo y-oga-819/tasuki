@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useCallback } from "react";
 import { Terminal as XTerm } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
+import { WebLinksAddon } from "@xterm/addon-web-links";
 import "@xterm/xterm/css/xterm.css";
 import * as api from "../utils/tauri-api";
 
@@ -51,6 +52,22 @@ export const TerminalPanel: React.FC<{ visible: boolean }> = ({ visible }) => {
 
     const fitAddon = new FitAddon();
     term.loadAddon(fitAddon);
+
+    // URL click support — open in default browser via Tauri shell plugin
+    const webLinksAddon = new WebLinksAddon(async (_event, url) => {
+      try {
+        if (isTauri) {
+          const { open } = await import("@tauri-apps/plugin-shell");
+          await open(url);
+        } else {
+          window.open(url, "_blank");
+        }
+      } catch {
+        // Fallback: silently ignore if shell open fails
+      }
+    });
+    term.loadAddon(webLinksAddon);
+
     term.open(containerRef.current);
 
     termRef.current = term;
