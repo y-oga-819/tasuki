@@ -128,7 +128,7 @@ pub fn get_staged_diff(repo_path: &str) -> Result<DiffResult, TasukiError> {
     parse_diff(&repo, &mut diff)
 }
 
-/// Get all uncommitted changes (staged + unstaged)
+/// Get all uncommitted changes (staged + unstaged + untracked)
 pub fn get_uncommitted_diff(repo_path: &str) -> Result<DiffResult, TasukiError> {
     let repo = open_repo(repo_path)?;
     let head_tree = repo.head().and_then(|h| h.peel_to_tree()).ok();
@@ -138,17 +138,9 @@ pub fn get_uncommitted_diff(repo_path: &str) -> Result<DiffResult, TasukiError> 
     opts.recurse_untracked_dirs(true);
     opts.show_untracked_content(true);
 
-    let mut diff = if let Some(tree) = head_tree {
-        let staged = repo.diff_tree_to_index(Some(&tree), None, None)?;
-        let working = repo.diff_index_to_workdir(None, Some(&mut opts))?;
-
-        let mut merged = staged;
-        merged.merge(&working)?;
-        merged
-    } else {
-        // No HEAD yet (initial commit scenario)
-        repo.diff_index_to_workdir(None, Some(&mut opts))?
-    };
+    // Use diff_tree_to_workdir_with_index to get HEAD vs workdir in one pass.
+    // Unlike merge(staged, working), this preserves untracked entries.
+    let mut diff = repo.diff_tree_to_workdir_with_index(head_tree.as_ref(), Some(&mut opts))?;
 
     parse_diff(&repo, &mut diff)
 }
@@ -192,10 +184,11 @@ pub fn get_commit_diff(repo_path: &str, commit_ref: &str) -> Result<DiffResult, 
 
 /// Parse a git2::Diff into our DiffResult structure
 fn parse_diff(repo: &Repository, diff: &mut git2::Diff) -> Result<DiffResult, TasukiError> {
-    // Enable rename/copy detection
+    // Enable rename/copy detection (including untracked files as rename targets)
     let mut find_opts = DiffFindOptions::new();
     find_opts.renames(true);
     find_opts.copies(true);
+    find_opts.for_untracked(true);
     diff.find_similar(Some(&mut find_opts))?;
 
     let mut files: Vec<FileDiff> = Vec::new();
@@ -477,4 +470,55 @@ pub fn compute_diff_hash(diff_result: &DiffResult) -> String {
     let json = serde_json::to_string(diff_result).unwrap_or_default();
     let hash = Sha256::digest(json.as_bytes());
     format!("{:x}", hash)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use tempfile::TempDir;
+
+    /// Helper: create a temp git repo with an initial commit
+    fn setup_repo() -> (TempDir, String) {
+        let dir = TempDir::new().unwrap();
+        let repo = Repository::init(dir.path()).unwrap();
+
+        // Create initial file and commit
+        let file_path = dir.path().join("hello.txt");
+        fs::write(&file_path, "hello world\n").unwrap();
+
+        let mut index = repo.index().unwrap();
+        index.add_path(Path::new("hello.txt")).unwrap();
+        index.write().unwrap();
+        let tree_id = index.write_tree().unwrap();
+        let tree = repo.find_tree(tree_id).unwrap();
+        let sig = git2::Signature::now("Test", "test@test.com").unwrap();
+        repo.commit(Some("HEAD"), &sig, &sig, "initial", &tree, &[]).unwrap();
+
+        let path = dir.path().to_string_lossy().to_string();
+        (dir, path)
+    }
+
+    #[test]
+    fn test_untracked_file_appears_in_diff() {
+        let (dir, repo_path) = setup_repo();
+        fs::write(dir.path().join("new_file.txt"), "new content\n").unwrap();
+
+        let result = get_uncommitted_diff(&repo_path).unwrap();
+        let new_file = result.files.iter().find(|f| f.file.path == "new_file.txt");
+        assert!(new_file.is_some(), "Untracked file should appear in diff");
+        assert_eq!(new_file.unwrap().file.status, "added");
+    }
+
+    #[test]
+    fn test_rename_detected() {
+        let (dir, repo_path) = setup_repo();
+        fs::rename(dir.path().join("hello.txt"), dir.path().join("hello_renamed.txt")).unwrap();
+
+        let result = get_uncommitted_diff(&repo_path).unwrap();
+        let renamed = result.files.iter().find(|f| f.file.status == "renamed");
+        assert!(renamed.is_some(), "Rename should be detected by find_similar");
+        assert_eq!(renamed.unwrap().file.path, "hello_renamed.txt");
+        assert_eq!(renamed.unwrap().file.old_path.as_deref(), Some("hello.txt"));
+    }
 }
