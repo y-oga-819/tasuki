@@ -28,4 +28,4 @@ Thumbs.db
 .env.*.local
 
 # Tasuki local data
-.tasuki/reviews/
+.tasuki/
