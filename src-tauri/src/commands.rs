@@ -89,7 +89,9 @@ pub fn start_watching(
     state: State<AppState>,
 ) -> Result<(), TasukiError> {
     let repo_path = state.repo_path.lock().unwrap().clone();
-    watcher::start_watching(app_handle, repo_path)
+    // TODO: Phase 2 - store WatcherHandle in AppState for singleton management
+    let _handle = watcher::start_watching(app_handle, repo_path)?;
+    Ok(())
 }
 
 /// Get repository info (name, branch, worktree status)

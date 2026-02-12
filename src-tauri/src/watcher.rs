@@ -1,11 +1,28 @@
 use notify::RecursiveMode;
 use notify_debouncer_mini::{new_debouncer, DebouncedEventKind};
 use std::path::{Path, PathBuf};
-use std::sync::mpsc;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{mpsc, Arc};
+use std::thread::JoinHandle;
 use std::time::Duration;
 use tauri::{AppHandle, Emitter};
 
 use crate::error::TasukiError;
+
+/// Handle to a running file watcher. Stops the watcher thread on drop.
+pub struct WatcherHandle {
+    stop_flag: Arc<AtomicBool>,
+    join_handle: Option<JoinHandle<()>>,
+}
+
+impl Drop for WatcherHandle {
+    fn drop(&mut self) {
+        self.stop_flag.store(true, Ordering::Relaxed);
+        if let Some(handle) = self.join_handle.take() {
+            let _ = handle.join();
+        }
+    }
+}
 
 /// Event emitted when files change
 const FILE_CHANGED_EVENT: &str = "files-changed";
@@ -90,11 +107,12 @@ fn resolve_worktree_git_dirs(repo_path: &Path) -> Vec<PathBuf> {
     dirs
 }
 
-/// Start watching a directory for changes and emit events to the frontend
+/// Start watching a directory for changes and emit events to the frontend.
+/// Returns a `WatcherHandle` that stops the watcher thread when dropped.
 pub fn start_watching(
     app_handle: AppHandle,
     watch_path: String,
-) -> Result<(), TasukiError> {
+) -> Result<WatcherHandle, TasukiError> {
     let path = PathBuf::from(&watch_path);
     if !path.exists() {
         return Err(TasukiError::Watch(format!(
@@ -105,26 +123,31 @@ pub fn start_watching(
 
     let git_dirs = resolve_worktree_git_dirs(&path);
 
-    std::thread::spawn(move || {
-        let (tx, rx) = mpsc::channel();
+    let (tx, rx) = mpsc::channel();
 
-        let mut debouncer = new_debouncer(Duration::from_millis(500), tx)
-            .expect("Failed to create file watcher");
+    let mut debouncer = new_debouncer(Duration::from_millis(500), tx)?;
 
-        debouncer
-            .watcher()
-            .watch(&path, RecursiveMode::Recursive)
-            .expect("Failed to watch path");
+    debouncer
+        .watcher()
+        .watch(&path, RecursiveMode::Recursive)?;
 
-        // Also watch worktree git dirs (gitdir + commondir) for HEAD/refs changes
-        for gd in &git_dirs {
-            if gd.exists() {
-                let _ = debouncer.watcher().watch(gd, RecursiveMode::Recursive);
-            }
+    // Also watch worktree git dirs (gitdir + commondir) for HEAD/refs changes
+    for gd in &git_dirs {
+        if gd.exists() {
+            let _ = debouncer.watcher().watch(gd, RecursiveMode::Recursive);
         }
+    }
 
+    let stop_flag = Arc::new(AtomicBool::new(false));
+    let flag_clone = Arc::clone(&stop_flag);
+
+    let join_handle = std::thread::spawn(move || {
+        let _debouncer = debouncer; // ensure debouncer lives until thread exits
         loop {
-            match rx.recv() {
+            if flag_clone.load(Ordering::Relaxed) {
+                break;
+            }
+            match rx.recv_timeout(Duration::from_millis(200)) {
                 Ok(Ok(events)) => {
                     let changed_paths: Vec<String> = events
                         .iter()
@@ -140,13 +163,60 @@ pub fn start_watching(
                 Ok(Err(errors)) => {
                     eprintln!("Watch error: {:?}", errors);
                 }
-                Err(e) => {
-                    eprintln!("Watch channel error: {}", e);
+                Err(mpsc::RecvTimeoutError::Timeout) => {}
+                Err(mpsc::RecvTimeoutError::Disconnected) => {
                     break;
                 }
             }
         }
     });
 
-    Ok(())
+    Ok(WatcherHandle {
+        stop_flag,
+        join_handle: Some(join_handle),
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn watcher_handle_drop_stops_thread() {
+        let stop_flag = Arc::new(AtomicBool::new(false));
+        let flag_clone = Arc::clone(&stop_flag);
+
+        let join_handle = std::thread::spawn(move || {
+            while !flag_clone.load(Ordering::Relaxed) {
+                std::thread::sleep(Duration::from_millis(50));
+            }
+        });
+
+        let handle = WatcherHandle {
+            stop_flag,
+            join_handle: Some(join_handle),
+        };
+
+        // Drop should set stop_flag and join the thread
+        drop(handle);
+
+        // If we reach here, the thread was successfully joined (stopped)
+    }
+
+    #[test]
+    fn watcher_handle_drop_is_safe_when_thread_already_finished() {
+        let stop_flag = Arc::new(AtomicBool::new(false));
+
+        let join_handle = std::thread::spawn(|| {
+            // Thread exits immediately
+        });
+
+        let handle = WatcherHandle {
+            stop_flag,
+            join_handle: Some(join_handle),
+        };
+
+        // Should not panic even if thread already finished before drop
+        drop(handle);
+    }
 }
