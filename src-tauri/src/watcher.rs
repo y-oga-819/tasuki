@@ -19,6 +19,7 @@ const IGNORE_PATTERNS: &[&str] = &[
     "__pycache__",
     ".next",
     ".nuxt",
+    ".worktrees",
 ];
 
 /// .git paths that should trigger refresh (HEAD changes, ref updates)

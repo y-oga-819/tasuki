@@ -246,6 +246,12 @@ fn parse_diff(repo: &Repository, diff: &mut git2::Diff) -> Result<DiffResult, Ta
             .path()
             .map(|p| p.to_string_lossy().to_string())
             .unwrap_or_default();
+
+        // Skip files inside .worktrees/ directory (git worktree checkouts)
+        if new_file_path.starts_with(".worktrees/") {
+            continue;
+        }
+
         let old_path = if delta.status() == Delta::Renamed {
             delta.old_file().path().map(|p| p.to_string_lossy().to_string())
         } else {
@@ -481,6 +487,7 @@ pub fn list_doc_files(repo_path: &str) -> Result<Vec<String>, TasukiError> {
                         if !path_str.starts_with("node_modules/")
                             && !path_str.starts_with("target/")
                             && !path_str.starts_with(".git/")
+                            && !path_str.starts_with(".worktrees/")
                             && !doc_files.contains(&path_str)
                         {
                             doc_files.push(path_str);
