@@ -379,6 +379,24 @@ a:hover {
   font-family: var(--font-mono);
 }
 
+/* Tree directory items */
+.tree-dir {
+  color: var(--color-text-secondary);
+  font-weight: 500;
+}
+
+.tree-dir:hover {
+  color: var(--color-text-primary);
+}
+
+.tree-toggle {
+  flex-shrink: 0;
+  width: 14px;
+  font-size: var(--font-size-xs);
+  text-align: center;
+  color: var(--color-text-tertiary);
+}
+
 .comment-badge {
   flex-shrink: 0;
   background: var(--color-comment);
