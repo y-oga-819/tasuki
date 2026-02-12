@@ -36,6 +36,8 @@ interface TasukiState {
   setExpandUnchanged: (expand: boolean) => void;
   tocOpen: boolean;
   setTocOpen: (open: boolean) => void;
+  markdownViewMode: "preview" | "raw";
+  setMarkdownViewMode: (mode: "preview" | "raw") => void;
 
   // Data
   diffResult: DiffResult | null;
@@ -107,6 +109,8 @@ export const useStore = create<TasukiState>((set) => ({
   setExpandUnchanged: (expand) => set({ expandUnchanged: expand }),
   tocOpen: false,
   setTocOpen: (open) => set({ tocOpen: open }),
+  markdownViewMode: "preview",
+  setMarkdownViewMode: (mode) => set({ markdownViewMode: mode }),
 
   // Data
   diffResult: null,

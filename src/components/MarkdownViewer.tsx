@@ -9,8 +9,15 @@ import { useStore } from "../store";
 import * as api from "../utils/tauri-api";
 
 export const MarkdownViewer: React.FC = () => {
-  const { selectedDoc, docContent, setDocContent, tocOpen, setTocOpen } =
-    useStore();
+  const {
+    selectedDoc,
+    docContent,
+    setDocContent,
+    tocOpen,
+    setTocOpen,
+    markdownViewMode,
+    setMarkdownViewMode,
+  } = useStore();
   const [tocItems, setTocItems] = useState<
     { id: string; text: string; level: number }[]
   >([]);
@@ -86,39 +93,58 @@ export const MarkdownViewer: React.FC = () => {
 
   return (
     <div className="markdown-viewer">
-      {tocItems.length > 3 && (
-        <div className="toc-container" ref={tocRef}>
-          <button
-            className="toc-toggle-btn"
-            onClick={() => setTocOpen(!tocOpen)}
-            title="Table of Contents"
-          >
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-              <path d="M1 2.75A.75.75 0 0 1 1.75 2h12.5a.75.75 0 0 1 0 1.5H1.75A.75.75 0 0 1 1 2.75zm0 5A.75.75 0 0 1 1.75 7h12.5a.75.75 0 0 1 0 1.5H1.75A.75.75 0 0 1 1 7.75zM1.75 12a.75.75 0 0 0 0 1.5h12.5a.75.75 0 0 0 0-1.5H1.75z" />
-            </svg>
-          </button>
-          {tocOpen && (
-            <nav className="toc-dropdown">
-              <h4 className="toc-title">Table of Contents</h4>
-              <ul className="toc-list">
-                {tocItems.map((item, i) => (
-                  <li
-                    key={`${item.id}-${i}`}
-                    className={`toc-item toc-level-${item.level}`}
-                  >
-                    <a
-                      href={`#${item.id}`}
-                      onClick={(e) => handleTocClick(e, item.id)}
+      <div className="markdown-toolbar">
+        {tocItems.length > 3 && (
+          <div className="toc-container" ref={tocRef}>
+            <button
+              className="toc-toggle-btn"
+              onClick={() => setTocOpen(!tocOpen)}
+              title="Table of Contents"
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                <path d="M1 2.75A.75.75 0 0 1 1.75 2h12.5a.75.75 0 0 1 0 1.5H1.75A.75.75 0 0 1 1 2.75zm0 5A.75.75 0 0 1 1.75 7h12.5a.75.75 0 0 1 0 1.5H1.75A.75.75 0 0 1 1 7.75zM1.75 12a.75.75 0 0 0 0 1.5h12.5a.75.75 0 0 0 0-1.5H1.75z" />
+              </svg>
+            </button>
+            {tocOpen && (
+              <nav className="toc-dropdown">
+                <h4 className="toc-title">Table of Contents</h4>
+                <ul className="toc-list">
+                  {tocItems.map((item, i) => (
+                    <li
+                      key={`${item.id}-${i}`}
+                      className={`toc-item toc-level-${item.level}`}
                     >
-                      {item.text}
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </nav>
-          )}
+                      <a
+                        href={`#${item.id}`}
+                        onClick={(e) => handleTocClick(e, item.id)}
+                      >
+                        {item.text}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </nav>
+            )}
+          </div>
+        )}
+        <div className="markdown-view-toggle">
+          <button
+            className={`layout-btn ${markdownViewMode === "preview" ? "active" : ""}`}
+            onClick={() => setMarkdownViewMode("preview")}
+          >
+            Preview
+          </button>
+          <button
+            className={`layout-btn ${markdownViewMode === "raw" ? "active" : ""}`}
+            onClick={() => setMarkdownViewMode("raw")}
+          >
+            Raw
+          </button>
         </div>
-      )}
+      </div>
+      {markdownViewMode === "raw" ? (
+        <pre className="markdown-raw">{docContent}</pre>
+      ) : (
       <article className="markdown-content">
         <ReactMarkdown
           remarkPlugins={[remarkGfm]}
@@ -167,6 +193,7 @@ export const MarkdownViewer: React.FC = () => {
           {docContent}
         </ReactMarkdown>
       </article>
+      )}
     </div>
   );
 };
