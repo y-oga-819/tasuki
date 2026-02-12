@@ -2,6 +2,7 @@ import React from "react";
 import { useStore } from "../store";
 import { DiffViewer } from "./DiffViewer";
 import { MarkdownViewer } from "./MarkdownViewer";
+import { ResizablePane } from "./ResizablePane";
 
 export const MainContent: React.FC = () => {
   const { displayMode, diffResult, selectedFile, isLoading, error } =
@@ -59,19 +60,21 @@ export const MainContent: React.FC = () => {
 
       {displayMode === "diff-docs" && (
         <div className="content-panel split-view">
-          <div className="split-left">
-            {selectedFileDiff ? (
-              <DiffViewer fileDiff={selectedFileDiff} />
-            ) : (
-              <div className="no-selection">
-                <p>Select a file from the sidebar to view changes.</p>
-              </div>
-            )}
-          </div>
-          <div className="split-divider" />
-          <div className="split-right">
-            <MarkdownViewer />
-          </div>
+          <ResizablePane
+            left={
+              selectedFileDiff ? (
+                <DiffViewer fileDiff={selectedFileDiff} />
+              ) : (
+                <div className="no-selection">
+                  <p>Select a file from the sidebar to view changes.</p>
+                </div>
+              )
+            }
+            right={<MarkdownViewer />}
+            defaultRatio={0.5}
+            minRatio={0.2}
+            maxRatio={0.8}
+          />
         </div>
       )}
     </main>
