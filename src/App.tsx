@@ -15,7 +15,7 @@ const MIN_SIDEBAR_WIDTH = 160;
 const MAX_SIDEBAR_WIDTH = 500;
 
 const App: React.FC = () => {
-  const { setRepoPath, setRepoInfo, setDocFiles, setDesignDocs, setSelectedDoc } =
+  const { displayMode, setRepoPath, setRepoInfo, setDocFiles, setDesignDocs, setSelectedDoc } =
     useStore();
   const { refetch } = useDiff();
 
@@ -115,16 +115,20 @@ const App: React.FC = () => {
       <div className="app">
         <Toolbar />
         <div className="app-body">
-          <FileSidebar style={{ width: sidebarWidth }} />
-          <div
-            className="sidebar-resize-handle"
-            onPointerDown={handleSidebarPointerDown}
-            onPointerMove={handleSidebarPointerMove}
-            onPointerUp={handleSidebarPointerUp}
-          />
+          {displayMode !== "terminal" && (
+            <>
+              <FileSidebar style={{ width: sidebarWidth }} />
+              <div
+                className="sidebar-resize-handle"
+                onPointerDown={handleSidebarPointerDown}
+                onPointerMove={handleSidebarPointerMove}
+                onPointerUp={handleSidebarPointerUp}
+              />
+            </>
+          )}
           <MainContent />
         </div>
-        <ReviewPanel />
+        {displayMode !== "terminal" && <ReviewPanel />}
       </div>
     </WorkerPoolContextProvider>
   );

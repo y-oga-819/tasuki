@@ -1,6 +1,7 @@
 pub mod commands;
 pub mod error;
 pub mod git;
+pub mod pty;
 pub mod watcher;
 
 use commands::AppState;
@@ -111,6 +112,7 @@ pub fn run() {
             repo_path: Mutex::new(repo_path),
             watcher_handle: Mutex::new(None),
         })
+        .manage(pty::PtyState::new())
         .manage(cli_args)
         .invoke_handler(tauri::generate_handler![
             commands::get_diff,
@@ -131,6 +133,10 @@ pub fn run() {
             commands::get_repo_info,
             commands::list_design_docs,
             commands::read_design_doc,
+            commands::spawn_terminal,
+            commands::write_terminal,
+            commands::resize_terminal,
+            commands::kill_terminal,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Tasuki");
