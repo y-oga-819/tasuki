@@ -1,12 +1,49 @@
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import { useStore } from "../store";
 import { DiffViewer } from "./DiffViewer";
 import { MarkdownViewer } from "./MarkdownViewer";
 import { ResizablePane } from "./ResizablePane";
 
+/** Render all file diffs, scrolling to selectedFile on change */
+const AllFileDiffs: React.FC = () => {
+  const { diffResult, selectedFile } = useStore();
+  const containerRef = useRef<HTMLDivElement>(null);
+  const prevFileRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!selectedFile || selectedFile === prevFileRef.current) return;
+    prevFileRef.current = selectedFile;
+
+    const el = containerRef.current?.querySelector(
+      `[data-file-path="${CSS.escape(selectedFile)}"]`,
+    );
+    el?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [selectedFile]);
+
+  if (!diffResult || diffResult.files.length === 0) {
+    return (
+      <div className="no-changes">
+        <p>No changes detected.</p>
+        <p className="hint">
+          Make changes to the repository and they will appear here.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div ref={containerRef}>
+      {diffResult.files.map((fd) => (
+        <div key={fd.file.path} data-file-path={fd.file.path}>
+          <DiffViewer fileDiff={fd} />
+        </div>
+      ))}
+    </div>
+  );
+};
+
 export const MainContent: React.FC = () => {
-  const { displayMode, diffResult, selectedFile, isLoading, error } =
-    useStore();
+  const { displayMode, isLoading, error } = useStore();
 
   if (isLoading) {
     return (
@@ -27,10 +64,6 @@ export const MainContent: React.FC = () => {
     );
   }
 
-  const selectedFileDiff = diffResult?.files.find(
-    (f) => f.file.path === selectedFile,
-  );
-
   return (
     <main className="main-content">
       {displayMode === "docs" && (
@@ -41,35 +74,14 @@ export const MainContent: React.FC = () => {
 
       {displayMode === "diff" && (
         <div className="content-panel diff-only">
-          {selectedFileDiff ? (
-            <DiffViewer fileDiff={selectedFileDiff} />
-          ) : diffResult && diffResult.files.length > 0 ? (
-            <div className="no-selection">
-              <p>Select a file from the sidebar to view changes.</p>
-            </div>
-          ) : (
-            <div className="no-changes">
-              <p>No changes detected.</p>
-              <p className="hint">
-                Make changes to the repository and they will appear here.
-              </p>
-            </div>
-          )}
+          <AllFileDiffs />
         </div>
       )}
 
       {displayMode === "diff-docs" && (
         <div className="content-panel split-view">
           <ResizablePane
-            left={
-              selectedFileDiff ? (
-                <DiffViewer fileDiff={selectedFileDiff} />
-              ) : (
-                <div className="no-selection">
-                  <p>Select a file from the sidebar to view changes.</p>
-                </div>
-              )
-            }
+            left={<AllFileDiffs />}
             right={<MarkdownViewer />}
             defaultRatio={0.5}
             minRatio={0.2}
