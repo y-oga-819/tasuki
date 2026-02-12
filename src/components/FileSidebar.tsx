@@ -18,6 +18,8 @@ export const FileSidebar: React.FC = () => {
     docFiles,
     selectedDoc,
     setSelectedDoc,
+    setDocSource,
+    designDocs,
     comments,
   } = useStore();
 
@@ -38,7 +40,10 @@ export const FileSidebar: React.FC = () => {
               <li
                 key={path}
                 className={`file-item ${selectedDoc === path ? "selected" : ""}`}
-                onClick={() => setSelectedDoc(path)}
+                onClick={() => {
+                  setDocSource("repo");
+                  setSelectedDoc(path);
+                }}
                 title={path}
               >
                 <span className="file-icon">📄</span>
@@ -46,6 +51,31 @@ export const FileSidebar: React.FC = () => {
                 <span className="file-dir">{getFileDir(path)}</span>
               </li>
             ))}
+          </ul>
+        </div>
+      )}
+
+      {showDocFiles && designDocs.length > 0 && (
+        <div className="sidebar-section">
+          <h3 className="sidebar-section-title">Design Docs</h3>
+          <ul className="file-list">
+            {designDocs.map((filename) => {
+              const docId = `design:${filename}`;
+              return (
+                <li
+                  key={docId}
+                  className={`file-item ${selectedDoc === docId ? "selected" : ""}`}
+                  onClick={() => {
+                    setDocSource("design");
+                    setSelectedDoc(docId);
+                  }}
+                  title={filename}
+                >
+                  <span className="file-icon">📐</span>
+                  <span className="file-name">{filename}</span>
+                </li>
+              );
+            })}
           </ul>
         </div>
       )}

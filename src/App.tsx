@@ -11,7 +11,8 @@ import { useReviewPersistence } from "./hooks/useReviewPersistence";
 import * as api from "./utils/tauri-api";
 
 const App: React.FC = () => {
-  const { setRepoPath, setRepoInfo, setDocFiles, setSelectedDoc } = useStore();
+  const { setRepoPath, setRepoInfo, setDocFiles, setDesignDocs, setSelectedDoc } =
+    useStore();
   const { refetch } = useDiff();
 
   // Persist and restore review comments
@@ -44,8 +45,15 @@ const App: React.FC = () => {
       } catch {
         // Doc listing may fail outside Tauri
       }
+
+      try {
+        const designDocs = await api.listDesignDocs();
+        setDesignDocs(designDocs);
+      } catch {
+        // May fail outside Tauri
+      }
     })();
-  }, [setRepoPath, setRepoInfo, setDocFiles, setSelectedDoc]);
+  }, [setRepoPath, setRepoInfo, setDocFiles, setDesignDocs, setSelectedDoc]);
 
   // Watch for file changes and refetch diff
   const handleFilesChanged = useCallback(() => {

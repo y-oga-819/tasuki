@@ -128,6 +128,8 @@ pub fn run() {
             commands::save_review,
             commands::load_review,
             commands::get_repo_info,
+            commands::list_design_docs,
+            commands::read_design_doc,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Tasuki");

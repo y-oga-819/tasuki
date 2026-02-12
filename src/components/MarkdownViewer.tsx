@@ -13,6 +13,7 @@ export const MarkdownViewer: React.FC = () => {
     selectedDoc,
     docContent,
     setDocContent,
+    docSource,
     tocOpen,
     setTocOpen,
     markdownViewMode,
@@ -31,7 +32,10 @@ export const MarkdownViewer: React.FC = () => {
 
     (async () => {
       try {
-        const content = await api.readFile(selectedDoc);
+        const content =
+          docSource === "design"
+            ? await api.readDesignDoc(selectedDoc.replace("design:", ""))
+            : await api.readFile(selectedDoc);
         setDocContent(content);
         // Extract TOC from headings using github-slugger (matches rehype-slug)
         const slugger = new GithubSlugger();
@@ -49,7 +53,7 @@ export const MarkdownViewer: React.FC = () => {
         setDocContent(`*Error loading document: ${err}*`);
       }
     })();
-  }, [selectedDoc, setDocContent]);
+  }, [selectedDoc, docSource, setDocContent]);
 
   // Close TOC on outside click
   useEffect(() => {

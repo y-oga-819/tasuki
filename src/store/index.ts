@@ -56,6 +56,10 @@ interface TasukiState {
   setDocContent: (content: string | null) => void;
   collapsedFiles: Set<string>;
   toggleFileCollapse: (path: string) => void;
+  designDocs: string[];
+  setDesignDocs: (docs: string[]) => void;
+  docSource: "repo" | "design";
+  setDocSource: (source: "repo" | "design") => void;
 
   // Pierre-native diff state
   selectedLineRange: SelectedLineRange | null;
@@ -138,6 +142,10 @@ export const useStore = create<TasukiState>((set) => ({
       }
       return { collapsedFiles: next };
     }),
+  designDocs: [],
+  setDesignDocs: (docs) => set({ designDocs: docs }),
+  docSource: "repo",
+  setDocSource: (source) => set({ docSource: source }),
 
   // Pierre-native diff state
   selectedLineRange: null,

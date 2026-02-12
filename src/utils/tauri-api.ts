@@ -89,6 +89,14 @@ export async function loadReview(
   return JSON.parse(json) as ReviewSession;
 }
 
+export async function listDesignDocs(): Promise<string[]> {
+  return invoke<string[]>("list_design_docs");
+}
+
+export async function readDesignDoc(filename: string): Promise<string> {
+  return invoke<string>("read_design_doc", { filename });
+}
+
 export async function copyToClipboard(text: string): Promise<void> {
   if (isTauri) {
     const { writeText } = await import("@tauri-apps/plugin-clipboard-manager");
