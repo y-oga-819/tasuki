@@ -10,6 +10,7 @@
     "beforeBuildCommand": "pnpm build"
   },
   "app": {
+    "withGlobalTauri": true,
     "windows": [
       {
         "title": "Tasuki",
@@ -38,7 +39,6 @@
     ]
   },
   "plugins": {
-    "clipboard-manager": {},
     "shell": {
       "open": true
     }
