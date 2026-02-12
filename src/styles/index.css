@@ -167,6 +167,36 @@ a:hover {
   border-radius: var(--radius-sm);
 }
 
+.toolbar-branch {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  font-family: var(--font-mono);
+}
+
+.branch-icon {
+  flex-shrink: 0;
+  color: var(--color-text-tertiary);
+}
+
+.toolbar-worktree-badge {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  padding: 1px 6px;
+  background: var(--color-bg-overlay);
+  border-radius: 10px;
+  font-weight: 500;
+}
+
+.toolbar-separator {
+  width: 1px;
+  height: 20px;
+  background: var(--color-border-primary);
+  flex-shrink: 0;
+}
+
 .toolbar-center {
   display: flex;
   align-items: center;
@@ -239,21 +269,34 @@ a:hover {
   display: flex;
   gap: var(--space-2);
   font-size: var(--font-size-sm);
+  font-weight: 600;
   color: var(--color-text-secondary);
+  font-family: var(--font-mono);
 }
 
 /* --- File Sidebar --- */
 .file-sidebar {
-  width: var(--sidebar-width);
   flex-shrink: 0;
   background-color: var(--color-bg-secondary);
-  border-right: 1px solid var(--color-border-primary);
   overflow-y: auto;
   overflow-x: hidden;
 }
 
+.sidebar-resize-handle {
+  width: 4px;
+  flex-shrink: 0;
+  background: var(--color-border-primary);
+  cursor: col-resize;
+  transition: background 0.15s ease;
+}
+
+.sidebar-resize-handle:hover,
+.sidebar-resize-handle:active {
+  background: var(--color-text-link);
+}
+
 .sidebar-section {
-  padding: var(--space-3) 0;
+  padding: 0;
 }
 
 .sidebar-section + .sidebar-section {
@@ -266,16 +309,59 @@ a:hover {
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--color-text-secondary);
-  padding: 0 var(--space-3) var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  margin: 0;
   display: flex;
   align-items: center;
   gap: var(--space-2);
+  background: var(--color-bg-tertiary);
+  border-bottom: 1px solid var(--color-border-secondary);
+}
+
+.sidebar-section-toggle {
+  cursor: pointer;
+  user-select: none;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.sidebar-section-toggle:hover {
+  color: var(--color-text-primary);
+  background: var(--color-bg-overlay);
+}
+
+.section-chevron {
+  flex-shrink: 0;
+  width: 14px;
+  font-size: var(--font-size-xs);
+  text-align: center;
+  color: var(--color-text-tertiary);
+  transition: transform 0.2s ease;
+}
+
+.sidebar-section.collapsed .section-chevron {
+  transform: rotate(-90deg);
+}
+
+/* Collapsible content animation using grid */
+.section-collapse {
+  display: grid;
+  grid-template-rows: 1fr;
+  transition: grid-template-rows 0.2s ease;
+}
+
+.section-collapse.collapsed {
+  grid-template-rows: 0fr;
+}
+
+.section-collapse-inner {
+  overflow: hidden;
+  min-height: 0;
 }
 
 .sidebar-stats {
   display: flex;
   gap: var(--space-2);
-  padding: 0 var(--space-3) var(--space-2);
+  padding: var(--space-2) var(--space-3);
   font-size: var(--font-size-xs);
 }
 
@@ -345,6 +431,24 @@ a:hover {
   gap: var(--space-1);
   font-size: var(--font-size-xs);
   font-family: var(--font-mono);
+}
+
+/* Tree directory items */
+.tree-dir {
+  color: var(--color-text-secondary);
+  font-weight: 500;
+}
+
+.tree-dir:hover {
+  color: var(--color-text-primary);
+}
+
+.tree-toggle {
+  flex-shrink: 0;
+  width: 14px;
+  font-size: var(--font-size-xs);
+  text-align: center;
+  color: var(--color-text-tertiary);
 }
 
 .comment-badge {
@@ -446,22 +550,38 @@ a:hover {
   height: 100%;
 }
 
-.split-left {
-  flex: 1;
-  overflow-y: auto;
-  min-width: 0;
+/* --- Resizable Pane --- */
+
+.resizable-pane {
+  display: flex;
+  width: 100%;
+  height: 100%;
 }
 
-.split-divider {
-  width: 1px;
-  background: var(--color-border-primary);
+.resizable-left {
+  overflow-y: auto;
+  min-width: 0;
+  height: 100%;
+}
+
+.resizable-right {
+  overflow-y: auto;
+  min-width: 0;
+  height: 100%;
+  max-width: 900px;
+}
+
+.resizable-handle {
+  width: 4px;
   flex-shrink: 0;
+  background: var(--color-border-primary);
+  cursor: col-resize;
+  transition: background 0.15s ease;
 }
 
-.split-right {
-  flex: 1;
-  overflow-y: auto;
-  min-width: 0;
+.resizable-handle:hover,
+.resizable-handle:active {
+  background: var(--color-text-link);
 }
 
 /* --- DiffView (Pierre-native) --- */
@@ -897,8 +1017,16 @@ kbd {
 
 /* --- Markdown Viewer --- */
 .markdown-viewer {
-  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
   max-width: 900px;
+}
+
+.markdown-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-4);
 }
 
 .markdown-viewer.empty,
@@ -911,12 +1039,42 @@ kbd {
 }
 
 /* TOC */
-.toc {
-  margin-bottom: var(--space-5);
+.toc-container {
+  position: relative;
+}
+
+.toc-toggle-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--color-border-primary);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-secondary);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.toc-toggle-btn:hover {
+  color: var(--color-text-primary);
+  background: var(--color-bg-tertiary);
+}
+
+.toc-dropdown {
+  position: absolute;
+  top: 36px;
+  left: 0;
+  z-index: 10;
+  width: 320px;
+  max-height: 400px;
+  overflow-y: auto;
   padding: var(--space-3);
   background: var(--color-bg-secondary);
   border: 1px solid var(--color-border-primary);
   border-radius: var(--radius-md);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
 .toc-title {
@@ -937,6 +1095,11 @@ kbd {
 
 .toc-item a {
   color: var(--color-text-link);
+  cursor: pointer;
+}
+
+.toc-item a:hover {
+  color: var(--color-text-primary);
 }
 
 .toc-level-2 {
@@ -949,6 +1112,37 @@ kbd {
 
 .toc-level-4 {
   padding-left: calc(var(--space-6) + var(--space-4));
+}
+
+/* Markdown toolbar (TOC + view toggle) — sticky header */
+.markdown-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-bg-primary);
+  border-bottom: 1px solid var(--color-border-secondary);
+  flex-shrink: 0;
+  z-index: 5;
+}
+
+.markdown-view-toggle {
+  display: flex;
+  gap: 1px;
+  background: var(--color-border-primary);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+/* Raw markdown display */
+.markdown-raw {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-base);
+  color: var(--color-text-primary);
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  line-height: 1.6;
+  margin-top: var(--space-4);
 }
 
 /* Markdown content styling */

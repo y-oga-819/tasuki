@@ -1,4 +1,4 @@
-import type { DiffResult, CommitInfo, ReviewSession } from "../types";
+import type { DiffResult, CommitInfo, ReviewSession, RepoInfo } from "../types";
 
 /**
  * Bridge to Tauri backend commands.
@@ -55,6 +55,10 @@ export async function startWatching(): Promise<void> {
   return invoke<void>("start_watching");
 }
 
+export async function getRepoInfo(): Promise<RepoInfo> {
+  return invoke<RepoInfo>("get_repo_info");
+}
+
 export async function getRepoPath(): Promise<string> {
   return invoke<string>("get_repo_path");
 }
@@ -83,6 +87,14 @@ export async function loadReview(
   const json = await invoke<string | null>("load_review", { headSha, sourceType });
   if (json === null) return null;
   return JSON.parse(json) as ReviewSession;
+}
+
+export async function listDesignDocs(): Promise<string[]> {
+  return invoke<string[]>("list_design_docs");
+}
+
+export async function readDesignDoc(filename: string): Promise<string> {
+  return invoke<string>("read_design_doc", { filename });
 }
 
 export async function copyToClipboard(text: string): Promise<void> {

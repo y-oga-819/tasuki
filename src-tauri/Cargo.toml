@@ -30,6 +30,7 @@ tokio = { version = "1", features = ["full"] }
 thiserror = "2"
 glob = "0.3"
 sha2 = "0.10"
+dirs = "6"
 
 [profile.dev]
 incremental = true

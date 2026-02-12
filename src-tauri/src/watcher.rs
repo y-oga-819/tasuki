@@ -22,12 +22,9 @@ const IGNORE_PATTERNS: &[&str] = &[
 ];
 
 /// .git paths that should trigger refresh (HEAD changes, ref updates)
-const GIT_WATCH_PATTERNS: &[&str] = &[
-    ".git/HEAD",
-    ".git/refs/",
-];
+const GIT_WATCH_PATTERNS: &[&str] = &["HEAD", "refs/"];
 
-fn should_ignore(path: &Path) -> bool {
+fn should_ignore(path: &Path, git_dirs: &[PathBuf]) -> bool {
     let path_str = path.to_string_lossy();
 
     // Check general ignore patterns
@@ -35,12 +32,61 @@ fn should_ignore(path: &Path) -> bool {
         return true;
     }
 
-    // For .git paths: only allow specific patterns through
+    // Events from watched git directories (worktree gitdir or commondir)
+    for gd in git_dirs {
+        if path.starts_with(gd) {
+            let rel = path.strip_prefix(gd).unwrap_or(path);
+            let rel_str = rel.to_string_lossy();
+            return !GIT_WATCH_PATTERNS.iter().any(|p| rel_str.starts_with(p));
+        }
+    }
+
+    // For .git paths in the working directory
     if path_str.contains(".git/") || path_str.ends_with(".git") {
-        return !GIT_WATCH_PATTERNS.iter().any(|p| path_str.contains(p));
+        let git_idx = path_str.rfind(".git/").unwrap_or(path_str.len());
+        let after_git = &path_str[git_idx + 5..]; // skip ".git/"
+        return !GIT_WATCH_PATTERNS.iter().any(|p| after_git.starts_with(p));
     }
 
     false
+}
+
+/// Resolve extra git directories to watch for worktree environments.
+/// Returns the worktree gitdir and the commondir (main repo's .git/).
+fn resolve_worktree_git_dirs(repo_path: &Path) -> Vec<PathBuf> {
+    let dot_git = repo_path.join(".git");
+    if !dot_git.is_file() {
+        return vec![];
+    }
+
+    let mut dirs = vec![];
+
+    // Parse gitdir from .git file
+    let content = match std::fs::read_to_string(&dot_git) {
+        Ok(c) => c,
+        Err(_) => return dirs,
+    };
+    let Some(gitdir_str) = content.strip_prefix("gitdir: ") else {
+        return dirs;
+    };
+    let gitdir_path = PathBuf::from(gitdir_str.trim());
+    let gitdir = if gitdir_path.is_absolute() {
+        gitdir_path
+    } else {
+        repo_path.join(gitdir_path)
+    };
+
+    // Resolve commondir (main repo's .git/) from the gitdir
+    let commondir_file = gitdir.join("commondir");
+    if let Ok(rel) = std::fs::read_to_string(&commondir_file) {
+        let commondir = gitdir.join(rel.trim());
+        if let Ok(canonical) = commondir.canonicalize() {
+            dirs.push(canonical);
+        }
+    }
+
+    dirs.push(gitdir);
+    dirs
 }
 
 /// Start watching a directory for changes and emit events to the frontend
@@ -56,6 +102,8 @@ pub fn start_watching(
         )));
     }
 
+    let git_dirs = resolve_worktree_git_dirs(&path);
+
     std::thread::spawn(move || {
         let (tx, rx) = mpsc::channel();
 
@@ -67,13 +115,20 @@ pub fn start_watching(
             .watch(&path, RecursiveMode::Recursive)
             .expect("Failed to watch path");
 
+        // Also watch worktree git dirs (gitdir + commondir) for HEAD/refs changes
+        for gd in &git_dirs {
+            if gd.exists() {
+                let _ = debouncer.watcher().watch(gd, RecursiveMode::Recursive);
+            }
+        }
+
         loop {
             match rx.recv() {
                 Ok(Ok(events)) => {
                     let changed_paths: Vec<String> = events
                         .iter()
                         .filter(|e| e.kind == DebouncedEventKind::Any)
-                        .filter(|e| !should_ignore(&e.path))
+                        .filter(|e| !should_ignore(&e.path, &git_dirs))
                         .map(|e| e.path.to_string_lossy().to_string())
                         .collect();
 

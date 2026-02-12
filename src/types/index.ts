@@ -117,6 +117,13 @@ export type DisplayMode = "docs" | "diff" | "diff-docs";
 /** Diff view layout (matches Pierre's diffStyle naming) */
 export type DiffLayout = "split" | "unified";
 
+/** Repository information */
+export interface RepoInfo {
+  repo_name: string;
+  branch_name: string | null;
+  is_worktree: boolean;
+}
+
 /** Diff source specification */
 export type DiffSource =
   | { type: "uncommitted" }

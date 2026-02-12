@@ -9,6 +9,7 @@ import type {
   DocComment,
   ReviewVerdict,
   ReviewRestoreMode,
+  RepoInfo,
 } from "../types";
 
 /** Target line where the comment form is being shown */
@@ -33,6 +34,10 @@ interface TasukiState {
   setDiffOverflow: (overflow: DiffOverflow) => void;
   expandUnchanged: boolean;
   setExpandUnchanged: (expand: boolean) => void;
+  tocOpen: boolean;
+  setTocOpen: (open: boolean) => void;
+  markdownViewMode: "preview" | "raw";
+  setMarkdownViewMode: (mode: "preview" | "raw") => void;
 
   // Data
   diffResult: DiffResult | null;
@@ -51,6 +56,10 @@ interface TasukiState {
   setDocContent: (content: string | null) => void;
   collapsedFiles: Set<string>;
   toggleFileCollapse: (path: string) => void;
+  designDocs: string[];
+  setDesignDocs: (docs: string[]) => void;
+  docSource: "repo" | "design";
+  setDocSource: (source: "repo" | "design") => void;
 
   // Pierre-native diff state
   selectedLineRange: SelectedLineRange | null;
@@ -88,18 +97,24 @@ interface TasukiState {
   // Repo info
   repoPath: string;
   setRepoPath: (path: string) => void;
+  repoInfo: RepoInfo | null;
+  setRepoInfo: (info: RepoInfo | null) => void;
 }
 
 export const useStore = create<TasukiState>((set) => ({
   // Display
-  displayMode: "diff",
+  displayMode: "diff-docs",
   setDisplayMode: (mode) => set({ displayMode: mode }),
   diffLayout: "split",
   setDiffLayout: (layout) => set({ diffLayout: layout }),
   diffOverflow: "scroll",
   setDiffOverflow: (overflow) => set({ diffOverflow: overflow }),
-  expandUnchanged: true,
+  expandUnchanged: false,
   setExpandUnchanged: (expand) => set({ expandUnchanged: expand }),
+  tocOpen: false,
+  setTocOpen: (open) => set({ tocOpen: open }),
+  markdownViewMode: "preview",
+  setMarkdownViewMode: (mode) => set({ markdownViewMode: mode }),
 
   // Data
   diffResult: null,
@@ -127,6 +142,10 @@ export const useStore = create<TasukiState>((set) => ({
       }
       return { collapsedFiles: next };
     }),
+  designDocs: [],
+  setDesignDocs: (docs) => set({ designDocs: docs }),
+  docSource: "repo",
+  setDocSource: (source) => set({ docSource: source }),
 
   // Pierre-native diff state
   selectedLineRange: null,
@@ -178,4 +197,6 @@ export const useStore = create<TasukiState>((set) => ({
   // Repo info
   repoPath: "",
   setRepoPath: (path) => set({ repoPath: path }),
+  repoInfo: null,
+  setRepoInfo: (info) => set({ repoInfo: info }),
 }));
