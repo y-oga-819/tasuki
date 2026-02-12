@@ -2,7 +2,6 @@ import React, { useMemo, useCallback, useState } from "react";
 import { MultiFileDiff, PatchDiff, File as PierreFile } from "@pierre/diffs/react";
 import type {
   DiffLineAnnotation,
-  RenderHeaderMetadataProps,
 } from "@pierre/diffs/react";
 import type {
   SelectedLineRange,
@@ -15,6 +14,37 @@ import { useStore } from "../store";
 import type { CommentFormTarget } from "../store";
 import type { FileDiff, ReviewComment } from "../types";
 import { generateGitPatch, getCodeSnippet } from "../utils/diff-utils";
+
+// --- Change type icon SVGs (from @pierre/diffs sprite) ---
+
+const changeTypeIcons: Record<string, React.ReactNode> = {
+  modified: (
+    <svg viewBox="0 0 16 16" className="dv-change-icon dv-change-icon--modified">
+      <path d="M1.5 8c0 1.613.088 2.806.288 3.704.196.88.478 1.381.802 1.706s.826.607 1.706.802c.898.2 2.091.288 3.704.288s2.806-.088 3.704-.288c.88-.195 1.381-.478 1.706-.802s.607-.826.802-1.706c.2-.898.288-2.091.288-3.704s-.088-2.806-.288-3.704c-.195-.88-.478-1.381-.802-1.706s-.826-.606-1.706-.802C10.806 1.588 9.613 1.5 8 1.5s-2.806.088-3.704.288c-.88.196-1.381.478-1.706.802s-.606.826-.802 1.706C1.588 5.194 1.5 6.387 1.5 8M0 8c0-6.588 1.412-8 8-8s8 1.412 8 8-1.412 8-8 8-8-1.412-8-8m8 3a3 3 0 1 0 0-6 3 3 0 0 0 0 6" fill="currentColor"/>
+    </svg>
+  ),
+  added: (
+    <svg viewBox="0 0 16 16" className="dv-change-icon dv-change-icon--added">
+      <path d="M8 4a.75.75 0 0 1 .75.75v2.5h2.5a.75.75 0 0 1 0 1.5h-2.5v2.5a.75.75 0 0 1-1.5 0v-2.5h-2.5a.75.75 0 0 1 0-1.5h2.5v-2.5A.75.75 0 0 1 8 4" fill="currentColor"/><path d="M1.788 4.296c.196-.88.478-1.381.802-1.706s.826-.606 1.706-.802C5.194 1.588 6.387 1.5 8 1.5s2.806.088 3.704.288c.88.196 1.381.478 1.706.802s.607.826.802 1.706c.2.898.288 2.091.288 3.704s-.088 2.806-.288 3.704c-.195.88-.478 1.381-.802 1.706s-.826.607-1.706.802c-.898.2-2.091.288-3.704.288s-2.806-.088-3.704-.288c-.88-.195-1.381-.478-1.706-.802s-.606-.826-.802-1.706C1.588 10.806 1.5 9.613 1.5 8s.088-2.806.288-3.704M8 0C1.412 0 0 1.412 0 8s1.412 8 8 8 8-1.412 8-8-1.412-8-8-8" fill="currentColor"/>
+    </svg>
+  ),
+  deleted: (
+    <svg viewBox="0 0 16 16" className="dv-change-icon dv-change-icon--deleted">
+      <path d="M4 8a.75.75 0 0 1 .75-.75h6.5a.75.75 0 0 1 0 1.5h-6.5A.75.75 0 0 1 4 8" fill="currentColor"/><path d="M1.788 4.296c.196-.88.478-1.381.802-1.706s.826-.606 1.706-.802C5.194 1.588 6.387 1.5 8 1.5s2.806.088 3.704.288c.88.196 1.381.478 1.706.802s.607.826.802 1.706c.2.898.288 2.091.288 3.704s-.088 2.806-.288 3.704c-.195.88-.478 1.381-.802 1.706s-.826.607-1.706.802c-.898.2-2.091.288-3.704.288s-2.806-.088-3.704-.288c-.88-.195-1.381-.478-1.706-.802s-.606-.826-.802-1.706C1.588 10.806 1.5 9.613 1.5 8s.088-2.806.288-3.704M8 0C1.412 0 0 1.412 0 8s1.412 8 8 8 8-1.412 8-8-1.412-8-8-8" fill="currentColor"/>
+    </svg>
+  ),
+  renamed: (
+    <svg viewBox="0 0 16 16" className="dv-change-icon dv-change-icon--renamed">
+      <path d="M1.788 4.296c.196-.88.478-1.381.802-1.706s.826-.606 1.706-.802C5.194 1.588 6.387 1.5 8 1.5s2.806.088 3.704.288c.88.196 1.381.478 1.706.802s.607.826.802 1.706c.2.898.288 2.091.288 3.704s-.088 2.806-.288 3.704c-.195.88-.478 1.381-.802 1.706s-.826.607-1.706.802c-.898.2-2.091.288-3.704.288s-2.806-.088-3.704-.288c-.88-.195-1.381-.478-1.706-.802s-.606-.826-.802-1.706C1.588 10.806 1.5 9.613 1.5 8s.088-2.806.288-3.704M8 0C1.412 0 0 1.412 0 8s1.412 8 8 8 8-1.412 8-8-1.412-8-8-8" fill="currentColor"/><path d="M8.495 4.695a.75.75 0 0 0-.05 1.06L10.486 8l-2.041 2.246a.75.75 0 0 0 1.11 1.008l2.5-2.75a.75.75 0 0 0 0-1.008l-2.5-2.75a.75.75 0 0 0-1.06-.051m-4 0a.75.75 0 0 0-.05 1.06l2.044 2.248-1.796 1.995a.75.75 0 0 0 1.114 1.004l2.25-2.5a.75.75 0 0 0-.002-1.007l-2.5-2.75a.75.75 0 0 0-1.06-.05" fill="currentColor"/>
+    </svg>
+  ),
+};
+
+const arrowRightIcon = (
+  <svg viewBox="0 0 16 16" className="dv-rename-arrow">
+    <path d="M8.47 4.22a.75.75 0 0 0 0 1.06l1.97 1.97H3.75a.75.75 0 0 0 0 1.5h6.69l-1.97 1.97a.75.75 0 1 0 1.06 1.06l3.25-3.25a.75.75 0 0 0 0-1.06L9.53 4.22a.75.75 0 0 0-1.06 0" fill="currentColor"/>
+  </svg>
+);
 
 // --- Annotation metadata types ---
 
@@ -218,38 +248,6 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({ fileDiff }) => {
     [fileDiff, filePath, addComment, setCommentFormTarget, setSelectedLineRange],
   );
 
-  // --- Header metadata ---
-  const renderHeaderMetadata = useCallback(
-    (_props: RenderHeaderMetadataProps) => (
-      <>
-        {fileDiff.file.old_path && (
-          <span className="dv-renamed">{"\u2190 " + fileDiff.file.old_path}</span>
-        )}
-        <span className="dv-stats">
-          {fileDiff.file.additions > 0 && (
-            <span className="dv-stat-add">+{fileDiff.file.additions}</span>
-          )}
-          {fileDiff.file.deletions > 0 && (
-            <span className="dv-stat-del">-{fileDiff.file.deletions}</span>
-          )}
-        </span>
-        {fileDiff.file.is_generated && (
-          <span className="dv-generated">Generated</span>
-        )}
-        <button
-          className="dv-collapse-btn"
-          onClick={(e) => {
-            e.stopPropagation();
-            toggleFileCollapse(filePath);
-          }}
-        >
-          {"\u25BC"}
-        </button>
-      </>
-    ),
-    [fileDiff.file, filePath, toggleFileCollapse],
-  );
-
   // --- selectedLines prop ---
   const selectedLines = useMemo(() => {
     if (commentFormTarget?.filePath === filePath) {
@@ -267,7 +265,8 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({ fileDiff }) => {
     () => ({
       diffStyle,
       theme: { dark: "github-dark", light: "github-light" },
-      themeType: "system",
+      themeType: "dark",
+      disableFileHeader: true,
       enableLineSelection: true,
       onLineSelected: handleLineSelected,
       onLineNumberClick: handleLineNumberClick,
@@ -287,21 +286,27 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({ fileDiff }) => {
     selectedLines,
     lineAnnotations,
     renderAnnotation,
-    renderHeaderMetadata,
     renderHoverUtility,
   };
 
-  // --- Collapsed ---
-  if (isCollapsed) {
-    return (
-      <div className="dv-collapsed">
-        <button
-          className="dv-expand-btn"
-          onClick={() => toggleFileCollapse(filePath)}
-        >
-          {"\u25B6"}
-        </button>
-        <span className="dv-collapsed-path">{filePath}</span>
+  // --- Custom file header (shared between collapsed and expanded) ---
+  const fileStatus = fileDiff.file.status;
+  const changeIcon = changeTypeIcons[fileStatus] ?? changeTypeIcons.modified;
+
+  const fileHeader = (
+    <div className="dv-file-header" onClick={() => toggleFileCollapse(filePath)}>
+      <div className="dv-header-left">
+        <span className="dv-toggle">{isCollapsed ? "\u25B6" : "\u25BC"}</span>
+        {changeIcon}
+        {fileDiff.file.old_path && (
+          <>
+            <span className="dv-file-path">{fileDiff.file.old_path}</span>
+            {arrowRightIcon}
+          </>
+        )}
+        <span className="dv-file-path">{filePath}</span>
+      </div>
+      <div className="dv-header-right">
         <span className="dv-stats">
           {fileDiff.file.additions > 0 && (
             <span className="dv-stat-add">+{fileDiff.file.additions}</span>
@@ -314,15 +319,17 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({ fileDiff }) => {
           <span className="dv-generated">Generated</span>
         )}
       </div>
-    );
-  }
+    </div>
+  );
 
   // --- Binary ---
   if (fileDiff.file.is_binary) {
     return (
       <div className="dv-binary">
-        <div className="dv-binary-header">{filePath}</div>
-        <div className="dv-binary-body">Binary file changed</div>
+        {fileHeader}
+        {!isCollapsed && (
+          <div className="dv-binary-body">Binary file changed</div>
+        )}
       </div>
     );
   }
@@ -330,35 +337,50 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({ fileDiff }) => {
   // --- Render: new files use Pierre File component for cleaner display ---
   if (fileDiff.file.status === "added" && newFile) {
     return (
-      <PierreFile
-        file={newFile}
-        options={{
-          theme: { dark: "github-dark", light: "github-light" },
-          themeType: "system",
-          overflow: diffOverflow,
-        }}
-        selectedLines={selectedLines}
-        renderHeaderMetadata={renderHeaderMetadata}
-      />
+      <div>
+        {fileHeader}
+        {!isCollapsed && (
+          <PierreFile
+            file={newFile}
+            options={{
+              theme: { dark: "github-dark", light: "github-light" },
+              themeType: "dark",
+              disableFileHeader: true,
+              overflow: diffOverflow,
+            }}
+            selectedLines={selectedLines}
+          />
+        )}
+      </div>
     );
   }
 
   // --- Render: prefer MultiFileDiff (file contents), fallback to PatchDiff ---
   if (hasFileContents && oldFile && newFile) {
     return (
-      <MultiFileDiff<AnnotationMeta>
-        oldFile={oldFile}
-        newFile={newFile}
-        {...sharedProps}
-      />
+      <div>
+        {fileHeader}
+        {!isCollapsed && (
+          <MultiFileDiff<AnnotationMeta>
+            oldFile={oldFile}
+            newFile={newFile}
+            {...sharedProps}
+          />
+        )}
+      </div>
     );
   }
 
   return (
-    <PatchDiff<AnnotationMeta>
-      patch={patch}
-      {...sharedProps}
-    />
+    <div>
+      {fileHeader}
+      {!isCollapsed && (
+        <PatchDiff<AnnotationMeta>
+          patch={patch}
+          {...sharedProps}
+        />
+      )}
+    </div>
   );
 };
 

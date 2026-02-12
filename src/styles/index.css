@@ -466,43 +466,86 @@ a:hover {
 
 /* --- DiffView (Pierre-native) --- */
 
-/* Collapsed file header */
-.dv-collapsed {
+/* Custom file header (replaces Pierre's built-in header) */
+.dv-file-header {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  justify-content: space-between;
   padding: var(--space-2) var(--space-3);
   background: var(--color-bg-tertiary);
   border-bottom: 1px solid var(--color-border-primary);
+  cursor: pointer;
 }
 
-.dv-expand-btn,
-.dv-collapse-btn {
-  background: none;
-  border: none;
+.dv-file-header:hover {
+  background: var(--color-bg-overlay);
+}
+
+.dv-header-left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.dv-header-right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.dv-toggle {
   color: var(--color-text-secondary);
-  cursor: pointer;
   font-size: var(--font-size-sm);
-  padding: 0 2px;
+  flex-shrink: 0;
+  width: 14px;
+  text-align: center;
+}
+
+/* Change type icon */
+.dv-change-icon {
+  width: 16px;
+  height: 16px;
   flex-shrink: 0;
 }
 
-.dv-expand-btn:hover,
-.dv-collapse-btn:hover {
-  color: var(--color-text-primary);
+.dv-change-icon--modified {
+  color: var(--color-modified);
 }
 
-.dv-collapsed-path {
+.dv-change-icon--added {
+  color: var(--color-added);
+}
+
+.dv-change-icon--deleted {
+  color: var(--color-deleted);
+}
+
+.dv-change-icon--renamed {
+  color: var(--color-modified);
+}
+
+/* Rename arrow */
+.dv-rename-arrow {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  color: var(--color-text-secondary);
+}
+
+/* File path with RTL ellipsis (truncates left side, keeps filename visible) */
+.dv-file-path {
   font-family: var(--font-mono);
   font-size: var(--font-size-sm);
   font-weight: 600;
   color: var(--color-text-primary);
-}
-
-/* Header metadata injected into Pierre's header */
-.dv-renamed {
-  font-size: var(--font-size-xs);
-  color: var(--color-text-tertiary);
+  direction: rtl;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
 }
 
 .dv-stats {
@@ -530,16 +573,6 @@ a:hover {
 
 /* Binary file fallback */
 .dv-binary {
-  border-bottom: 1px solid var(--color-border-primary);
-}
-
-.dv-binary-header {
-  padding: var(--space-2) var(--space-3);
-  background: var(--color-bg-tertiary);
-  font-family: var(--font-mono);
-  font-size: var(--font-size-sm);
-  font-weight: 600;
-  color: var(--color-text-primary);
   border-bottom: 1px solid var(--color-border-primary);
 }
 

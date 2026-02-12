@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useStore } from "../store";
+
 import * as api from "../utils/tauri-api";
 
 const isTauri = typeof window !== "undefined" && "__TAURI__" in window;
