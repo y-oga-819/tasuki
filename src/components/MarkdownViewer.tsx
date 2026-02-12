@@ -97,7 +97,7 @@ export const MarkdownViewer: React.FC = () => {
 
   return (
     <div className="markdown-viewer">
-      <div className="markdown-toolbar">
+      <header className="markdown-toolbar">
         {tocItems.length > 3 && (
           <div className="toc-container" ref={tocRef}>
             <button
@@ -145,7 +145,8 @@ export const MarkdownViewer: React.FC = () => {
             Raw
           </button>
         </div>
-      </div>
+      </header>
+      <div className="markdown-scroll">
       {markdownViewMode === "raw" ? (
         <pre className="markdown-raw">{docContent}</pre>
       ) : (
@@ -198,6 +199,7 @@ export const MarkdownViewer: React.FC = () => {
         </ReactMarkdown>
       </article>
       )}
+      </div>
     </div>
   );
 };

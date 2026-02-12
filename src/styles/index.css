@@ -504,11 +504,17 @@ a:hover {
   height: 100%;
 }
 
-.resizable-left,
+.resizable-left {
+  overflow-y: auto;
+  min-width: 0;
+  height: 100%;
+}
+
 .resizable-right {
   overflow-y: auto;
   min-width: 0;
   height: 100%;
+  max-width: 900px;
 }
 
 .resizable-handle {
@@ -957,8 +963,16 @@ kbd {
 
 /* --- Markdown Viewer --- */
 .markdown-viewer {
-  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
   max-width: 900px;
+}
+
+.markdown-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-4);
 }
 
 .markdown-viewer.empty,
@@ -973,7 +987,6 @@ kbd {
 /* TOC */
 .toc-container {
   position: relative;
-  margin-bottom: var(--space-3);
 }
 
 .toc-toggle-btn {
@@ -1047,12 +1060,16 @@ kbd {
   padding-left: calc(var(--space-6) + var(--space-4));
 }
 
-/* Markdown toolbar (TOC + view toggle) */
+/* Markdown toolbar (TOC + view toggle) — sticky header */
 .markdown-toolbar {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  margin-bottom: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-bg-primary);
+  border-bottom: 1px solid var(--color-border-secondary);
+  flex-shrink: 0;
+  z-index: 5;
 }
 
 .markdown-view-toggle {
@@ -1066,11 +1083,12 @@ kbd {
 /* Raw markdown display */
 .markdown-raw {
   font-family: var(--font-mono);
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-base);
   color: var(--color-text-primary);
   white-space: pre-wrap;
   word-wrap: break-word;
   line-height: 1.6;
+  margin-top: var(--space-4);
 }
 
 /* Markdown content styling */

@@ -6,6 +6,8 @@ interface ResizablePaneProps {
   defaultRatio?: number;
   minRatio?: number;
   maxRatio?: number;
+  /** Maximum width (px) for the right pane. Limits how far left the handle can be dragged. */
+  maxRightWidth?: number;
 }
 
 export const ResizablePane: React.FC<ResizablePaneProps> = ({
@@ -14,6 +16,7 @@ export const ResizablePane: React.FC<ResizablePaneProps> = ({
   defaultRatio = 0.5,
   minRatio = 0.2,
   maxRatio = 0.8,
+  maxRightWidth,
 }) => {
   const [ratio, setRatio] = useState(defaultRatio);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -36,14 +39,18 @@ export const ResizablePane: React.FC<ResizablePaneProps> = ({
       rafIdRef.current = requestAnimationFrame(() => {
         if (!containerRef.current) return;
         const rect = containerRef.current.getBoundingClientRect();
+        const effectiveMinRatio =
+          maxRightWidth != null
+            ? Math.max(minRatio, 1 - maxRightWidth / rect.width)
+            : minRatio;
         const clamped = Math.max(
-          minRatio,
+          effectiveMinRatio,
           Math.min(maxRatio, (clientX - rect.left) / rect.width),
         );
         setRatio(clamped);
       });
     },
-    [minRatio, maxRatio],
+    [minRatio, maxRatio, maxRightWidth],
   );
 
   const handlePointerUp = useCallback(() => {

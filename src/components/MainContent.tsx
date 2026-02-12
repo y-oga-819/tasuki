@@ -74,6 +74,7 @@ export const MainContent: React.FC = () => {
             defaultRatio={0.5}
             minRatio={0.2}
             maxRatio={0.8}
+            maxRightWidth={900}
           />
         </div>
       )}
