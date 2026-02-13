@@ -54,8 +54,16 @@ Tasukiを開発フロー全体のコントロールプレーンとし、Claude C
 #### ファイルパス
 
 ```
-/tmp/tasuki/{repository_name}/review.json
+/tmp/tasuki/{repository_name}/{branch_name}/review.json
 ```
+
+ブランチ名に含まれる `/` はそのままディレクトリ区切りとして使用する。
+
+例:
+- `/tmp/tasuki/tasuki/feature/commit-gate/review.json`
+- `/tmp/tasuki/tasuki/claude/add-terminal-tab-gkBv6/review.json`
+
+これにより、同一リポジトリで複数worktreeを使った並行作業でもレビュー状態が衝突しない。
 
 #### ファイルフォーマット
 
@@ -127,7 +135,12 @@ if [ -z "$REPO_NAME" ]; then
   exit 0  # gitリポジトリ外では無視
 fi
 
-REVIEW_FILE="/tmp/tasuki/${REPO_NAME}/review.json"
+BRANCH_NAME=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
+if [ -z "$BRANCH_NAME" ]; then
+  exit 0
+fi
+
+REVIEW_FILE="/tmp/tasuki/${REPO_NAME}/${BRANCH_NAME}/review.json"
 
 # レビューファイルが存在しない → ブロック
 if [ ! -f "$REVIEW_FILE" ]; then
@@ -312,5 +325,5 @@ exit 2
 | 設計書 | `~/.claude/design/{repo}/xxxx_{branch}.md` |
 | タスク分解 | `~/.claude/design/{repo}/xxxx_{branch}-task.md` |
 | レビュー結果（PR） | `~/.claude/reviews/{repo}/...` |
-| コミットゲート | `/tmp/tasuki/{repo}/review.json` |
+| コミットゲート | `/tmp/tasuki/{repo}/{branch}/review.json` |
 | Hook スクリプト | `~/.claude/hooks/tasuki-commit-gate.sh` |
