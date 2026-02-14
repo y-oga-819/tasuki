@@ -3,6 +3,7 @@ import { useStore } from "../store";
 import { DiffViewer } from "./DiffViewer";
 import { MarkdownViewer } from "./MarkdownViewer";
 import { ResizablePane } from "./ResizablePane";
+import { TerminalPanel } from "./Terminal";
 
 /** Render all file diffs, scrolling to selectedFile on change */
 const AllFileDiffs: React.FC = () => {
@@ -95,6 +96,8 @@ export const MainContent: React.FC = () => {
           />
         </div>
       )}
+
+      <TerminalPanel visible={displayMode === "terminal"} />
     </main>
   );
 };

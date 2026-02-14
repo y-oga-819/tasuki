@@ -5,6 +5,7 @@ use std::sync::Mutex;
 
 use crate::error::TasukiError;
 use crate::git::{self, CommitInfo, DiffResult, RepoInfo};
+use crate::pty::PtyState;
 use crate::watcher::{self, WatcherHandle};
 use crate::CliArgs;
 
@@ -285,6 +286,44 @@ pub fn read_design_doc(
 
     fs::read_to_string(&file_path)
         .map_err(|e| TasukiError::Io(format!("Cannot read design doc: {}", e)))
+}
+
+/// Spawn a terminal PTY session
+#[tauri::command]
+pub fn spawn_terminal(
+    app: AppHandle,
+    state: State<AppState>,
+    pty_state: State<PtyState>,
+    cols: u16,
+    rows: u16,
+) -> Result<(), String> {
+    let cwd = state.repo_path.lock().unwrap().clone();
+    pty_state.spawn(&app, cols, rows, &cwd)
+}
+
+/// Write data to the terminal PTY
+#[tauri::command]
+pub fn write_terminal(pty_state: State<PtyState>, data: String) -> Result<(), String> {
+    pty_state.write(&data)
+}
+
+/// Resize the terminal PTY
+#[tauri::command]
+pub fn resize_terminal(pty_state: State<PtyState>, cols: u16, rows: u16) -> Result<(), String> {
+    pty_state.resize(cols, rows)
+}
+
+/// Kill the terminal PTY session
+#[tauri::command]
+pub fn kill_terminal(pty_state: State<PtyState>) -> Result<(), String> {
+    pty_state.kill();
+    Ok(())
+}
+
+/// Check whether a terminal PTY session is currently running
+#[tauri::command]
+pub fn is_terminal_alive(pty_state: State<PtyState>) -> bool {
+    pty_state.is_alive()
 }
 
 #[cfg(test)]

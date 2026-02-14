@@ -112,7 +112,7 @@ export type ReviewRestoreMode = "full" | "checklist" | "none";
 export type ReviewVerdict = "approve" | "request_changes" | null;
 
 /** Display mode for the main content area */
-export type DisplayMode = "docs" | "diff" | "diff-docs";
+export type DisplayMode = "docs" | "diff" | "diff-docs" | "terminal";
 
 /** Diff view layout (matches Pierre's diffStyle naming) */
 export type DiffLayout = "split" | "unified";

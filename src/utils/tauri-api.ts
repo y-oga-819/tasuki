@@ -97,6 +97,34 @@ export async function readDesignDoc(filename: string): Promise<string> {
   return invoke<string>("read_design_doc", { filename });
 }
 
+export async function spawnTerminal(cols: number, rows: number): Promise<void> {
+  return invoke<void>("spawn_terminal", { cols, rows });
+}
+
+export async function writeTerminal(data: string): Promise<void> {
+  return invoke<void>("write_terminal", { data });
+}
+
+export async function resizeTerminal(cols: number, rows: number): Promise<void> {
+  return invoke<void>("resize_terminal", { cols, rows });
+}
+
+export async function killTerminal(): Promise<void> {
+  return invoke<void>("kill_terminal");
+}
+
+export async function isTerminalAlive(): Promise<boolean> {
+  return invoke<boolean>("is_terminal_alive");
+}
+
+export async function readFromClipboard(): Promise<string> {
+  if (isTauri) {
+    const { readText } = await import("@tauri-apps/plugin-clipboard-manager");
+    return await readText();
+  }
+  return await navigator.clipboard.readText();
+}
+
 export async function copyToClipboard(text: string): Promise<void> {
   if (isTauri) {
     const { writeText } = await import("@tauri-apps/plugin-clipboard-manager");
