@@ -48,6 +48,10 @@ export const TerminalPanel: React.FC<{ visible: boolean }> = ({ visible }) => {
       lineHeight: 1.4,
       cursorBlink: true,
       allowProposedApi: true,
+      scrollback: 10000,
+      // Developer-friendly word separators: keeps -_./:\~@#= etc. as word chars
+      // so double-click selects file paths, URLs, and snake_case/kebab-case names
+      wordSeparator: " ()[]{}'\",;|&><`",
     });
 
     const fitAddon = new FitAddon();
