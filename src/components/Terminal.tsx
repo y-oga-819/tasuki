@@ -1,19 +1,80 @@
-import React, { useEffect, useRef, useCallback } from "react";
+import React, { useEffect, useRef, useCallback, useState } from "react";
 import { Terminal as XTerm } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { WebLinksAddon } from "@xterm/addon-web-links";
+import { WebglAddon } from "@xterm/addon-webgl";
+import { SearchAddon } from "@xterm/addon-search";
 import "@xterm/xterm/css/xterm.css";
 import * as api from "../utils/tauri-api";
 
 const isTauri = typeof window !== "undefined" && "__TAURI__" in window;
+const isMac =
+  typeof navigator !== "undefined" && navigator.platform.includes("Mac");
+
+const DEFAULT_FONT_SIZE = 13;
+const MIN_FONT_SIZE = 8;
+const MAX_FONT_SIZE = 28;
 
 export const TerminalPanel: React.FC<{ visible: boolean }> = ({ visible }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const termRef = useRef<XTerm | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
+  const searchAddonRef = useRef<SearchAddon | null>(null);
   const spawnedRef = useRef(false);
   const unlistenDataRef = useRef<(() => void) | null>(null);
   const unlistenExitRef = useRef<(() => void) | null>(null);
+
+  // Batch writing buffer: accumulate PTY data and flush once per animation frame
+  const writeBufferRef = useRef<string[]>([]);
+  const rafIdRef = useRef<number | null>(null);
+
+  // Search bar state
+  const [searchVisible, setSearchVisible] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  const flushWriteBuffer = useCallback(() => {
+    rafIdRef.current = null;
+    const term = termRef.current;
+    const chunks = writeBufferRef.current;
+    if (!term || chunks.length === 0) return;
+
+    // Join all buffered chunks and write once
+    const combined = chunks.join("");
+    writeBufferRef.current = [];
+    term.write(combined);
+  }, []);
+
+  const enqueueWrite = useCallback(
+    (data: string) => {
+      writeBufferRef.current.push(data);
+      if (rafIdRef.current === null) {
+        rafIdRef.current = requestAnimationFrame(flushWriteBuffer);
+      }
+    },
+    [flushWriteBuffer],
+  );
+
+  // Search helpers
+  const doSearch = useCallback(
+    (query: string, direction: "next" | "prev" = "next") => {
+      const addon = searchAddonRef.current;
+      if (!addon || !query) return;
+      if (direction === "next") {
+        addon.findNext(query, { regex: false, incremental: true });
+      } else {
+        addon.findPrevious(query, { regex: false, incremental: true });
+      }
+    },
+    [],
+  );
+
+  const closeSearch = useCallback(() => {
+    setSearchVisible(false);
+    setSearchQuery("");
+    searchAddonRef.current?.clearDecorations();
+    termRef.current?.focus();
+  }, []);
 
   const initTerminal = useCallback(async () => {
     if (!containerRef.current || termRef.current) return;
@@ -44,7 +105,7 @@ export const TerminalPanel: React.FC<{ visible: boolean }> = ({ visible }) => {
       },
       fontFamily:
         "SF Mono, Fira Code, Fira Mono, Roboto Mono, Menlo, Consolas, monospace",
-      fontSize: 13,
+      fontSize: DEFAULT_FONT_SIZE,
       lineHeight: 1.4,
       cursorBlink: true,
       allowProposedApi: true,
@@ -56,6 +117,11 @@ export const TerminalPanel: React.FC<{ visible: boolean }> = ({ visible }) => {
 
     const fitAddon = new FitAddon();
     term.loadAddon(fitAddon);
+
+    // Search addon
+    const searchAddon = new SearchAddon();
+    term.loadAddon(searchAddon);
+    searchAddonRef.current = searchAddon;
 
     // URL click support — open in default browser via Tauri shell plugin
     const webLinksAddon = new WebLinksAddon(async (_event, url) => {
@@ -74,6 +140,17 @@ export const TerminalPanel: React.FC<{ visible: boolean }> = ({ visible }) => {
 
     term.open(containerRef.current);
 
+    // WebGL GPU-accelerated renderer (fallback to canvas if WebGL unavailable)
+    try {
+      const webglAddon = new WebglAddon();
+      webglAddon.onContextLoss(() => {
+        webglAddon.dispose();
+      });
+      term.loadAddon(webglAddon);
+    } catch {
+      // WebGL not available — continue with default canvas renderer
+    }
+
     termRef.current = term;
     fitAddonRef.current = fitAddon;
 
@@ -82,8 +159,7 @@ export const TerminalPanel: React.FC<{ visible: boolean }> = ({ visible }) => {
       fitAddon.fit();
     });
 
-    // Copy & paste key bindings
-    const isMac = navigator.platform.includes("Mac");
+    // Key bindings
     term.attachCustomKeyEventHandler((e: KeyboardEvent) => {
       if (e.type !== "keydown") return true;
 
@@ -113,6 +189,54 @@ export const TerminalPanel: React.FC<{ visible: boolean }> = ({ visible }) => {
         return false;
       }
 
+      // Search: Cmd+F (Mac) or Ctrl+Shift+F (Linux/Win)
+      const isSearch = isMac
+        ? e.metaKey && e.key === "f"
+        : e.ctrlKey && e.shiftKey && e.key.toLowerCase() === "f";
+      if (isSearch) {
+        setSearchVisible(true);
+        requestAnimationFrame(() => searchInputRef.current?.focus());
+        return false;
+      }
+
+      // Close search: Escape
+      if (e.key === "Escape" && searchVisible) {
+        closeSearch();
+        return false;
+      }
+
+      // Clear terminal: Cmd+K (Mac) or Ctrl+Shift+K (Linux/Win)
+      const isClear = isMac
+        ? e.metaKey && e.key === "k"
+        : e.ctrlKey && e.shiftKey && e.key.toLowerCase() === "k";
+      if (isClear) {
+        term.clear();
+        return false;
+      }
+
+      // Font size increase: Cmd+= (Mac) or Ctrl+= (Linux/Win)
+      if ((isMac ? e.metaKey : e.ctrlKey) && (e.key === "=" || e.key === "+")) {
+        const next = Math.min(term.options.fontSize! + 1, MAX_FONT_SIZE);
+        term.options.fontSize = next;
+        fitAddonRef.current?.fit();
+        return false;
+      }
+
+      // Font size decrease: Cmd+- (Mac) or Ctrl+- (Linux/Win)
+      if ((isMac ? e.metaKey : e.ctrlKey) && e.key === "-") {
+        const next = Math.max(term.options.fontSize! - 1, MIN_FONT_SIZE);
+        term.options.fontSize = next;
+        fitAddonRef.current?.fit();
+        return false;
+      }
+
+      // Font size reset: Cmd+0 (Mac) or Ctrl+0 (Linux/Win)
+      if ((isMac ? e.metaKey : e.ctrlKey) && e.key === "0") {
+        term.options.fontSize = DEFAULT_FONT_SIZE;
+        fitAddonRef.current?.fit();
+        return false;
+      }
+
       return true;
     });
 
@@ -121,12 +245,12 @@ export const TerminalPanel: React.FC<{ visible: boolean }> = ({ visible }) => {
       api.writeTerminal(data).catch(() => {});
     });
 
-    // Listen for PTY output
+    // Listen for PTY output with batched writing
     if (isTauri) {
       const { listen } = await import("@tauri-apps/api/event");
 
       const unData = await listen<string>("pty-data", (event) => {
-        term.write(event.payload);
+        enqueueWrite(event.payload);
       });
       unlistenDataRef.current = unData;
 
@@ -155,7 +279,7 @@ export const TerminalPanel: React.FC<{ visible: boolean }> = ({ visible }) => {
         api.resizeTerminal(cols, rows).catch(() => {});
       }
     });
-  }, []);
+  }, [enqueueWrite, closeSearch]);
 
   // Initialize terminal when first made visible
   useEffect(() => {
@@ -191,6 +315,9 @@ export const TerminalPanel: React.FC<{ visible: boolean }> = ({ visible }) => {
   // Cleanup on unmount
   useEffect(() => {
     return () => {
+      if (rafIdRef.current !== null) {
+        cancelAnimationFrame(rafIdRef.current);
+      }
       unlistenDataRef.current?.();
       unlistenExitRef.current?.();
       termRef.current?.dispose();
@@ -201,6 +328,51 @@ export const TerminalPanel: React.FC<{ visible: boolean }> = ({ visible }) => {
     <div
       className={`terminal-container ${visible ? "" : "terminal-hidden"}`}
       ref={containerRef}
-    />
+    >
+      {searchVisible && (
+        <div className="terminal-search-bar">
+          <input
+            ref={searchInputRef}
+            type="text"
+            className="terminal-search-input"
+            placeholder="Search..."
+            value={searchQuery}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              doSearch(e.target.value, "next");
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                doSearch(searchQuery, e.shiftKey ? "prev" : "next");
+              }
+              if (e.key === "Escape") {
+                closeSearch();
+              }
+            }}
+          />
+          <button
+            className="terminal-search-btn"
+            title="Previous (Shift+Enter)"
+            onClick={() => doSearch(searchQuery, "prev")}
+          >
+            &#x25B2;
+          </button>
+          <button
+            className="terminal-search-btn"
+            title="Next (Enter)"
+            onClick={() => doSearch(searchQuery, "next")}
+          >
+            &#x25BC;
+          </button>
+          <button
+            className="terminal-search-btn terminal-search-close"
+            title="Close (Escape)"
+            onClick={closeSearch}
+          >
+            &#x2715;
+          </button>
+        </div>
+      )}
+    </div>
   );
 };
