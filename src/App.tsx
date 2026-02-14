@@ -17,7 +17,7 @@ const MIN_SIDEBAR_WIDTH = 160;
 const MAX_SIDEBAR_WIDTH = 500;
 
 const App: React.FC = () => {
-  const { displayMode, setRepoPath, setRepoInfo, setDocFiles, setDesignDocs, setSelectedDoc } =
+  const { displayMode, setRepoPath, setRepoInfo, setDocFiles, setDesignDocs, setSelectedDoc, gateStatus, setGateStatus, setVerdict } =
     useStore();
   const { refetch } = useDiff();
 
@@ -124,10 +124,19 @@ const App: React.FC = () => {
     return () => unlisten?.();
   }, []);
 
-  // Watch for file changes and refetch diff
-  const handleFilesChanged = useCallback(() => {
+  // Watch for file changes and refetch diff + invalidate gate
+  const handleFilesChanged = useCallback(async () => {
     refetch();
-  }, [refetch]);
+
+    // If gate was approved/rejected, invalidate it since files changed
+    if (gateStatus === "approved" || gateStatus === "rejected") {
+      try {
+        await api.clearCommitGate();
+      } catch { /* ignore */ }
+      setGateStatus("invalidated");
+      setVerdict(null);
+    }
+  }, [refetch, gateStatus, setGateStatus, setVerdict]);
 
   useFileWatcher(handleFilesChanged);
 

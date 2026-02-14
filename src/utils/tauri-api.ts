@@ -1,4 +1,4 @@
-import type { DiffResult, CommitInfo, ReviewSession, RepoInfo } from "../types";
+import type { DiffResult, CommitInfo, ReviewSession, RepoInfo, CommitGateData } from "../types";
 
 /**
  * Bridge to Tauri backend commands.
@@ -115,6 +115,34 @@ export async function killTerminal(): Promise<void> {
 
 export async function isTerminalAlive(): Promise<boolean> {
   return invoke<boolean>("is_terminal_alive");
+}
+
+// ---- Commit Gate ----
+
+export async function writeCommitGate(
+  status: "approved" | "rejected",
+  diffHash: string,
+  resolvedComments: Array<{ file: string; line: number; body: string; resolution_memo: string | null }>,
+  resolvedDocComments: Array<{ file: string; section: string; body: string; resolution_memo: string | null }>,
+): Promise<void> {
+  const resolvedCommentsJson = JSON.stringify(resolvedComments);
+  const resolvedDocCommentsJson = JSON.stringify(resolvedDocComments);
+  return invoke<void>("write_commit_gate", {
+    status,
+    diffHash,
+    resolvedComments: resolvedCommentsJson,
+    resolvedDocComments: resolvedDocCommentsJson,
+  });
+}
+
+export async function readCommitGate(): Promise<CommitGateData | null> {
+  const json = await invoke<string | null>("read_commit_gate");
+  if (json === null) return null;
+  return JSON.parse(json) as CommitGateData;
+}
+
+export async function clearCommitGate(): Promise<void> {
+  return invoke<void>("clear_commit_gate");
 }
 
 export async function readFromClipboard(): Promise<string> {

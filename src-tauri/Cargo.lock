@@ -321,8 +321,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fac4744fb15ae8337dc853fee7fb3f4e48c0fbaa23d0afe49c447b4fab126118"
 dependencies = [
  "iana-time-zone",
+ "js-sys",
  "num-traits",
  "serde",
+ "wasm-bindgen",
  "windows-link 0.2.1",
 ]
 
@@ -3747,6 +3749,7 @@ checksum = "61c41af27dd6d1e27b1b16b489db798443478cef1f06a660c96db617ba5de3b1"
 name = "tasuki"
 version = "0.1.0"
 dependencies = [
+ "chrono",
  "dirs",
  "git2",
  "glob",
