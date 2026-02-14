@@ -75,6 +75,8 @@ export interface ReviewComment {
   resolved: boolean;
   /** Timestamp when resolved, null if unresolved */
   resolved_at: number | null;
+  /** Optional memo describing how the comment was resolved */
+  resolution_memo: string | null;
 }
 
 /** Review comment on a document section */
@@ -91,6 +93,8 @@ export interface DocComment {
   resolved: boolean;
   /** Timestamp when resolved, null if unresolved */
   resolved_at: number | null;
+  /** Optional memo describing how the comment was resolved */
+  resolution_memo: string | null;
 }
 
 /** Persisted review session */
@@ -122,6 +126,31 @@ export interface RepoInfo {
   repo_name: string;
   branch_name: string | null;
   is_worktree: boolean;
+}
+
+/** Commit gate status */
+export type GateStatus = "none" | "approved" | "rejected" | "invalidated";
+
+/** Commit gate file data returned from backend */
+export interface CommitGateData {
+  version: number;
+  status: "approved" | "rejected";
+  timestamp: string;
+  repository: string;
+  branch: string;
+  diff_hash: string;
+  resolved_comments: Array<{
+    file: string;
+    line: number;
+    body: string;
+    resolution_memo: string | null;
+  }>;
+  resolved_doc_comments: Array<{
+    file: string;
+    section: string;
+    body: string;
+    resolution_memo: string | null;
+  }>;
 }
 
 /** Diff source specification */
