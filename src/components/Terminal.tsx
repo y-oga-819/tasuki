@@ -78,6 +78,40 @@ export const TerminalPanel: React.FC<{ visible: boolean }> = ({ visible }) => {
       fitAddon.fit();
     });
 
+    // Copy & paste key bindings
+    const isMac = navigator.platform.includes("Mac");
+    term.attachCustomKeyEventHandler((e: KeyboardEvent) => {
+      if (e.type !== "keydown") return true;
+
+      // Copy: Cmd+C (Mac) or Ctrl+Shift+C (Linux/Win)
+      const isCopy = isMac
+        ? e.metaKey && e.key === "c"
+        : e.ctrlKey && e.shiftKey && e.key.toLowerCase() === "c";
+      if (isCopy) {
+        const selection = term.getSelection();
+        if (selection) {
+          api.copyToClipboard(selection).catch(() => {});
+        }
+        return false;
+      }
+
+      // Paste: Cmd+V (Mac) or Ctrl+Shift+V (Linux/Win)
+      const isPaste = isMac
+        ? e.metaKey && e.key === "v"
+        : e.ctrlKey && e.shiftKey && e.key.toLowerCase() === "v";
+      if (isPaste) {
+        api
+          .readFromClipboard()
+          .then((text) => {
+            if (text) api.writeTerminal(text).catch(() => {});
+          })
+          .catch(() => {});
+        return false;
+      }
+
+      return true;
+    });
+
     // Send user input to PTY backend
     term.onData((data) => {
       api.writeTerminal(data).catch(() => {});

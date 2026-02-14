@@ -113,6 +113,18 @@ export async function killTerminal(): Promise<void> {
   return invoke<void>("kill_terminal");
 }
 
+export async function isTerminalAlive(): Promise<boolean> {
+  return invoke<boolean>("is_terminal_alive");
+}
+
+export async function readFromClipboard(): Promise<string> {
+  if (isTauri) {
+    const { readText } = await import("@tauri-apps/plugin-clipboard-manager");
+    return await readText();
+  }
+  return await navigator.clipboard.readText();
+}
+
 export async function copyToClipboard(text: string): Promise<void> {
   if (isTauri) {
     const { writeText } = await import("@tauri-apps/plugin-clipboard-manager");

@@ -320,6 +320,12 @@ pub fn kill_terminal(pty_state: State<PtyState>) -> Result<(), String> {
     Ok(())
 }
 
+/// Check whether a terminal PTY session is currently running
+#[tauri::command]
+pub fn is_terminal_alive(pty_state: State<PtyState>) -> bool {
+    pty_state.is_alive()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

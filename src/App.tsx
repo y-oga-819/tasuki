@@ -10,6 +10,8 @@ import { useFileWatcher } from "./hooks/useFileWatcher";
 import { useReviewPersistence } from "./hooks/useReviewPersistence";
 import * as api from "./utils/tauri-api";
 
+const isTauri = typeof window !== "undefined" && "__TAURI__" in window;
+
 const DEFAULT_SIDEBAR_WIDTH = 260;
 const MIN_SIDEBAR_WIDTH = 160;
 const MAX_SIDEBAR_WIDTH = 500;
@@ -91,6 +93,36 @@ const App: React.FC = () => {
       }
     })();
   }, [setRepoPath, setRepoInfo, setDocFiles, setDesignDocs, setSelectedDoc]);
+
+  // Warn before closing if a terminal session is running
+  useEffect(() => {
+    if (!isTauri) return;
+
+    let unlisten: (() => void) | undefined;
+    (async () => {
+      const { getCurrentWindow } = await import("@tauri-apps/api/window");
+      const appWindow = getCurrentWindow();
+      unlisten = await appWindow.onCloseRequested(async (event) => {
+        try {
+          const alive = await api.isTerminalAlive();
+          if (alive) {
+            const confirmed = window.confirm(
+              "ターミナルセッションが実行中です。終了しますか？",
+            );
+            if (!confirmed) {
+              event.preventDefault();
+              return;
+            }
+            await api.killTerminal();
+          }
+        } catch {
+          // If the check fails, allow closing
+        }
+      });
+    })();
+
+    return () => unlisten?.();
+  }, []);
 
   // Watch for file changes and refetch diff
   const handleFilesChanged = useCallback(() => {
