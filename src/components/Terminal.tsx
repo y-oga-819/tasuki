@@ -2,8 +2,9 @@ import React, { useEffect, useRef, useCallback, useState } from "react";
 import { Terminal as XTerm } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { WebLinksAddon } from "@xterm/addon-web-links";
-import { WebglAddon } from "@xterm/addon-webgl";
 import { SearchAddon } from "@xterm/addon-search";
+import { WebglAddon } from "@xterm/addon-webgl";
+import { Unicode11Addon } from "@xterm/addon-unicode11";
 import "@xterm/xterm/css/xterm.css";
 import * as api from "../utils/tauri-api";
 
@@ -118,6 +119,11 @@ export const TerminalPanel: React.FC<{ visible: boolean }> = ({ visible }) => {
     const fitAddon = new FitAddon();
     term.loadAddon(fitAddon);
 
+    // Unicode 11 addon — proper width calculation for box-drawing & wide chars
+    const unicode11Addon = new Unicode11Addon();
+    term.loadAddon(unicode11Addon);
+    term.unicode.activeVersion = "11";
+
     // Search addon
     const searchAddon = new SearchAddon();
     term.loadAddon(searchAddon);
@@ -140,7 +146,7 @@ export const TerminalPanel: React.FC<{ visible: boolean }> = ({ visible }) => {
 
     term.open(containerRef.current);
 
-    // WebGL GPU-accelerated renderer (fallback to canvas if WebGL unavailable)
+    // WebGL GPU-accelerated renderer (auto-fallback to canvas on context loss)
     try {
       const webglAddon = new WebglAddon();
       webglAddon.onContextLoss(() => {
@@ -153,11 +159,6 @@ export const TerminalPanel: React.FC<{ visible: boolean }> = ({ visible }) => {
 
     termRef.current = term;
     fitAddonRef.current = fitAddon;
-
-    // Initial fit
-    requestAnimationFrame(() => {
-      fitAddon.fit();
-    });
 
     // Key bindings
     term.attachCustomKeyEventHandler((e: KeyboardEvent) => {
@@ -180,6 +181,7 @@ export const TerminalPanel: React.FC<{ visible: boolean }> = ({ visible }) => {
         ? e.metaKey && e.key === "v"
         : e.ctrlKey && e.shiftKey && e.key.toLowerCase() === "v";
       if (isPaste) {
+        e.preventDefault();
         api
           .readFromClipboard()
           .then((text) => {
@@ -261,22 +263,27 @@ export const TerminalPanel: React.FC<{ visible: boolean }> = ({ visible }) => {
       unlistenExitRef.current = unExit;
     }
 
-    // Spawn PTY
-    if (!spawnedRef.current) {
-      try {
-        await api.spawnTerminal(term.cols, term.rows);
-        spawnedRef.current = true;
-      } catch (err) {
-        term.writeln(
-          `\x1b[31mFailed to spawn terminal: ${err}\x1b[0m`,
-        );
-      }
-    }
-
-    // Handle resize
+    // Handle resize — register before fit/spawn so no resize events are lost
     term.onResize(({ cols, rows }) => {
       if (spawnedRef.current) {
         api.resizeTerminal(cols, rows).catch(() => {});
+      }
+    });
+
+    // Wait for fonts to load so cell metrics are accurate, then fit & spawn.
+    await document.fonts.ready;
+    requestAnimationFrame(async () => {
+      fitAddon.fit();
+
+      if (!spawnedRef.current) {
+        try {
+          await api.spawnTerminal(term.cols, term.rows);
+          spawnedRef.current = true;
+        } catch (err) {
+          term.writeln(
+            `\x1b[31mFailed to spawn terminal: ${err}\x1b[0m`,
+          );
+        }
       }
     });
   }, [enqueueWrite, closeSearch]);
