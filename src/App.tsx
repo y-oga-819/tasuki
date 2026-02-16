@@ -97,7 +97,7 @@ const App: React.FC = () => {
     refetch();
   }, [refetch]);
 
-  useFileWatcher(handleFilesChanged);
+  useFileWatcher(handleFilesChanged, 400);
 
   return (
     <WorkerPoolContextProvider

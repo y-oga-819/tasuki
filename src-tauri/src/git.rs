@@ -1,6 +1,7 @@
 use git2::{Delta, DiffFindOptions, DiffFormat, DiffOptions, Repository, Sort};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+use std::collections::HashMap;
 use std::path::Path;
 
 use crate::error::TasukiError;
@@ -130,6 +131,7 @@ const GENERATED_PATTERNS: &[&str] = &[
     ".generated.",
     "__generated__",
 ];
+const MAX_INLINE_FILE_BYTES: u64 = 1_000_000;
 
 fn is_generated_file(path: &str) -> bool {
     GENERATED_PATTERNS.iter().any(|pattern| path.contains(pattern))
@@ -277,6 +279,11 @@ fn parse_diff(repo: &Repository, diff: &mut git2::Diff) -> Result<DiffResult, Ta
             new_content: None,
         });
     }
+    let path_to_idx: HashMap<String, usize> = files
+        .iter()
+        .enumerate()
+        .map(|(i, f)| (f.file.path.clone(), i))
+        .collect();
 
     // Parse hunks and lines using the print callback
     let mut current_file_idx: Option<usize> = None;
@@ -297,10 +304,9 @@ fn parse_diff(repo: &Repository, diff: &mut git2::Diff) -> Result<DiffResult, Ta
             .unwrap_or_default();
 
         // Find the matching file index
-        let file_idx = files
-            .iter()
-            .position(|f| f.file.path == file_path)
-            .unwrap_or(0);
+        let Some(&file_idx) = path_to_idx.get(&file_path) else {
+            return true;
+        };
 
         if current_file_idx != Some(file_idx) {
             // Flush previous hunk if any
@@ -386,11 +392,17 @@ fn parse_diff(repo: &Repository, diff: &mut git2::Diff) -> Result<DiffResult, Ta
         file.file.deletions = deletions_count[i];
     }
 
-    // Get old/new content for non-binary files
+    // Get old/new content for render-friendly files only.
+    // Large or generated files still render via patch hunks without inline fulltext.
     for file_diff in files.iter_mut() {
-        if !file_diff.file.is_binary {
-            file_diff.old_content = get_file_content_at_ref(repo, "HEAD", &file_diff.file.path).ok();
-            file_diff.new_content = read_working_file(repo, &file_diff.file.path).ok();
+        if should_load_inline_contents(repo, &file_diff.file) {
+            if file_diff.file.status != "added" {
+                file_diff.old_content =
+                    get_file_content_at_ref(repo, "HEAD", &file_diff.file.path).ok();
+            }
+            if file_diff.file.status != "deleted" {
+                file_diff.new_content = read_working_file(repo, &file_diff.file.path).ok();
+            }
         }
     }
 
@@ -402,6 +414,20 @@ fn parse_diff(repo: &Repository, diff: &mut git2::Diff) -> Result<DiffResult, Ta
         },
         files,
     })
+}
+
+fn should_load_inline_contents(repo: &Repository, file: &DiffFile) -> bool {
+    if file.is_binary || file.is_generated {
+        return false;
+    }
+    let Some(workdir) = repo.workdir() else {
+        return false;
+    };
+    let full_path = workdir.join(&file.path);
+    match std::fs::metadata(full_path) {
+        Ok(meta) => meta.len() <= MAX_INLINE_FILE_BYTES,
+        Err(_) => true,
+    }
 }
 
 /// Get file content at a specific git ref
@@ -417,6 +443,9 @@ fn get_file_content_at_ref(
 
     if blob.is_binary() {
         return Err(TasukiError::Git("Binary file".to_string()));
+    }
+    if blob.size() as u64 > MAX_INLINE_FILE_BYTES {
+        return Err(TasukiError::Git("File too large".to_string()));
     }
 
     Ok(String::from_utf8_lossy(blob.content()).to_string())

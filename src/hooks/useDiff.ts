@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useStore } from "../store";
 import * as api from "../utils/tauri-api";
 import type { DiffSource } from "../types";
@@ -11,10 +11,14 @@ export function useDiff() {
     setIsLoading,
     setError,
     setSelectedFile,
+    selectedFile,
     diffResult,
   } = useStore();
+  const sourceRef = useRef<DiffSource>(diffSource);
+  const inFlightRef = useRef<Promise<void> | null>(null);
+  const pendingRef = useRef(false);
 
-  const fetchDiff = useCallback(
+  const fetchDiffOnce = useCallback(
     async (source: DiffSource) => {
       setIsLoading(true);
       setError(null);
@@ -38,8 +42,13 @@ export function useDiff() {
             break;
         }
         setDiffResult(result);
-        // Auto-select first file
-        if (result.files.length > 0) {
+        // Keep the current selection if it still exists.
+        const hasSelectedFile =
+          selectedFile != null &&
+          result.files.some((f) => f.file.path === selectedFile);
+        if (result.files.length === 0) {
+          setSelectedFile(null);
+        } else if (!hasSelectedFile) {
           setSelectedFile(result.files[0].file.path);
         }
       } catch (err) {
@@ -49,13 +58,37 @@ export function useDiff() {
         setIsLoading(false);
       }
     },
-    [setDiffResult, setIsLoading, setError, setSelectedFile],
+    [setDiffResult, setIsLoading, setError, setSelectedFile, selectedFile],
   );
+
+  const fetchDiff = useCallback(() => {
+    if (inFlightRef.current) {
+      pendingRef.current = true;
+      return inFlightRef.current;
+    }
+
+    const run = async () => {
+      do {
+        pendingRef.current = false;
+        await fetchDiffOnce(sourceRef.current);
+      } while (pendingRef.current);
+    };
+
+    const promise = run().finally(() => {
+      inFlightRef.current = null;
+    });
+    inFlightRef.current = promise;
+    return promise;
+  }, [fetchDiffOnce]);
+
+  useEffect(() => {
+    sourceRef.current = diffSource;
+  }, [diffSource]);
 
   // Fetch on source change
   useEffect(() => {
-    fetchDiff(diffSource);
+    fetchDiff();
   }, [diffSource, fetchDiff]);
 
-  return { refetch: () => fetchDiff(diffSource), diffResult };
+  return { refetch: fetchDiff, diffResult };
 }
