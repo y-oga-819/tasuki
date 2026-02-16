@@ -234,6 +234,7 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({ fileDiff }) => {
                 author: "human",
                 resolved: false,
                 resolved_at: null,
+                resolution_memo: null,
               });
               setCommentFormTarget(null);
               setSelectedLineRange(null);
