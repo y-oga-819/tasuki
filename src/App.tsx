@@ -10,12 +10,14 @@ import { useFileWatcher } from "./hooks/useFileWatcher";
 import { useReviewPersistence } from "./hooks/useReviewPersistence";
 import * as api from "./utils/tauri-api";
 
+const isTauri = typeof window !== "undefined" && "__TAURI__" in window;
+
 const DEFAULT_SIDEBAR_WIDTH = 260;
 const MIN_SIDEBAR_WIDTH = 160;
 const MAX_SIDEBAR_WIDTH = 500;
 
 const App: React.FC = () => {
-  const { setRepoPath, setRepoInfo, setDocFiles, setDesignDocs, setSelectedDoc } =
+  const { displayMode, setRepoPath, setRepoInfo, setDocFiles, setDesignDocs, setSelectedDoc, gateStatus, setGateStatus, setVerdict } =
     useStore();
   const { refetch } = useDiff();
 
@@ -92,10 +94,49 @@ const App: React.FC = () => {
     })();
   }, [setRepoPath, setRepoInfo, setDocFiles, setDesignDocs, setSelectedDoc]);
 
-  // Watch for file changes and refetch diff
-  const handleFilesChanged = useCallback(() => {
+  // Warn before closing if a terminal session is running
+  useEffect(() => {
+    if (!isTauri) return;
+
+    let unlisten: (() => void) | undefined;
+    (async () => {
+      const { getCurrentWindow } = await import("@tauri-apps/api/window");
+      const appWindow = getCurrentWindow();
+      unlisten = await appWindow.onCloseRequested(async (event) => {
+        try {
+          const alive = await api.isTerminalAlive();
+          if (alive) {
+            const confirmed = window.confirm(
+              "ターミナルセッションが実行中です。終了しますか？",
+            );
+            if (!confirmed) {
+              event.preventDefault();
+              return;
+            }
+            await api.killTerminal();
+          }
+        } catch {
+          // If the check fails, allow closing
+        }
+      });
+    })();
+
+    return () => unlisten?.();
+  }, []);
+
+  // Watch for file changes and refetch diff + invalidate gate
+  const handleFilesChanged = useCallback(async () => {
     refetch();
-  }, [refetch]);
+
+    // If gate was approved/rejected, invalidate it since files changed
+    if (gateStatus === "approved" || gateStatus === "rejected") {
+      try {
+        await api.clearCommitGate();
+      } catch { /* ignore */ }
+      setGateStatus("invalidated");
+      setVerdict(null);
+    }
+  }, [refetch, gateStatus, setGateStatus, setVerdict]);
 
   useFileWatcher(handleFilesChanged, 400);
 
@@ -115,16 +156,20 @@ const App: React.FC = () => {
       <div className="app">
         <Toolbar />
         <div className="app-body">
-          <FileSidebar style={{ width: sidebarWidth }} />
-          <div
-            className="sidebar-resize-handle"
-            onPointerDown={handleSidebarPointerDown}
-            onPointerMove={handleSidebarPointerMove}
-            onPointerUp={handleSidebarPointerUp}
-          />
+          {displayMode !== "terminal" && (
+            <>
+              <FileSidebar style={{ width: sidebarWidth }} />
+              <div
+                className="sidebar-resize-handle"
+                onPointerDown={handleSidebarPointerDown}
+                onPointerMove={handleSidebarPointerMove}
+                onPointerUp={handleSidebarPointerUp}
+              />
+            </>
+          )}
           <MainContent />
         </div>
-        <ReviewPanel />
+        {displayMode !== "terminal" && <ReviewPanel />}
       </div>
     </WorkerPoolContextProvider>
   );

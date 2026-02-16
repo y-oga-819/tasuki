@@ -5,6 +5,7 @@ use std::sync::Mutex;
 
 use crate::error::TasukiError;
 use crate::git::{self, CommitInfo, DiffResult, RepoInfo};
+use crate::pty::PtyState;
 use crate::watcher::{self, WatcherHandle};
 use crate::CliArgs;
 
@@ -285,6 +286,125 @@ pub fn read_design_doc(
 
     fs::read_to_string(&file_path)
         .map_err(|e| TasukiError::Io(format!("Cannot read design doc: {}", e)))
+}
+
+// ---- Commit Gate ----
+
+/// Build the path for the commit gate file: /tmp/tasuki/{repo}/{branch}/review.json
+fn gate_file_path(repo_name: &str, branch_name: &str) -> PathBuf {
+    PathBuf::from("/tmp/tasuki")
+        .join(repo_name)
+        .join(branch_name)
+        .join("review.json")
+}
+
+/// Get (repo_name, branch_name) from state
+fn get_gate_context(state: &State<AppState>) -> Result<(String, String), TasukiError> {
+    let repo_path = state.repo_path.lock().unwrap().clone();
+    let info = git::get_repo_info(&repo_path)?;
+    let branch = info
+        .branch_name
+        .ok_or_else(|| TasukiError::Git("Not on a branch (detached HEAD)".to_string()))?;
+    Ok((info.repo_name, branch))
+}
+
+/// Write a commit gate file (approve or reject)
+#[tauri::command]
+pub fn write_commit_gate(
+    state: State<AppState>,
+    status: String,
+    diff_hash: String,
+    resolved_comments: String,
+    resolved_doc_comments: String,
+) -> Result<(), TasukiError> {
+    let (repo_name, branch) = get_gate_context(&state)?;
+    let path = gate_file_path(&repo_name, &branch);
+
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)
+            .map_err(|e| TasukiError::Io(format!("Cannot create gate dir: {}", e)))?;
+    }
+
+    let timestamp = chrono::Utc::now().to_rfc3339();
+
+    let gate_json = format!(
+        r#"{{"version":2,"status":"{}","timestamp":"{}","repository":"{}","branch":"{}","diff_hash":"{}","resolved_comments":{},"resolved_doc_comments":{}}}"#,
+        status, timestamp, repo_name, branch, diff_hash,
+        resolved_comments, resolved_doc_comments
+    );
+
+    fs::write(&path, gate_json)
+        .map_err(|e| TasukiError::Io(format!("Cannot write gate file: {}", e)))?;
+
+    Ok(())
+}
+
+/// Read the current commit gate file. Returns None if it doesn't exist.
+#[tauri::command]
+pub fn read_commit_gate(state: State<AppState>) -> Result<Option<String>, TasukiError> {
+    let (repo_name, branch) = get_gate_context(&state)?;
+    let path = gate_file_path(&repo_name, &branch);
+
+    if !path.exists() {
+        return Ok(None);
+    }
+
+    let content = fs::read_to_string(&path)
+        .map_err(|e| TasukiError::Io(format!("Cannot read gate file: {}", e)))?;
+
+    Ok(Some(content))
+}
+
+/// Delete the commit gate file
+#[tauri::command]
+pub fn clear_commit_gate(state: State<AppState>) -> Result<(), TasukiError> {
+    let (repo_name, branch) = get_gate_context(&state)?;
+    let path = gate_file_path(&repo_name, &branch);
+
+    if path.exists() {
+        fs::remove_file(&path)
+            .map_err(|e| TasukiError::Io(format!("Cannot remove gate file: {}", e)))?;
+    }
+
+    Ok(())
+}
+
+/// Spawn a terminal PTY session
+#[tauri::command]
+pub fn spawn_terminal(
+    app: AppHandle,
+    state: State<AppState>,
+    pty_state: State<PtyState>,
+    cols: u16,
+    rows: u16,
+) -> Result<(), String> {
+    let cwd = state.repo_path.lock().unwrap().clone();
+    pty_state.spawn(&app, cols, rows, &cwd)
+}
+
+/// Write data to the terminal PTY
+#[tauri::command]
+pub fn write_terminal(pty_state: State<PtyState>, data: String) -> Result<(), String> {
+    pty_state.write(&data)
+}
+
+/// Resize the terminal PTY
+#[tauri::command]
+pub fn resize_terminal(pty_state: State<PtyState>, cols: u16, rows: u16) -> Result<(), String> {
+    pty_state.resize(cols, rows)
+}
+
+/// Kill the terminal PTY session
+#[tauri::command]
+pub fn kill_terminal(pty_state: State<PtyState>) -> Result<(), String> {
+    pty_state.kill();
+    Ok(())
+}
+
+/// Check whether a terminal PTY session is currently running
+#[tauri::command]
+pub fn is_terminal_alive(pty_state: State<PtyState>) -> bool {
+    pty_state.is_alive()
 }
 
 #[cfg(test)]

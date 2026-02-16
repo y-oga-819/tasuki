@@ -989,11 +989,120 @@ kbd {
   white-space: pre-wrap;
 }
 
-/* Verdict buttons */
+/* --- Comment Resolution --- */
+.comment-item.resolved {
+  opacity: 0.6;
+}
+
+.comment-item.resolved .comment-body {
+  text-decoration: line-through;
+  text-decoration-color: var(--color-text-tertiary);
+}
+
+.resolve-check {
+  color: var(--color-approve);
+  font-weight: 700;
+}
+
+.resolution-memo {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+  font-style: italic;
+  margin-top: var(--space-1);
+}
+
+.resolve-form {
+  margin-top: var(--space-2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.resolve-memo-input {
+  width: 100%;
+  padding: var(--space-1) var(--space-2);
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border-primary);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+  font-family: var(--font-sans);
+}
+
+.resolve-memo-input:focus {
+  outline: none;
+  border-color: var(--color-text-link);
+}
+
+.resolve-form-actions {
+  display: flex;
+  gap: var(--space-1);
+  justify-content: flex-end;
+}
+
+.btn-xs {
+  padding: 1px var(--space-2);
+  font-size: var(--font-size-xs);
+}
+
+/* --- Review header actions --- */
+.review-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* --- Gate status badge --- */
+.gate-badge {
+  font-size: var(--font-size-xs);
+  padding: 1px 8px;
+  border-radius: 10px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.gate-approved {
+  background: rgba(63, 185, 80, 0.2);
+  color: var(--color-approve);
+}
+
+.gate-rejected {
+  background: rgba(248, 81, 73, 0.2);
+  color: var(--color-deleted);
+}
+
+.gate-invalidated {
+  background: rgba(210, 153, 34, 0.2);
+  color: var(--color-request-changes);
+}
+
+/* Verdict area */
 .review-verdict {
   display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: var(--space-2);
   padding: var(--space-2) var(--space-4);
+}
+
+.verdict-info {
+  font-size: var(--font-size-xs);
+  white-space: nowrap;
+}
+
+.unresolved-count {
+  color: var(--color-request-changes);
+  font-weight: 600;
+}
+
+.all-resolved {
+  color: var(--color-approve);
+  font-weight: 600;
+}
+
+.verdict-buttons {
+  display: flex;
+  gap: var(--space-2);
 }
 
 .verdict-btn {
@@ -1336,6 +1445,85 @@ kbd {
 
 ::-webkit-scrollbar-thumb:hover {
   background: var(--color-bg-overlay);
+}
+
+/* --- Terminal --- */
+.terminal-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  padding: var(--space-2);
+  background: #0d1117;
+}
+
+.terminal-container.terminal-hidden {
+  display: none;
+}
+
+/* Override xterm.js defaults to integrate with Tasuki */
+.terminal-container .xterm {
+  height: 100%;
+}
+
+.terminal-container .xterm-viewport {
+  overflow-y: auto;
+}
+
+/* --- Terminal search bar --- */
+.terminal-search-bar {
+  position: absolute;
+  top: 8px;
+  right: 24px;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 6px;
+  background: #161b22;
+  border: 1px solid #30363d;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.terminal-search-input {
+  width: 200px;
+  padding: 3px 8px;
+  font-size: 12px;
+  font-family: inherit;
+  color: #e6edf3;
+  background: #0d1117;
+  border: 1px solid #30363d;
+  border-radius: 4px;
+  outline: none;
+}
+
+.terminal-search-input:focus {
+  border-color: #58a6ff;
+}
+
+.terminal-search-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  font-size: 10px;
+  color: #8b949e;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.terminal-search-btn:hover {
+  color: #e6edf3;
+  background: #30363d;
+}
+
+.terminal-search-close {
+  font-size: 12px;
+  margin-left: 2px;
 }
 
 /* --- Selection --- */

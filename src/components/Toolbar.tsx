@@ -50,11 +50,16 @@ export const Toolbar: React.FC = () => {
             onClick={() => setDisplayMode("diff-docs")}
             label="Diff + Docs"
           />
+          <TabButton
+            active={displayMode === "terminal"}
+            onClick={() => setDisplayMode("terminal")}
+            label="Terminal"
+          />
         </div>
       </div>
 
       <div className="toolbar-right">
-        {diffResult && (
+        {diffResult && displayMode !== "terminal" && (
           <div className="toolbar-stats">
             <span className="stat-files">
               {diffResult.stats.files_changed} files

@@ -1,4 +1,4 @@
-import type { DiffResult, CommitInfo, ReviewSession, RepoInfo } from "../types";
+import type { DiffResult, CommitInfo, ReviewSession, RepoInfo, CommitGateData } from "../types";
 
 /**
  * Bridge to Tauri backend commands.
@@ -95,6 +95,62 @@ export async function listDesignDocs(): Promise<string[]> {
 
 export async function readDesignDoc(filename: string): Promise<string> {
   return invoke<string>("read_design_doc", { filename });
+}
+
+export async function spawnTerminal(cols: number, rows: number): Promise<void> {
+  return invoke<void>("spawn_terminal", { cols, rows });
+}
+
+export async function writeTerminal(data: string): Promise<void> {
+  return invoke<void>("write_terminal", { data });
+}
+
+export async function resizeTerminal(cols: number, rows: number): Promise<void> {
+  return invoke<void>("resize_terminal", { cols, rows });
+}
+
+export async function killTerminal(): Promise<void> {
+  return invoke<void>("kill_terminal");
+}
+
+export async function isTerminalAlive(): Promise<boolean> {
+  return invoke<boolean>("is_terminal_alive");
+}
+
+// ---- Commit Gate ----
+
+export async function writeCommitGate(
+  status: "approved" | "rejected",
+  diffHash: string,
+  resolvedComments: Array<{ file: string; line: number; body: string; resolution_memo: string | null }>,
+  resolvedDocComments: Array<{ file: string; section: string; body: string; resolution_memo: string | null }>,
+): Promise<void> {
+  const resolvedCommentsJson = JSON.stringify(resolvedComments);
+  const resolvedDocCommentsJson = JSON.stringify(resolvedDocComments);
+  return invoke<void>("write_commit_gate", {
+    status,
+    diffHash,
+    resolvedComments: resolvedCommentsJson,
+    resolvedDocComments: resolvedDocCommentsJson,
+  });
+}
+
+export async function readCommitGate(): Promise<CommitGateData | null> {
+  const json = await invoke<string | null>("read_commit_gate");
+  if (json === null) return null;
+  return JSON.parse(json) as CommitGateData;
+}
+
+export async function clearCommitGate(): Promise<void> {
+  return invoke<void>("clear_commit_gate");
+}
+
+export async function readFromClipboard(): Promise<string> {
+  if (isTauri) {
+    const { readText } = await import("@tauri-apps/plugin-clipboard-manager");
+    return await readText();
+  }
+  return await navigator.clipboard.readText();
 }
 
 export async function copyToClipboard(text: string): Promise<void> {
