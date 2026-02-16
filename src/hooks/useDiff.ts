@@ -15,10 +15,15 @@ export function useDiff() {
     diffResult,
   } = useStore();
   const sourceRef = useRef<DiffSource>(diffSource);
+  const selectedFileRef = useRef<string | null>(selectedFile);
   const inFlightRef = useRef<Promise<void> | null>(null);
   const pendingRef = useRef(false);
 
-  const fetchDiffOnce = useCallback(
+  useEffect(() => {
+    selectedFileRef.current = selectedFile;
+  }, [selectedFile]);
+
+  const fetchDiffInner = useCallback(
     async (source: DiffSource) => {
       setIsLoading(true);
       setError(null);
@@ -43,9 +48,10 @@ export function useDiff() {
         }
         setDiffResult(result);
         // Keep the current selection if it still exists.
+        const currentSelected = selectedFileRef.current;
         const hasSelectedFile =
-          selectedFile != null &&
-          result.files.some((f) => f.file.path === selectedFile);
+          currentSelected != null &&
+          result.files.some((f) => f.file.path === currentSelected);
         if (result.files.length === 0) {
           setSelectedFile(null);
         } else if (!hasSelectedFile) {
@@ -58,7 +64,7 @@ export function useDiff() {
         setIsLoading(false);
       }
     },
-    [setDiffResult, setIsLoading, setError, setSelectedFile, selectedFile],
+    [setDiffResult, setIsLoading, setError, setSelectedFile],
   );
 
   const fetchDiff = useCallback(() => {
@@ -70,7 +76,7 @@ export function useDiff() {
     const run = async () => {
       do {
         pendingRef.current = false;
-        await fetchDiffOnce(sourceRef.current);
+        await fetchDiffInner(sourceRef.current);
       } while (pendingRef.current);
     };
 
@@ -79,7 +85,7 @@ export function useDiff() {
     });
     inFlightRef.current = promise;
     return promise;
-  }, [fetchDiffOnce]);
+  }, [fetchDiffInner]);
 
   useEffect(() => {
     sourceRef.current = diffSource;

@@ -5,7 +5,7 @@ import * as api from "../utils/tauri-api";
 const isTauri = typeof window !== "undefined" && "__TAURI__" in window;
 
 /** Listen for file change events from the Rust backend */
-export function useFileWatcher(onFilesChanged: () => void, debounceMs = 300) {
+export function useFileWatcher(onFilesChanged: () => void, debounceMs = 400) {
   useEffect(() => {
     if (!isTauri) return;
 

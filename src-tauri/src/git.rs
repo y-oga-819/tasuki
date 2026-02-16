@@ -305,6 +305,7 @@ fn parse_diff(repo: &Repository, diff: &mut git2::Diff) -> Result<DiffResult, Ta
 
         // Find the matching file index
         let Some(&file_idx) = path_to_idx.get(&file_path) else {
+            eprintln!("Skipping diff line for unmatched path: {}", file_path);
             return true;
         };
 
@@ -426,6 +427,8 @@ fn should_load_inline_contents(repo: &Repository, file: &DiffFile) -> bool {
     let full_path = workdir.join(&file.path);
     match std::fs::metadata(full_path) {
         Ok(meta) => meta.len() <= MAX_INLINE_FILE_BYTES,
+        // Deleted files won't exist on disk; the caller guards old_content
+        // loading via get_file_content_at_ref which has its own size check.
         Err(_) => true,
     }
 }
@@ -445,7 +448,11 @@ fn get_file_content_at_ref(
         return Err(TasukiError::Git("Binary file".to_string()));
     }
     if blob.size() as u64 > MAX_INLINE_FILE_BYTES {
-        return Err(TasukiError::Git("File too large".to_string()));
+        return Err(TasukiError::Git(format!(
+            "File too large: {} bytes (limit: {} bytes)",
+            blob.size(),
+            MAX_INLINE_FILE_BYTES
+        )));
     }
 
     Ok(String::from_utf8_lossy(blob.content()).to_string())

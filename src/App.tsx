@@ -138,7 +138,7 @@ const App: React.FC = () => {
     }
   }, [refetch, gateStatus, setGateStatus, setVerdict]);
 
-  useFileWatcher(handleFilesChanged, 400);
+  useFileWatcher(handleFilesChanged);
 
   return (
     <WorkerPoolContextProvider
