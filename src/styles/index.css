@@ -540,7 +540,10 @@ a:hover {
   height: 100%;
 }
 
-.content-panel.diff-only,
+.content-panel.diff-only {
+  overflow: hidden;
+}
+
 .content-panel.docs-only {
   overflow-y: auto;
 }
@@ -548,6 +551,89 @@ a:hover {
 .content-panel.split-view {
   display: flex;
   height: 100%;
+}
+
+/* --- Diff search wrapper --- */
+.diff-content-search-wrapper {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.diff-scroll-container {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+/* Search bar */
+.diff-search-bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  background: var(--color-bg-secondary);
+  border-bottom: 1px solid var(--color-border-primary);
+  flex-shrink: 0;
+}
+
+.diff-search-input {
+  flex: 1;
+  min-width: 120px;
+  max-width: 300px;
+  padding: 4px 8px;
+  border: 1px solid var(--color-border-primary);
+  border-radius: 4px;
+  background: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  font-size: 13px;
+  outline: none;
+}
+
+.diff-search-input:focus {
+  border-color: var(--color-text-link);
+}
+
+.diff-search-count {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+  min-width: 60px;
+  text-align: center;
+}
+
+.diff-search-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  font-size: 10px;
+}
+
+.diff-search-btn:hover:not(:disabled) {
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-primary);
+}
+
+.diff-search-btn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+/* CSS Custom Highlight API */
+::highlight(diff-search) {
+  background-color: rgba(255, 200, 0, 0.35);
+}
+
+::highlight(diff-search-current) {
+  background-color: rgba(255, 150, 0, 0.6);
 }
 
 /* --- Resizable Pane --- */
@@ -1447,6 +1533,38 @@ kbd {
   background: var(--color-bg-overlay);
 }
 
+/* --- Terminal layout (terminal + docs split) --- */
+.main-content.terminal-layout {
+  display: flex;
+  flex-direction: row;
+  overflow: hidden;
+}
+
+.terminal-split-main {
+  min-width: 0;
+  height: 100%;
+}
+
+.terminal-split-handle {
+  width: 4px;
+  flex-shrink: 0;
+  background: var(--color-border-primary);
+  cursor: col-resize;
+  transition: background 0.15s ease;
+}
+
+.terminal-split-handle:hover,
+.terminal-split-handle:active {
+  background: var(--color-text-link);
+}
+
+.terminal-split-docs {
+  min-width: 0;
+  max-width: 900px;
+  height: 100%;
+  overflow-y: auto;
+}
+
 /* --- Terminal --- */
 .terminal-container {
   position: relative;
@@ -1524,6 +1642,44 @@ kbd {
 .terminal-search-close {
   font-size: 12px;
   margin-left: 2px;
+}
+
+/* --- Error Boundary --- */
+.error-boundary-fallback {
+  padding: var(--space-4);
+  margin: var(--space-2);
+  background: var(--color-bg-tertiary);
+  border: 1px solid var(--color-btn-danger);
+  border-radius: var(--radius-md);
+  color: var(--color-text-primary);
+}
+
+.error-boundary-fallback h3 {
+  color: var(--color-btn-danger);
+  margin: 0 0 var(--space-2);
+}
+
+.error-boundary-fallback pre {
+  background: var(--color-bg-primary);
+  padding: var(--space-2);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs);
+  overflow-x: auto;
+  white-space: pre-wrap;
+  margin-bottom: var(--space-2);
+}
+
+.error-boundary-fallback button {
+  padding: var(--space-1) var(--space-3);
+  background: var(--color-btn-secondary);
+  border: 1px solid var(--color-border-primary);
+  border-radius: var(--radius-md);
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.error-boundary-fallback button:hover {
+  background: var(--color-btn-secondary-hover);
 }
 
 /* --- Selection --- */

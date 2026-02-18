@@ -64,7 +64,8 @@ interface TasukiState {
 
   // Pierre-native diff state
   selectedLineRange: SelectedLineRange | null;
-  setSelectedLineRange: (range: SelectedLineRange | null) => void;
+  selectedLineFile: string | null;
+  setSelectedLineRange: (range: SelectedLineRange | null, filePath?: string | null) => void;
   commentFormTarget: CommentFormTarget | null;
   setCommentFormTarget: (target: CommentFormTarget | null) => void;
 
@@ -158,7 +159,8 @@ export const useStore = create<TasukiState>((set) => ({
 
   // Pierre-native diff state
   selectedLineRange: null,
-  setSelectedLineRange: (range) => set({ selectedLineRange: range }),
+  selectedLineFile: null,
+  setSelectedLineRange: (range, filePath) => set({ selectedLineRange: range, selectedLineFile: filePath ?? null }),
   commentFormTarget: null,
   setCommentFormTarget: (target) => set({ commentFormTarget: target }),
 
