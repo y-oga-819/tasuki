@@ -12,9 +12,10 @@
     "tauri": "tauri"
   },
   "dependencies": {
-    "@pierre/diffs": "^1.0.10",
+    "@pierre/diffs": "^1.0.11",
     "@tauri-apps/api": "^2.5.0",
     "@tauri-apps/plugin-clipboard-manager": "^2.2.2",
+    "@tauri-apps/plugin-dialog": "^2.6.0",
     "@tauri-apps/plugin-shell": "^2.3.5",
     "@xterm/addon-fit": "^0.11.0",
     "@xterm/addon-search": "^0.16.0",

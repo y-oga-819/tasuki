@@ -175,7 +175,10 @@ export const FileSidebar: React.FC<FileSidebarProps> = ({ style }) => {
   }, []);
 
   const showDiffFiles = displayMode === "diff" || displayMode === "diff-docs";
-  const showDocFiles = displayMode === "docs" || displayMode === "diff-docs";
+  const showDocFiles =
+    displayMode === "docs" ||
+    displayMode === "diff-docs" ||
+    displayMode === "terminal";
 
   // Count comments per file
   const commentCount = (path: string) =>

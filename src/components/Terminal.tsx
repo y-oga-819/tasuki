@@ -259,6 +259,7 @@ export const TerminalPanel: React.FC<{ visible: boolean }> = ({ visible }) => {
       const unExit = await listen("pty-exit", () => {
         term.writeln("\r\n\x1b[90m[Process exited]\x1b[0m");
         spawnedRef.current = false;
+        api.killTerminal().catch(() => {});
       });
       unlistenExitRef.current = unExit;
     }

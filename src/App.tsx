@@ -3,6 +3,7 @@ import { WorkerPoolContextProvider } from "@pierre/diffs/react";
 import { Toolbar } from "./components/Toolbar";
 import { FileSidebar } from "./components/FileSidebar";
 import { MainContent } from "./components/MainContent";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import { ReviewPanel } from "./components/ReviewPanel";
 import { useStore } from "./store";
 import { useDiff } from "./hooks/useDiff";
@@ -101,13 +102,15 @@ const App: React.FC = () => {
     let unlisten: (() => void) | undefined;
     (async () => {
       const { getCurrentWindow } = await import("@tauri-apps/api/window");
+      const { ask } = await import("@tauri-apps/plugin-dialog");
       const appWindow = getCurrentWindow();
       unlisten = await appWindow.onCloseRequested(async (event) => {
         try {
           const alive = await api.isTerminalAlive();
           if (alive) {
-            const confirmed = window.confirm(
+            const confirmed = await ask(
               "ターミナルセッションが実行中です。終了しますか？",
+              { title: "Tasuki", kind: "warning" },
             );
             if (!confirmed) {
               event.preventDefault();
@@ -153,24 +156,22 @@ const App: React.FC = () => {
         theme: { dark: "github-dark", light: "github-light" },
       }}
     >
-      <div className="app">
-        <Toolbar />
-        <div className="app-body">
-          {displayMode !== "terminal" && (
-            <>
-              <FileSidebar style={{ width: sidebarWidth }} />
-              <div
-                className="sidebar-resize-handle"
-                onPointerDown={handleSidebarPointerDown}
-                onPointerMove={handleSidebarPointerMove}
-                onPointerUp={handleSidebarPointerUp}
-              />
-            </>
-          )}
-          <MainContent />
+      <ErrorBoundary>
+        <div className="app">
+          <Toolbar />
+          <div className="app-body">
+            <FileSidebar style={{ width: sidebarWidth }} />
+            <div
+              className="sidebar-resize-handle"
+              onPointerDown={handleSidebarPointerDown}
+              onPointerMove={handleSidebarPointerMove}
+              onPointerUp={handleSidebarPointerUp}
+            />
+            <MainContent />
+          </div>
+          {displayMode !== "terminal" && <ReviewPanel />}
         </div>
-        {displayMode !== "terminal" && <ReviewPanel />}
-      </div>
+      </ErrorBoundary>
     </WorkerPoolContextProvider>
   );
 };
