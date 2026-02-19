@@ -85,6 +85,7 @@ const EXTENSION_MAP: Record<string, React.FC> = {
   lock: ConfigIcon,
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function getFileIcon(filename: string): React.ReactElement {
   const ext = filename.split(".").pop()?.toLowerCase() ?? "";
   const Icon = EXTENSION_MAP[ext] ?? DefaultFileIcon;

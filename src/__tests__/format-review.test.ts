@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { formatSingleComment, formatReviewPrompt } from "../utils/format-review";
-import type { ReviewComment, DocComment, ReviewVerdict } from "../types";
+import type { ReviewComment, DocComment } from "../types";
 
 function makeComment(overrides: Partial<ReviewComment> = {}): ReviewComment {
   return {
