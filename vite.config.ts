@@ -1,3 +1,4 @@
+/// <reference types="vitest/config" />
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
@@ -6,6 +7,10 @@ const host = process.env.TAURI_DEV_HOST;
 
 export default defineConfig({
   plugins: [react()],
+  test: {
+    environment: "node",
+    exclude: ["e2e/**", "node_modules/**"],
+  },
   clearScreen: false,
   server: {
     host: host || false,

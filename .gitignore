@@ -27,5 +27,8 @@ Thumbs.db
 .env.local
 .env.*.local
 
+# Playwright
+test-results/
+
 # Tasuki local data
 .tasuki/
