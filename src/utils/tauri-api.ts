@@ -1,4 +1,7 @@
 import type { DiffResult, CommitInfo, ReviewSession, RepoInfo, CommitGateData } from "../types";
+import { mockDiffResult, emptyDiffResult } from "../__fixtures__/mock-diff-data";
+import { mockDocPaths, mockDesignDocNames, mockDocContents } from "../__fixtures__/mock-doc-data";
+import { mockRepoInfo, mockCommitLog, mockHeadSha, mockDiffHash } from "../__fixtures__/mock-repo-data";
 
 /**
  * Bridge to Tauri backend commands.
@@ -7,16 +10,87 @@ import type { DiffResult, CommitInfo, ReviewSession, RepoInfo, CommitGateData } 
  * When running inside Tauri, they invoke real Rust commands.
  */
 
-// Check if we're running inside Tauri
 const isTauri = typeof window !== "undefined" && "__TAURI__" in window;
+
+/** Return mock data for browser-only development. */
+function mockInvoke<T>(cmd: string, args?: Record<string, unknown>): T {
+  switch (cmd) {
+    // Diff APIs
+    case "get_diff":
+    case "get_staged_diff":
+    case "get_ref_diff":
+    case "get_commit_diff":
+      return mockDiffResult as T;
+    case "get_working_diff":
+      return emptyDiffResult as T;
+
+    // Repository info APIs
+    case "get_repo_info":
+      return mockRepoInfo as T;
+    case "get_repo_path":
+      return "/mock/repo/path" as T;
+    case "get_head_sha":
+      return mockHeadSha as T;
+    case "get_log":
+      return mockCommitLog as T;
+
+    // Document APIs
+    case "list_docs":
+      return mockDocPaths as T;
+    case "read_file": {
+      const filePath = args?.filePath as string;
+      return (mockDocContents[filePath] ?? `# ${filePath}\n\nMock content for ${filePath}`) as T;
+    }
+    case "list_design_docs":
+      return mockDesignDocNames as T;
+    case "read_design_doc": {
+      const filename = args?.filename as string;
+      return (mockDocContents[filename] ?? `# ${filename}\n\nMock design doc content`) as T;
+    }
+
+    // Review persistence APIs
+    case "get_diff_hash":
+      return mockDiffHash as T;
+    case "save_review":
+      console.log("[mock] saveReview", args);
+      return undefined as T;
+    case "load_review":
+      return null as T;
+
+    // Terminal APIs (no-op)
+    case "spawn_terminal":
+    case "write_terminal":
+    case "resize_terminal":
+    case "kill_terminal":
+      return undefined as T;
+    case "is_terminal_alive":
+      return false as T;
+
+    // Commit gate APIs (no-op)
+    case "write_commit_gate":
+      console.log("[mock] writeCommitGate", args);
+      return undefined as T;
+    case "read_commit_gate":
+      return null as T;
+    case "clear_commit_gate":
+      return undefined as T;
+
+    // File watcher (no-op)
+    case "start_watching":
+      return undefined as T;
+
+    default:
+      console.warn(`[mock] Unknown command: ${cmd}`, args);
+      return undefined as T;
+  }
+}
 
 async function invoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
   if (isTauri) {
     const { invoke: tauriInvoke } = await import("@tauri-apps/api/core");
     return tauriInvoke<T>(cmd, args);
   }
-  // Fallback for development outside Tauri
-  throw new Error(`Tauri not available. Command: ${cmd}`);
+  return mockInvoke<T>(cmd, args);
 }
 
 export async function getDiff(): Promise<DiffResult> {
