@@ -134,7 +134,9 @@ const GENERATED_PATTERNS: &[&str] = &[
 const MAX_INLINE_FILE_BYTES: u64 = 1_000_000;
 
 fn is_generated_file(path: &str) -> bool {
-    GENERATED_PATTERNS.iter().any(|pattern| path.contains(pattern))
+    GENERATED_PATTERNS
+        .iter()
+        .any(|pattern| path.contains(pattern))
 }
 
 fn delta_to_status(delta: Delta) -> &'static str {
@@ -192,7 +194,11 @@ pub fn get_uncommitted_diff(repo_path: &str) -> Result<DiffResult, TasukiError> 
 }
 
 /// Get diff between two refs (commits, branches, tags)
-pub fn get_ref_diff(repo_path: &str, from_ref: &str, to_ref: &str) -> Result<DiffResult, TasukiError> {
+pub fn get_ref_diff(
+    repo_path: &str,
+    from_ref: &str,
+    to_ref: &str,
+) -> Result<DiffResult, TasukiError> {
     let repo = open_repo(repo_path)?;
 
     let from_obj = repo
@@ -212,9 +218,9 @@ pub fn get_ref_diff(repo_path: &str, from_ref: &str, to_ref: &str) -> Result<Dif
 pub fn get_commit_diff(repo_path: &str, commit_ref: &str) -> Result<DiffResult, TasukiError> {
     let repo = open_repo(repo_path)?;
 
-    let obj = repo
-        .revparse_single(commit_ref)
-        .map_err(|e| TasukiError::Git(format!("Cannot resolve '{}': {}", commit_ref, e.message())))?;
+    let obj = repo.revparse_single(commit_ref).map_err(|e| {
+        TasukiError::Git(format!("Cannot resolve '{}': {}", commit_ref, e.message()))
+    })?;
 
     let commit = obj.peel_to_commit()?;
     let commit_tree = commit.tree()?;
@@ -255,7 +261,10 @@ fn parse_diff(repo: &Repository, diff: &mut git2::Diff) -> Result<DiffResult, Ta
         }
 
         let old_path = if delta.status() == Delta::Renamed {
-            delta.old_file().path().map(|p| p.to_string_lossy().to_string())
+            delta
+                .old_file()
+                .path()
+                .map(|p| p.to_string_lossy().to_string())
         } else {
             None
         };
@@ -580,7 +589,8 @@ mod tests {
         let tree_id = index.write_tree().unwrap();
         let tree = repo.find_tree(tree_id).unwrap();
         let sig = git2::Signature::now("Test", "test@test.com").unwrap();
-        repo.commit(Some("HEAD"), &sig, &sig, "initial", &tree, &[]).unwrap();
+        repo.commit(Some("HEAD"), &sig, &sig, "initial", &tree, &[])
+            .unwrap();
 
         let path = dir.path().to_string_lossy().to_string();
         (dir, path)
@@ -617,12 +627,69 @@ mod tests {
     #[test]
     fn test_rename_detected() {
         let (dir, repo_path) = setup_repo();
-        fs::rename(dir.path().join("hello.txt"), dir.path().join("hello_renamed.txt")).unwrap();
+        fs::rename(
+            dir.path().join("hello.txt"),
+            dir.path().join("hello_renamed.txt"),
+        )
+        .unwrap();
 
         let result = get_uncommitted_diff(&repo_path).unwrap();
         let renamed = result.files.iter().find(|f| f.file.status == "renamed");
-        assert!(renamed.is_some(), "Rename should be detected by find_similar");
+        assert!(
+            renamed.is_some(),
+            "Rename should be detected by find_similar"
+        );
         assert_eq!(renamed.unwrap().file.path, "hello_renamed.txt");
         assert_eq!(renamed.unwrap().file.old_path.as_deref(), Some("hello.txt"));
+    }
+
+    #[test]
+    fn test_is_generated_file() {
+        assert!(is_generated_file("package-lock.json"));
+        assert!(is_generated_file("node_modules/foo/package-lock.json"));
+        assert!(is_generated_file("dist/app.min.js"));
+        assert!(is_generated_file("styles.min.css"));
+        assert!(is_generated_file("Cargo.lock"));
+        assert!(!is_generated_file("src/main.rs"));
+        assert!(!is_generated_file("README.md"));
+        assert!(!is_generated_file("package.json"));
+    }
+
+    #[test]
+    fn test_compute_diff_hash_deterministic() {
+        let result = DiffResult {
+            files: vec![],
+            stats: DiffStats {
+                files_changed: 0,
+                additions: 0,
+                deletions: 0,
+            },
+        };
+        let hash1 = compute_diff_hash(&result);
+        let hash2 = compute_diff_hash(&result);
+        assert_eq!(hash1, hash2, "Same input should produce same hash");
+        assert!(!hash1.is_empty());
+    }
+
+    #[test]
+    fn test_list_doc_files_finds_markdown() {
+        let (dir, repo_path) = setup_repo();
+
+        // Create docs directory with markdown files
+        fs::create_dir_all(dir.path().join("docs")).unwrap();
+        fs::write(dir.path().join("docs/guide.md"), "# Guide\n").unwrap();
+        fs::write(dir.path().join("docs/api.md"), "# API\n").unwrap();
+
+        let docs = list_doc_files(&repo_path).unwrap();
+        assert!(docs.contains(&"docs/guide.md".to_string()));
+        assert!(docs.contains(&"docs/api.md".to_string()));
+    }
+
+    #[test]
+    fn test_read_file_returns_content() {
+        let (_dir, repo_path) = setup_repo();
+
+        let result = read_file(&repo_path, "hello.txt").unwrap();
+        assert_eq!(result, "hello world\n");
     }
 }
