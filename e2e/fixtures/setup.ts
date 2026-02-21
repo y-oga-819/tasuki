@@ -96,11 +96,12 @@ export async function addCommentViaStore(
 
 /**
  * Submit a comment using the inline form (after opening it via openCommentForm).
- * Fills the textarea and submits via Ctrl+Enter keyboard shortcut.
+ * Fills the textarea and clicks the "Add Comment" button via dispatchEvent.
  *
- * We use keyboard shortcut instead of clicking the submit button because
- * the form is rendered as slotted content inside Pierre's <diffs-container>
- * Shadow DOM, which intercepts pointer events and prevents Playwright clicks.
+ * Pierre's <diffs-container> Shadow DOM intercepts pointer events, so
+ * Playwright's native click() is blocked.  Using dispatchEvent("click")
+ * bypasses the pointer-event interception and fires the button's handler
+ * directly — a more realistic interaction than the Ctrl+Enter shortcut.
  */
 export async function submitCommentForm(
   page: Page,
@@ -109,5 +110,10 @@ export async function submitCommentForm(
   const textarea = page.locator("textarea.dv-form-textarea");
   await expect(textarea).toBeVisible();
   await textarea.fill(body);
-  await textarea.press("Control+Enter");
+
+  const submitBtn = page.locator("button.btn-primary", {
+    hasText: "Add Comment",
+  });
+  await expect(submitBtn).toBeEnabled();
+  await submitBtn.dispatchEvent("click");
 }

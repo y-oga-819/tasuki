@@ -29,6 +29,7 @@ Thumbs.db
 
 # Playwright
 test-results/
+playwright-profile/
 
 # Tasuki local data
 .tasuki/
