@@ -249,7 +249,7 @@ export const useStore = create<TasukiState>((set) => ({
 }));
 
 // Expose store for e2e tests in development mode
-if (import.meta.env.DEV) {
+if (import.meta.env.DEV && typeof window !== "undefined") {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (window as any).__zustandStore = useStore;
 }
