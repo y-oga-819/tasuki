@@ -247,3 +247,9 @@ export const useStore = create<TasukiState>((set) => ({
   repoInfo: null,
   setRepoInfo: (info) => set({ repoInfo: info }),
 }));
+
+// Expose store for e2e tests in development mode
+if (import.meta.env.DEV && typeof window !== "undefined") {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (window as any).__zustandStore = useStore;
+}
