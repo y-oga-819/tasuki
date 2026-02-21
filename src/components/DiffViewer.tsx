@@ -153,12 +153,13 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({ fileDiff }) => {
   const handleLineSelected = useCallback(
     (range: SelectedLineRange | null) => {
       setSelectedLineRange(range, range ? filePath : null);
-      const { commentFormTarget: cft } = useStore.getState();
-      if (cft?.filePath === filePath) {
-        setCommentFormTarget(null);
-      }
+      // Do NOT close the comment form here. Pierre's LineSelectionManager
+      // fires onLineSelected during programmatic setSelectedLines calls
+      // (triggered by the selectedLines prop update when commentFormTarget
+      // changes), creating a feedback loop that immediately clears the form.
+      // The form is closed explicitly via Cancel, Escape, or Submit actions.
     },
-    [setSelectedLineRange, setCommentFormTarget, filePath],
+    [setSelectedLineRange, filePath],
   );
 
   // --- Hover utility: floating "+" button ---
