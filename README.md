@@ -44,6 +44,54 @@ tasuki docs               # docs/ 以下の .md を一覧表示
 tasuki docs architecture.md  # 特定の設計書を表示
 ```
 
+## Commit Gate (Claude Code Hook)
+
+Claude Code の `git commit` をインターセプトし、Tasuki でレビュー承認を得るまでコミットをブロックする仕組みです。
+
+### セットアップ
+
+**1. Hook スクリプトを配置する**
+
+```bash
+cp hooks/tasuki-commit-gate.sh ~/.claude/hooks/tasuki-commit-gate.sh
+chmod +x ~/.claude/hooks/tasuki-commit-gate.sh
+```
+
+**2. Claude Code の設定に Hook を登録する**
+
+`~/.claude/settings.json` に以下を追加:
+
+```json
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "command": "~/.claude/hooks/tasuki-commit-gate.sh"
+      }
+    ]
+  }
+}
+```
+
+### 動作フロー
+
+```
+Claude Code が git commit 実行
+  → Hook が /tmp/tasuki/{repo}/{branch}/review.json を確認
+  → ファイルなし or rejected → コミットをブロック
+  → approved → コミットを許可（review.json は消費され削除される）
+```
+
+1. Claude Code が `git commit` を実行しようとすると、Hook がブロックする
+2. Tasuki を開いて差分をレビューし、コメントがあれば追加する
+3. 全コメントを解決した後「Approve」を押すと `review.json` が書き出される
+4. Claude Code が再度 `git commit` を実行すると、今度は Hook が通過しコミットが成功する
+
+### 無効化
+
+Hook を無効にしたい場合は、`~/.claude/settings.json` から該当の Hook 設定を削除してください。
+
 ## Development
 
 ### Prerequisites
