@@ -190,6 +190,10 @@ export const FileSidebar: React.FC<FileSidebarProps> = ({ style }) => {
   );
 
   const docTree = useMemo(() => buildPathTree(docFiles), [docFiles]);
+  const designDocTree = useMemo(
+    () => buildPathTree(designDocs),
+    [designDocs],
+  );
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -344,6 +348,50 @@ export const FileSidebar: React.FC<FileSidebarProps> = ({ style }) => {
     );
   };
 
+  const renderDesignDocTreeNode = (node: FileTreeNode, depth: number) => {
+    if (node.isDir) {
+      const isCollapsed = collapsedDirs.has(`design:${node.path}`);
+      return (
+        <React.Fragment key={`design:${node.path}`}>
+          <li
+            className="file-item tree-dir"
+            style={{ paddingLeft: `${depth * 12 + 12}px` }}
+            onClick={() => toggleDir(`design:${node.path}`)}
+          >
+            <span className="tree-toggle">
+              {isCollapsed ? "▶" : "▼"}
+            </span>
+            <span className="file-icon">
+              {isCollapsed ? <FolderClosedIcon /> : <FolderOpenIcon />}
+            </span>
+            <span className="file-name">{node.name}</span>
+          </li>
+          {!isCollapsed &&
+            node.children.map((child) =>
+              renderDesignDocTreeNode(child, depth + 1),
+            )}
+        </React.Fragment>
+      );
+    }
+
+    const docId = `design:${node.path}`;
+    return (
+      <li
+        key={docId}
+        className={`file-item ${selectedDoc === docId ? "selected" : ""}`}
+        style={{ paddingLeft: `${depth * 12 + 12}px` }}
+        onClick={() => {
+          setDocSource("design");
+          setSelectedDoc(docId);
+        }}
+        title={node.path}
+      >
+        <span className="file-icon">📐</span>
+        <span className="file-name">{node.name}</span>
+      </li>
+    );
+  };
+
   return (
     <aside className="file-sidebar" style={style}>
       {showDocFiles && docFiles.length > 0 && (
@@ -385,23 +433,9 @@ export const FileSidebar: React.FC<FileSidebarProps> = ({ style }) => {
           >
             <div className="section-collapse-inner">
               <ul className="file-list">
-                {designDocs.map((filename) => {
-                  const docId = `design:${filename}`;
-                  return (
-                    <li
-                      key={docId}
-                      className={`file-item ${selectedDoc === docId ? "selected" : ""}`}
-                      onClick={() => {
-                        setDocSource("design");
-                        setSelectedDoc(docId);
-                      }}
-                      title={filename}
-                    >
-                      <span className="file-icon">📐</span>
-                      <span className="file-name">{filename}</span>
-                    </li>
-                  );
-                })}
+                {designDocTree.map((node) =>
+                  renderDesignDocTreeNode(node, 0),
+                )}
               </ul>
             </div>
           </div>
