@@ -9,6 +9,8 @@ export const mockDocPaths: string[] = [
 export const mockDesignDocNames: string[] = [
   "0001_ui-improvements.md",
   "0002_fix-watcher-resource-leak.md",
+  "adr/0001_diff-rendering.md",
+  "adr/0002_state-management.md",
 ];
 
 /** ドキュメントコンテンツ（readFile / readDesignDoc の戻り値） */
@@ -99,5 +101,27 @@ File watcher listeners accumulate on re-render, causing memory leaks.
 ## Solution
 
 Properly clean up event listeners in useEffect cleanup.
+`,
+
+  "adr/0001_diff-rendering.md": `# ADR: Diff Rendering Library
+
+## Status
+
+Accepted
+
+## Decision
+
+Use @pierre/diffs with Shadow DOM encapsulation for diff rendering.
+`,
+
+  "adr/0002_state-management.md": `# ADR: State Management
+
+## Status
+
+Accepted
+
+## Decision
+
+Use Zustand for global state management due to its simplicity and minimal boilerplate.
 `,
 };

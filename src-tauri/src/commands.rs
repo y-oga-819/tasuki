@@ -185,9 +185,16 @@ pub fn load_review(
     Ok(Some(content))
 }
 
-/// Validate a design doc filename for security
+/// Validate a design doc filename/path for security
 fn validate_design_doc_filename(filename: &str) -> Result<(), TasukiError> {
     let path = Path::new(filename);
+
+    // Must have at least one component
+    if path.components().count() == 0 {
+        return Err(TasukiError::Io(
+            "Invalid filename: empty path".to_string(),
+        ));
+    }
 
     // Only allow Normal components (reject ParentDir, CurDir, RootDir, Prefix)
     for component in path.components() {
@@ -199,13 +206,6 @@ fn validate_design_doc_filename(filename: &str) -> Result<(), TasukiError> {
                 ))
             }
         }
-    }
-
-    // Must be a single filename (no subdirectories)
-    if path.components().count() != 1 {
-        return Err(TasukiError::Io(
-            "Invalid filename: must be a single filename".to_string(),
-        ));
     }
 
     // Only .md extension allowed
@@ -225,7 +225,28 @@ fn get_repo_name_from_state(state: &State<AppState>) -> Result<String, TasukiErr
     Ok(info.repo_name)
 }
 
-/// List design documents from ~/.claude/designs/{repo-name}/
+/// Recursively collect .md files under `dir`, storing paths relative to `base`.
+fn collect_md_files(base: &Path, dir: &Path, files: &mut Vec<String>) -> Result<(), TasukiError> {
+    let entries = fs::read_dir(dir)
+        .map_err(|e| TasukiError::Io(format!("Cannot read design dir: {}", e)))?;
+
+    for entry in entries {
+        let entry = entry.map_err(|e| TasukiError::Io(e.to_string()))?;
+        let path = entry.path();
+
+        if path.is_dir() {
+            collect_md_files(base, &path, files)?;
+        } else if path.extension().map_or(false, |ext| ext == "md") {
+            if let Ok(rel) = path.strip_prefix(base) {
+                files.push(rel.to_string_lossy().to_string());
+            }
+        }
+    }
+
+    Ok(())
+}
+
+/// List design documents from ~/.claude/designs/{repo-name}/ (recursive)
 #[tauri::command]
 pub fn list_design_docs(state: State<AppState>) -> Result<Vec<String>, TasukiError> {
     let repo_name = get_repo_name_from_state(&state)?;
@@ -239,17 +260,7 @@ pub fn list_design_docs(state: State<AppState>) -> Result<Vec<String>, TasukiErr
     }
 
     let mut files = Vec::new();
-    for entry in fs::read_dir(&design_dir)
-        .map_err(|e| TasukiError::Io(format!("Cannot read design dir: {}", e)))?
-    {
-        let entry = entry.map_err(|e| TasukiError::Io(e.to_string()))?;
-        let path = entry.path();
-        if path.extension().map_or(false, |ext| ext == "md") {
-            if let Some(name) = path.file_name() {
-                files.push(name.to_string_lossy().to_string());
-            }
-        }
-    }
+    collect_md_files(&design_dir, &design_dir, &mut files)?;
     files.sort();
     Ok(files)
 }
@@ -415,13 +426,15 @@ mod tests {
     fn test_validate_design_doc_filename_valid() {
         assert!(validate_design_doc_filename("0001_design.md").is_ok());
         assert!(validate_design_doc_filename("my-design.md").is_ok());
+        assert!(validate_design_doc_filename("subdir/file.md").is_ok());
+        assert!(validate_design_doc_filename("a/b/c/deep.md").is_ok());
     }
 
     #[test]
     fn test_validate_design_doc_filename_path_traversal() {
         assert!(validate_design_doc_filename("../secret.md").is_err());
         assert!(validate_design_doc_filename("../../etc/passwd").is_err());
-        assert!(validate_design_doc_filename("subdir/file.md").is_err());
+        assert!(validate_design_doc_filename("sub/../escape.md").is_err());
     }
 
     #[test]
