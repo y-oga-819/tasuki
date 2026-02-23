@@ -55,9 +55,11 @@ zed --wait /path/to/file
 | B | 特定ファイルを Zed で開く | `zed {repo_path}/{file_path}` | サイドバーのファイル名から起動 |
 | C | 特定ファイル+行で開く | `zed {repo_path}/{file_path}:{line}` | diff 内のコメント位置から起動 |
 
-**Git 差分モードについて**: Zed の Project Diff は CLI から直接起動できないが、
-`zed {repo_path}` でリポジトリを開けば、Zed 内で `Cmd+Shift+P → git: diff all` ですぐに差分モードに入れる。
-Tasuki 側で「Zed で開いた後に diff モードを使ってね」というガイダンスを tooltip に含める程度が妥当。
+**Git 差分モードについて**: Zed の Project Diff は CLI から直接起動できないため、
+`zed {repo_path}` でリポジトリを開いた後、ユーザーがコマンドパレット（`Cmd+Shift+P → git: diff all`）で
+Project Diff を起動する運用とする。Zed が将来 CLI フラグ（例: `--git-diff`）を実装した際には、
+Tasuki 側のコマンド引数を追加するだけで移行でき、diff 表示体験に差分が生じない。
+（参考: [zed-industries/zed#44774](https://github.com/zed-industries/zed/issues/44774)）
 
 ### 3.2 アーキテクチャ
 
@@ -192,3 +194,26 @@ Review Panel 内のコメントに「Zed で開く」リンク:
 - macOS では `zed` CLI は Zed.app 内のバイナリへのシンボリックリンク。未インストール時は `command not found`
 - Linux では `zed` がフラットパック等で入っている場合、PATH 設定が必要な場合がある
 - Zed がすでに起動中の場合、`zed /path` は既存ウィンドウにタブを追加する（新規ウィンドウは開かない）
+
+## 6. 調査結論: Tasuki 本体の差分表示パフォーマンス
+
+### 6.1 結論
+
+Tasuki 本体のコード修正は不要。現行のシンプルな差分ビューアーとして十分に高速に動作している。
+
+### 6.2 根拠
+
+- **差分チャンクのみの検索**: データレベル検索のコスト見積もり（50ファイル × 200行 × 80文字 = 800KB）で ~1ms。DOM ベースの現行実装でもブラウザ最適化により実用上問題ない
+- **差分チャンクのみの全件表示**: Pierre が全行を DOM にレンダリングする現行方式で、通常のレビュー規模（数十ファイル、数百行の変更）では十分なパフォーマンス
+- **Virtualizer 導入は将来課題**: 数千行規模の大規模 diff に対応する場合にのみ必要。設計書は `docs/archive/DIFF_SEARCH_VIRTUALIZER_DESIGN.md` にアーカイブ済み
+
+### 6.3 Zed との役割分担
+
+| 用途 | ツール | 理由 |
+|---|---|---|
+| レビューコメント付き差分表示 | **Tasuki** | 行コメント・一括コピー・ドキュメント並列表示など、レビュー補助に特化 |
+| 精密なコード読解・編集 | **Zed** | Project Diff でネイティブの差分表示、編集可能な diff 面、ステージング操作 |
+| 大規模 diff の全体把握 | **Zed** | Virtualizer 内蔵で 10,000+ 行でも 60fps 描画 |
+
+Tasuki はレビュー「補助」ツールとして差分の概要把握とコメント付けに集中し、
+精密な読解が必要な場合は「Open in Zed」で IDE に委譲するフローが最適。
