@@ -137,6 +137,7 @@ pub fn run() {
             commands::write_commit_gate,
             commands::read_commit_gate,
             commands::clear_commit_gate,
+            commands::open_in_zed,
             commands::spawn_terminal,
             commands::write_terminal,
             commands::resize_terminal,

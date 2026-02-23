@@ -1,5 +1,6 @@
-import React from "react";
+import React, { useCallback, useEffect } from "react";
 import { useStore } from "../store";
+import * as api from "../utils/tauri-api";
 
 
 export const Toolbar: React.FC = () => {
@@ -15,6 +16,23 @@ export const Toolbar: React.FC = () => {
     diffResult,
     repoInfo,
   } = useStore();
+
+  const isTauri = typeof window !== "undefined" && "__TAURI__" in window;
+
+  const handleOpenInZed = useCallback(() => {
+    api.openInZed().catch((e) => console.error("Failed to open Zed:", e));
+  }, []);
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === "z") {
+        e.preventDefault();
+        handleOpenInZed();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [handleOpenInZed]);
 
   return (
     <header className="toolbar">
@@ -110,6 +128,22 @@ export const Toolbar: React.FC = () => {
               title={expandUnchanged ? "Collapse unchanged lines" : "Expand all lines"}
             >
               {expandUnchanged ? "Collapse" : "Expand"}
+            </button>
+          </>
+        )}
+
+        {isTauri && (
+          <>
+            <span className="toolbar-separator" />
+            <button
+              className="layout-btn zed-btn"
+              onClick={handleOpenInZed}
+              title="Open in Zed (⌘+Shift+Z)"
+            >
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+                <path d="M4.5 2l7 5.5-7 5.5V2z" />
+              </svg>
+              Zed
             </button>
           </>
         )}
