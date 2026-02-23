@@ -7,6 +7,7 @@ import {
   FolderOpenIcon,
   FolderClosedIcon,
 } from "../utils/file-icons";
+import * as api from "../utils/tauri-api";
 
 interface FileTreeNode {
   name: string;
@@ -157,6 +158,8 @@ export const FileSidebar: React.FC<FileSidebarProps> = ({ style }) => {
     comments,
   } = useStore();
 
+  const isTauri = typeof window !== "undefined" && "__TAURI__" in window;
+
   const [collapsedDirs, setCollapsedDirs] = useState<Set<string>>(new Set());
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(
     new Set(),
@@ -289,6 +292,18 @@ export const FileSidebar: React.FC<FileSidebarProps> = ({ style }) => {
           )}
         </span>
         {count > 0 && <span className="comment-badge">{count}</span>}
+        {isTauri && (
+          <button
+            className="open-in-zed-btn"
+            onClick={(e) => {
+              e.stopPropagation();
+              api.openInZed(fd.file.path).catch((err) => console.error("Failed to open in Zed:", err));
+            }}
+            title="Open in Zed"
+          >
+            ↗
+          </button>
+        )}
         {isGenerated && (
           <button
             className="collapse-btn"

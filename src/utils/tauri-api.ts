@@ -75,6 +75,11 @@ function mockInvoke<T>(cmd: string, args?: Record<string, unknown>): T {
     case "clear_commit_gate":
       return undefined as T;
 
+    // Zed integration (no-op)
+    case "open_in_zed":
+      console.log("[mock] openInZed", args);
+      return undefined as T;
+
     // File watcher (no-op)
     case "start_watching":
       return undefined as T;
@@ -217,6 +222,12 @@ export async function readCommitGate(): Promise<CommitGateData | null> {
 
 export async function clearCommitGate(): Promise<void> {
   return invoke<void>("clear_commit_gate");
+}
+
+// ---- Zed Integration ----
+
+export async function openInZed(filePath?: string, line?: number): Promise<void> {
+  return invoke<void>("open_in_zed", { filePath: filePath ?? null, line: line ?? null });
 }
 
 export async function readFromClipboard(): Promise<string> {
