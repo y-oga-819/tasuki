@@ -2,6 +2,7 @@ import { useEffect } from "react";
 
 import * as api from "../utils/tauri-api";
 import { eventBus } from "../utils/tauri-events";
+import { appLogger } from "../utils/app-logger";
 
 /** Listen for file change events from the Rust backend */
 export function useFileWatcher(onFilesChanged: () => void, debounceMs = 400) {
@@ -22,7 +23,7 @@ export function useFileWatcher(onFilesChanged: () => void, debounceMs = 400) {
           }, debounceMs);
         });
       } catch (err) {
-        console.error("Failed to start file watcher:", err);
+        appLogger.warn("file-watcher", "Failed to start file watcher", err);
       }
     })();
 

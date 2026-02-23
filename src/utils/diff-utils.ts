@@ -27,6 +27,13 @@ export function getCodeSnippet(
   return lines.join("\n");
 }
 
+/** Format a line reference string (e.g. "L10" or "L10-15") */
+export function formatLineRef(lineStart: number, lineEnd: number): string {
+  return lineStart === lineEnd
+    ? `L${lineStart}`
+    : `L${lineStart}-${lineEnd}`;
+}
+
 /** Get a display-friendly file name */
 export function getFileName(path: string): string {
   const parts = path.split("/");
@@ -39,38 +46,23 @@ export function getFileDir(path: string): string {
   return parts.slice(0, -1).join("/");
 }
 
+/** Status → { color, label } mapping */
+const STATUS_MAP: Record<string, { color: string; label: string }> = {
+  added:    { color: "var(--color-added)",    label: "A" },
+  deleted:  { color: "var(--color-deleted)",  label: "D" },
+  modified: { color: "var(--color-modified)", label: "M" },
+  renamed:  { color: "var(--color-renamed)",  label: "R" },
+  copied:   { color: "var(--color-text-secondary)", label: "C" },
+};
+
 /** Get status badge color */
 export function getStatusColor(status: string): string {
-  switch (status) {
-    case "added":
-      return "var(--color-added)";
-    case "deleted":
-      return "var(--color-deleted)";
-    case "modified":
-      return "var(--color-modified)";
-    case "renamed":
-      return "var(--color-renamed)";
-    default:
-      return "var(--color-text-secondary)";
-  }
+  return STATUS_MAP[status]?.color ?? "var(--color-text-secondary)";
 }
 
 /** Get status label */
 export function getStatusLabel(status: string): string {
-  switch (status) {
-    case "added":
-      return "A";
-    case "deleted":
-      return "D";
-    case "modified":
-      return "M";
-    case "renamed":
-      return "R";
-    case "copied":
-      return "C";
-    default:
-      return "?";
-  }
+  return STATUS_MAP[status]?.label ?? "?";
 }
 
 /**

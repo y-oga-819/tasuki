@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect } from "react";
-import { useStore } from "../store";
+import { useDisplayStore } from "../store/displayStore";
+import { useDiffStore } from "../store/diffStore";
 import * as api from "../utils/tauri-api";
 
 
@@ -13,9 +14,8 @@ export const Toolbar: React.FC = () => {
     setDiffOverflow,
     expandUnchanged,
     setExpandUnchanged,
-    diffResult,
-    repoInfo,
-  } = useStore();
+  } = useDisplayStore();
+  const { diffResult, repoInfo } = useDiffStore();
 
   const isTauri = typeof window !== "undefined" && "__TAURI__" in window;
 

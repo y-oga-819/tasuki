@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { useStore } from "../store";
+import { useDisplayStore } from "../store/displayStore";
+import { useDiffStore } from "../store/diffStore";
 import { DiffViewer } from "./DiffViewer";
 import { DiffSearchBar } from "./DiffSearchBar";
 import { ErrorBoundary } from "./ErrorBoundary";
@@ -13,7 +14,7 @@ const isMac =
 /** Render all file diffs, scrolling to selectedFile on change */
 const AllFileDiffs: React.FC = () => {
   const { diffResult, selectedFile, collapsedFiles, toggleFileCollapse } =
-    useStore();
+    useDiffStore();
   const containerRef = useRef<HTMLDivElement>(null);
   const prevFileRef = useRef<string | null>(null);
 
@@ -93,7 +94,8 @@ const MAX_DOCS_WIDTH = 900;
 const DEFAULT_TERMINAL_RATIO = MIN_TERMINAL_RATIO;
 
 export const MainContent: React.FC = () => {
-  const { displayMode, isLoading, error } = useStore();
+  const { displayMode } = useDisplayStore();
+  const { isLoading, error } = useDiffStore();
 
   // Terminal-docs split resize
   const [terminalRatio, setTerminalRatio] = useState(DEFAULT_TERMINAL_RATIO);

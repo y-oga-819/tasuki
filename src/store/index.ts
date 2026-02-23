@@ -1,3 +1,14 @@
+/**
+ * Store facade — re-exports domain-specific stores and provides a combined
+ * `useStore` hook for backward compatibility with existing consumers and
+ * the E2E test harness (`__zustandStore`).
+ *
+ * New code should import directly from the domain stores:
+ *   import { useDisplayStore } from "../store/displayStore";
+ *   import { useDiffStore }    from "../store/diffStore";
+ *   import { useReviewStore }  from "../store/reviewStore";
+ */
+
 import { create } from "zustand";
 import type { SelectedLineRange } from "@pierre/diffs";
 import type {
@@ -13,8 +24,17 @@ import type {
   GateStatus,
 } from "../types";
 
+// Re-export domain stores for direct access
+export { useDisplayStore } from "./displayStore";
+export { useDiffStore } from "./diffStore";
+export { useReviewStore } from "./reviewStore";
+
+// Re-export types previously exported from this module
+export type { CommentFormTarget } from "./diffStore";
+export type { DiffOverflow } from "./displayStore";
+
 /** Target line where the comment form is being shown */
-export interface CommentFormTarget {
+interface CommentFormTarget {
   filePath: string;
   lineNumber: number;
   side: "deletions" | "additions";
@@ -22,17 +42,14 @@ export interface CommentFormTarget {
   selectionEnd: number;
 }
 
-/** Overflow mode for diff lines (Pierre-native) */
-export type DiffOverflow = "scroll" | "wrap";
-
 interface TasukiState {
   // Display
   displayMode: DisplayMode;
   setDisplayMode: (mode: DisplayMode) => void;
   diffLayout: DiffLayout;
   setDiffLayout: (layout: DiffLayout) => void;
-  diffOverflow: DiffOverflow;
-  setDiffOverflow: (overflow: DiffOverflow) => void;
+  diffOverflow: "scroll" | "wrap";
+  setDiffOverflow: (overflow: "scroll" | "wrap") => void;
   expandUnchanged: boolean;
   setExpandUnchanged: (expand: boolean) => void;
   tocOpen: boolean;
@@ -111,6 +128,10 @@ interface TasukiState {
   setRepoInfo: (info: RepoInfo | null) => void;
 }
 
+/**
+ * Combined store — backward-compatible facade.
+ * Prefer importing domain-specific stores for new code.
+ */
 export const useStore = create<TasukiState>((set) => ({
   // Display
   displayMode: "diff-docs",

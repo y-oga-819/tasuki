@@ -1,5 +1,6 @@
 import React, { useCallback, useMemo, useState } from "react";
-import { useStore } from "../store";
+import { useReviewStore } from "../store/reviewStore";
+import { useDiffStore } from "../store/diffStore";
 import { formatReviewPrompt, formatSingleComment } from "../utils/format-review";
 import { copyToClipboard } from "../utils/tauri-api";
 import * as api from "../utils/tauri-api";
@@ -190,8 +191,8 @@ export const ReviewPanel: React.FC = () => {
     unresolveDocComment,
     gateStatus,
     setGateStatus,
-    diffResult,
-  } = useStore();
+  } = useReviewStore();
+  const { diffResult } = useDiffStore();
 
   const totalComments = comments.length + docComments.length;
 
