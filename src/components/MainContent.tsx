@@ -91,6 +91,7 @@ const DiffContentWithSearch: React.FC = () => {
 const MIN_SPLIT_RATIO = 0.5;
 const MAX_SPLIT_RATIO = 0.8;
 const DEFAULT_SPLIT_RATIO = 0.65;
+const MAX_RIGHT_WIDTH = 900;
 
 export const MainContent: React.FC = () => {
   const { displayMode, leftPaneMode, setLeftPaneMode } = useDisplayStore();
@@ -101,6 +102,14 @@ export const MainContent: React.FC = () => {
   const mainRef = useRef<HTMLDivElement>(null);
   const draggingRef = useRef(false);
   const rafIdRef = useRef(0);
+
+  const clampSplitRatio = useCallback((ratio: number, containerWidth: number) => {
+    const effectiveMin = Math.max(
+      MIN_SPLIT_RATIO,
+      1 - MAX_RIGHT_WIDTH / containerWidth,
+    );
+    return Math.max(effectiveMin, Math.min(MAX_SPLIT_RATIO, ratio));
+  }, []);
 
   const handleSplitPointerDown = useCallback((e: React.PointerEvent) => {
     e.preventDefault();
@@ -117,15 +126,27 @@ export const MainContent: React.FC = () => {
       if (!mainRef.current) return;
       const rect = mainRef.current.getBoundingClientRect();
       const ratio = (clientX - rect.left) / rect.width;
-      setSplitRatio(Math.max(MIN_SPLIT_RATIO, Math.min(MAX_SPLIT_RATIO, ratio)));
+      setSplitRatio(clampSplitRatio(ratio, rect.width));
     });
-  }, []);
+  }, [clampSplitRatio]);
 
   const handleSplitPointerUp = useCallback(() => {
     draggingRef.current = false;
     document.body.style.userSelect = "";
     cancelAnimationFrame(rafIdRef.current);
   }, []);
+
+  // Clamp ratio to respect MAX_RIGHT_WIDTH on mount and window resize
+  useEffect(() => {
+    const clamp = () => {
+      if (!mainRef.current) return;
+      const width = mainRef.current.getBoundingClientRect().width;
+      setSplitRatio((prev) => clampSplitRatio(prev, width));
+    };
+    clamp();
+    window.addEventListener("resize", clamp);
+    return () => window.removeEventListener("resize", clamp);
+  }, [clampSplitRatio]);
 
   useEffect(() => {
     return () => cancelAnimationFrame(rafIdRef.current);
@@ -160,6 +181,7 @@ export const MainContent: React.FC = () => {
           defaultRatio={0.6}
           minRatio={0.3}
           maxRatio={0.85}
+          maxRightWidth={MAX_RIGHT_WIDTH}
           left={<MarkdownViewer />}
           right={<TerminalPanel visible />}
         />
