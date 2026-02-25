@@ -6,6 +6,7 @@ import { DiffSearchBar } from "./DiffSearchBar";
 import { ErrorBoundary } from "./ErrorBoundary";
 import { MarkdownViewer } from "./MarkdownViewer";
 import { ReviewPanel } from "./ReviewPanel";
+import { ResizablePane } from "./ResizablePane";
 import { TerminalPanel } from "./Terminal";
 
 const isMac =
@@ -150,6 +151,21 @@ export const MainContent: React.FC = () => {
   }
 
   const isSplit = displayMode === "split";
+  const isViewer = displayMode === "viewer";
+
+  if (isViewer) {
+    return (
+      <main className="main-content viewer-layout" ref={mainRef}>
+        <ResizablePane
+          defaultRatio={0.6}
+          minRatio={0.3}
+          maxRatio={0.85}
+          left={<MarkdownViewer />}
+          right={<TerminalPanel visible />}
+        />
+      </main>
+    );
+  }
 
   return (
     <main

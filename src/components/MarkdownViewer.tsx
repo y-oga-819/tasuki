@@ -7,6 +7,7 @@ import GithubSlugger from "github-slugger";
 import { renderMermaid, THEMES } from "beautiful-mermaid";
 import { useDisplayStore } from "../store/displayStore";
 import { useDiffStore } from "../store/diffStore";
+import { MermaidZoomModal } from "./MermaidZoomModal";
 import * as api from "../utils/tauri-api";
 
 export const MarkdownViewer: React.FC = () => {
@@ -25,10 +26,16 @@ export const MarkdownViewer: React.FC = () => {
 
     (async () => {
       try {
-        const content =
-          docSource === "design"
-            ? await api.readDesignDoc(selectedDoc.replace("design:", ""))
-            : await api.readFile(selectedDoc);
+        let content: string;
+        if (docSource === "design") {
+          content = await api.readDesignDoc(selectedDoc.replace("design:", ""));
+        } else if (docSource === "external") {
+          // external:{folder}/{relativePath} → absolute path
+          const absPath = selectedDoc.replace("external:", "");
+          content = await api.readExternalFile(absPath);
+        } else {
+          content = await api.readFile(selectedDoc);
+        }
         setDocContent(content);
         // Extract TOC from headings using github-slugger (matches rehype-slug)
         const slugger = new GithubSlugger();
@@ -201,6 +208,7 @@ const MermaidBlock: React.FC<{ code: string }> = ({ code }) => {
   const [state, setState] = useState<
     { status: "loading" } | { status: "ok"; svg: string } | { status: "error"; message: string }
   >({ status: "loading" });
+  const [zoomOpen, setZoomOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -241,11 +249,23 @@ const MermaidBlock: React.FC<{ code: string }> = ({ code }) => {
 
   return (
     <div className="mermaid-block">
+      <button
+        className="mermaid-zoom-btn"
+        onClick={() => setZoomOpen(true)}
+        title="Zoom diagram"
+      >
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+          <path d="M1.5 1h4a.5.5 0 0 1 0 1H2.707l3.147 3.146a.5.5 0 1 1-.708.708L2 2.707V5.5a.5.5 0 0 1-1 0v-4a.5.5 0 0 1 .5-.5zm13 0a.5.5 0 0 1 .5.5v4a.5.5 0 0 1-1 0V2.707l-3.146 3.147a.5.5 0 1 1-.708-.708L13.293 2H10.5a.5.5 0 0 1 0-1h4zM1.5 15a.5.5 0 0 1-.5-.5v-4a.5.5 0 0 1 1 0v2.793l3.146-3.147a.5.5 0 1 1 .708.708L2.707 14H5.5a.5.5 0 0 1 0 1h-4zm13 0h-4a.5.5 0 0 1 0-1h2.793l-3.147-3.146a.5.5 0 0 1 .708-.708L14 13.293V10.5a.5.5 0 0 1 1 0v4a.5.5 0 0 1-.5.5z" />
+        </svg>
+      </button>
       <div
         ref={containerRef}
         className="mermaid-render-area"
         dangerouslySetInnerHTML={{ __html: state.svg }}
       />
+      {zoomOpen && (
+        <MermaidZoomModal svg={state.svg} onClose={() => setZoomOpen(false)} />
+      )}
     </div>
   );
 };

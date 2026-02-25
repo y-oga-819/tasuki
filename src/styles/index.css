@@ -1517,6 +1517,7 @@ kbd {
 
 /* Mermaid blocks */
 .mermaid-block {
+  position: relative;
   margin: var(--space-3) 0;
   border: 1px solid var(--color-border-primary);
   border-radius: var(--radius-md);
@@ -1732,5 +1733,193 @@ kbd {
 /* --- Selection --- */
 ::selection {
   background: rgba(88, 166, 255, 0.3);
+}
+
+/* --- Mermaid Zoom Button --- */
+.mermaid-zoom-btn {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-2);
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  background: var(--color-bg-overlay);
+  border: 1px solid var(--color-border-primary);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.mermaid-block:hover .mermaid-zoom-btn {
+  opacity: 1;
+}
+
+.mermaid-zoom-btn:hover {
+  background: var(--color-btn-secondary-hover);
+  color: var(--color-text-primary);
+}
+
+/* --- Mermaid Zoom Modal --- */
+.mermaid-zoom-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(4px);
+}
+
+.mermaid-zoom-container {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  cursor: grab;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mermaid-zoom-container:active {
+  cursor: grabbing;
+}
+
+.mermaid-zoom-content {
+  transform-origin: center center;
+  transition: none;
+  will-change: transform;
+}
+
+.mermaid-zoom-content svg {
+  max-width: none;
+  height: auto;
+}
+
+.mermaid-zoom-controls {
+  position: fixed;
+  bottom: var(--space-5);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: var(--space-1);
+  padding: var(--space-1);
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border-primary);
+  border-radius: var(--radius-lg);
+  z-index: 1001;
+}
+
+.mermaid-zoom-ctrl-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  height: 32px;
+  padding: 0 var(--space-2);
+  background: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border-secondary);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-md);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.mermaid-zoom-ctrl-btn:hover {
+  background: var(--color-btn-secondary-hover);
+}
+
+.mermaid-zoom-level {
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  min-width: 56px;
+}
+
+.mermaid-zoom-close {
+  position: fixed;
+  top: var(--space-4);
+  right: var(--space-4);
+  z-index: 1001;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border-primary);
+  border-radius: var(--radius-md);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-lg);
+  cursor: pointer;
+}
+
+.mermaid-zoom-close:hover {
+  background: var(--color-btn-secondary-hover);
+}
+
+/* --- Viewer Layout --- */
+.main-content.viewer-layout {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.main-content.viewer-layout .resizable-pane {
+  flex: 1;
+}
+
+/* --- Add Folder Button (Sidebar) --- */
+.add-folder-section {
+  padding: var(--space-2) var(--space-3);
+}
+
+.add-folder-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-1) var(--space-2);
+  background: var(--color-bg-tertiary);
+  border: 1px dashed var(--color-border-primary);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.add-folder-btn:hover {
+  background: var(--color-bg-overlay);
+  color: var(--color-text-primary);
+}
+
+.remove-folder-btn {
+  margin-left: auto;
+  padding: 0 var(--space-1);
+  background: none;
+  border: none;
+  color: var(--color-text-tertiary);
+  font-size: var(--font-size-xs);
+  cursor: pointer;
+  line-height: 1;
+}
+
+.remove-folder-btn:hover {
+  color: var(--color-deleted);
+}
+
+.sidebar-empty-hint {
+  padding: var(--space-2) var(--space-3);
+  color: var(--color-text-tertiary);
+  font-size: var(--font-size-xs);
+  font-style: italic;
 }
 

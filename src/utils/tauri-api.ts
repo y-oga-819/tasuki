@@ -48,6 +48,14 @@ function mockInvoke<T>(cmd: string, args?: Record<string, unknown>): T {
       return (mockDocContents[filename] ?? `# ${filename}\n\nMock design doc content`) as T;
     }
 
+    // External docs APIs
+    case "list_dir_docs":
+      return ["example/design-overview.md", "example/api-spec.md"] as T;
+    case "read_external_file": {
+      const extPath = args?.filePath as string;
+      return `# ${extPath}\n\nMock external file content for ${extPath}` as T;
+    }
+
     // Review persistence APIs
     case "get_diff_hash":
       return mockDiffHash as T;
@@ -222,6 +230,26 @@ export async function readCommitGate(): Promise<CommitGateData | null> {
 
 export async function clearCommitGate(): Promise<void> {
   return invoke<void>("clear_commit_gate");
+}
+
+// ---- External Docs ----
+
+export async function listDirDocs(dirPath: string): Promise<string[]> {
+  return invoke<string[]>("list_dir_docs", { dirPath });
+}
+
+export async function readExternalFile(filePath: string): Promise<string> {
+  return invoke<string>("read_external_file", { filePath });
+}
+
+export async function pickFolder(): Promise<string | null> {
+  if (isTauri) {
+    const { open } = await import("@tauri-apps/plugin-dialog");
+    const result = await open({ directory: true, multiple: false });
+    return result as string | null;
+  }
+  // Browser mock: return a fake path
+  return "/mock/external/docs";
 }
 
 // ---- Zed Integration ----

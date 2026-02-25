@@ -68,60 +68,69 @@ export const Toolbar: React.FC = () => {
             onClick={() => setDisplayMode("split")}
             label="Split"
           />
+          <TabButton
+            active={displayMode === "viewer"}
+            onClick={() => setDisplayMode("viewer")}
+            label="Viewer"
+          />
         </div>
       </div>
 
       <div className="toolbar-right">
-        {diffResult && (
-          <div className="toolbar-stats">
-            <span className="stat-files">
-              {diffResult.stats.files_changed} files
-            </span>
-            <span className="stat-added">+{diffResult.stats.additions}</span>
-            <span className="stat-deleted">-{diffResult.stats.deletions}</span>
-          </div>
-        )}
+        {displayMode !== "viewer" && (
+          <>
+            {diffResult && (
+              <div className="toolbar-stats">
+                <span className="stat-files">
+                  {diffResult.stats.files_changed} files
+                </span>
+                <span className="stat-added">+{diffResult.stats.additions}</span>
+                <span className="stat-deleted">-{diffResult.stats.deletions}</span>
+              </div>
+            )}
 
-        <span className="toolbar-separator" />
-        <div className="layout-toggle">
-          <button
-            className={`layout-btn ${diffLayout === "split" ? "active" : ""}`}
-            onClick={() => setDiffLayout("split")}
-            title="Split view (side-by-side)"
-          >
-            Split
-          </button>
-          <button
-            className={`layout-btn ${diffLayout === "unified" ? "active" : ""}`}
-            onClick={() => setDiffLayout("unified")}
-            title="Unified view (stacked)"
-          >
-            Unified
-          </button>
-        </div>
-        <div className="layout-toggle">
-          <button
-            className={`layout-btn ${diffOverflow === "scroll" ? "active" : ""}`}
-            onClick={() => setDiffOverflow("scroll")}
-            title="Scroll long lines"
-          >
-            Scroll
-          </button>
-          <button
-            className={`layout-btn ${diffOverflow === "wrap" ? "active" : ""}`}
-            onClick={() => setDiffOverflow("wrap")}
-            title="Wrap long lines"
-          >
-            Wrap
-          </button>
-        </div>
-        <button
-          className={`layout-btn ${!expandUnchanged ? "active" : ""}`}
-          onClick={() => setExpandUnchanged(!expandUnchanged)}
-          title={expandUnchanged ? "Collapse unchanged lines" : "Expand all lines"}
-        >
-          {expandUnchanged ? "Collapse" : "Expand"}
-        </button>
+            <span className="toolbar-separator" />
+            <div className="layout-toggle">
+              <button
+                className={`layout-btn ${diffLayout === "split" ? "active" : ""}`}
+                onClick={() => setDiffLayout("split")}
+                title="Split view (side-by-side)"
+              >
+                Split
+              </button>
+              <button
+                className={`layout-btn ${diffLayout === "unified" ? "active" : ""}`}
+                onClick={() => setDiffLayout("unified")}
+                title="Unified view (stacked)"
+              >
+                Unified
+              </button>
+            </div>
+            <div className="layout-toggle">
+              <button
+                className={`layout-btn ${diffOverflow === "scroll" ? "active" : ""}`}
+                onClick={() => setDiffOverflow("scroll")}
+                title="Scroll long lines"
+              >
+                Scroll
+              </button>
+              <button
+                className={`layout-btn ${diffOverflow === "wrap" ? "active" : ""}`}
+                onClick={() => setDiffOverflow("wrap")}
+                title="Wrap long lines"
+              >
+                Wrap
+              </button>
+            </div>
+            <button
+              className={`layout-btn ${!expandUnchanged ? "active" : ""}`}
+              onClick={() => setExpandUnchanged(!expandUnchanged)}
+              title={expandUnchanged ? "Collapse unchanged lines" : "Expand all lines"}
+            >
+              {expandUnchanged ? "Collapse" : "Expand"}
+            </button>
+          </>
+        )}
 
         {isTauri && (
           <>

@@ -13,6 +13,8 @@ beforeEach(() => {
     collapsedFiles: new Set<string>(),
     designDocs: [],
     docSource: "repo",
+    externalFolders: [],
+    externalDocs: {},
     selectedLineRange: null,
     selectedLineFile: null,
     commentFormTarget: null,
@@ -80,9 +82,35 @@ describe("useDiffStore", () => {
     expect(useDiffStore.getState().designDocs).toEqual(["design.md"]);
   });
 
-  it("setDocSource switches between repo and design", () => {
+  it("setDocSource switches between repo, design, and external", () => {
     useDiffStore.getState().setDocSource("design");
     expect(useDiffStore.getState().docSource).toBe("design");
+    useDiffStore.getState().setDocSource("external");
+    expect(useDiffStore.getState().docSource).toBe("external");
+  });
+
+  it("addExternalFolder adds a folder without duplicates", () => {
+    useDiffStore.getState().addExternalFolder("/home/docs");
+    expect(useDiffStore.getState().externalFolders).toEqual(["/home/docs"]);
+
+    useDiffStore.getState().addExternalFolder("/home/docs");
+    expect(useDiffStore.getState().externalFolders).toEqual(["/home/docs"]);
+
+    useDiffStore.getState().addExternalFolder("/other");
+    expect(useDiffStore.getState().externalFolders).toEqual(["/home/docs", "/other"]);
+  });
+
+  it("removeExternalFolder removes folder and its docs", () => {
+    useDiffStore.getState().addExternalFolder("/home/docs");
+    useDiffStore.getState().setExternalDocs("/home/docs", ["a.md"]);
+    useDiffStore.getState().removeExternalFolder("/home/docs");
+    expect(useDiffStore.getState().externalFolders).toEqual([]);
+    expect(useDiffStore.getState().externalDocs).toEqual({});
+  });
+
+  it("setExternalDocs sets files for a folder", () => {
+    useDiffStore.getState().setExternalDocs("/docs", ["a.md", "b.md"]);
+    expect(useDiffStore.getState().externalDocs).toEqual({ "/docs": ["a.md", "b.md"] });
   });
 
   it("setSelectedLineRange sets range and file", () => {

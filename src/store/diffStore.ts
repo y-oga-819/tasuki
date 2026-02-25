@@ -34,8 +34,13 @@ interface DiffState {
   toggleFileCollapse: (path: string) => void;
   designDocs: string[];
   setDesignDocs: (docs: string[]) => void;
-  docSource: "repo" | "design";
-  setDocSource: (source: "repo" | "design") => void;
+  docSource: "repo" | "design" | "external";
+  setDocSource: (source: "repo" | "design" | "external") => void;
+  externalFolders: string[];
+  addExternalFolder: (folder: string) => void;
+  removeExternalFolder: (folder: string) => void;
+  externalDocs: Record<string, string[]>;
+  setExternalDocs: (folder: string, files: string[]) => void;
 
   // Pierre-native diff state
   selectedLineRange: SelectedLineRange | null;
@@ -88,6 +93,24 @@ export const useDiffStore = create<DiffState>((set) => ({
   setDesignDocs: (docs) => set({ designDocs: docs }),
   docSource: "repo",
   setDocSource: (source) => set({ docSource: source }),
+  externalFolders: [],
+  addExternalFolder: (folder) =>
+    set((state) => {
+      if (state.externalFolders.includes(folder)) return state;
+      return { externalFolders: [...state.externalFolders, folder] };
+    }),
+  removeExternalFolder: (folder) =>
+    set((state) => ({
+      externalFolders: state.externalFolders.filter((f) => f !== folder),
+      externalDocs: Object.fromEntries(
+        Object.entries(state.externalDocs).filter(([k]) => k !== folder),
+      ),
+    })),
+  externalDocs: {},
+  setExternalDocs: (folder, files) =>
+    set((state) => ({
+      externalDocs: { ...state.externalDocs, [folder]: files },
+    })),
 
   // Pierre-native diff state
   selectedLineRange: null,
