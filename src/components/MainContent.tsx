@@ -5,7 +5,6 @@ import { DiffViewer } from "./DiffViewer";
 import { DiffSearchBar } from "./DiffSearchBar";
 import { ErrorBoundary } from "./ErrorBoundary";
 import { MarkdownViewer } from "./MarkdownViewer";
-import { ResizablePane } from "./ResizablePane";
 import { TerminalPanel } from "./Terminal";
 
 const isMac =
@@ -87,29 +86,19 @@ const DiffContentWithSearch: React.FC = () => {
   );
 };
 
-const MIN_TERMINAL_RATIO = 0.3;
-const MAX_TERMINAL_RATIO = 0.8;
-const MAX_DOCS_WIDTH = 900;
-// Start small so the mount-time clamp opens docs at MAX_DOCS_WIDTH
-const DEFAULT_TERMINAL_RATIO = MIN_TERMINAL_RATIO;
+const MIN_SPLIT_RATIO = 0.2;
+const MAX_SPLIT_RATIO = 0.5;
+const DEFAULT_SPLIT_RATIO = 0.35;
 
 export const MainContent: React.FC = () => {
-  const { displayMode } = useDisplayStore();
+  const { displayMode, leftPaneMode, setLeftPaneMode } = useDisplayStore();
   const { isLoading, error } = useDiffStore();
 
-  // Terminal-docs split resize
-  const [terminalRatio, setTerminalRatio] = useState(DEFAULT_TERMINAL_RATIO);
+  // Left-right split resize
+  const [splitRatio, setSplitRatio] = useState(DEFAULT_SPLIT_RATIO);
   const mainRef = useRef<HTMLDivElement>(null);
   const draggingRef = useRef(false);
   const rafIdRef = useRef(0);
-
-  const clampRatio = useCallback((ratio: number, containerWidth: number) => {
-    const effectiveMin = Math.max(
-      MIN_TERMINAL_RATIO,
-      1 - MAX_DOCS_WIDTH / containerWidth,
-    );
-    return Math.max(effectiveMin, Math.min(MAX_TERMINAL_RATIO, ratio));
-  }, []);
 
   const handleSplitPointerDown = useCallback((e: React.PointerEvent) => {
     e.preventDefault();
@@ -126,27 +115,15 @@ export const MainContent: React.FC = () => {
       if (!mainRef.current) return;
       const rect = mainRef.current.getBoundingClientRect();
       const ratio = (clientX - rect.left) / rect.width;
-      setTerminalRatio(clampRatio(ratio, rect.width));
+      setSplitRatio(Math.max(MIN_SPLIT_RATIO, Math.min(MAX_SPLIT_RATIO, ratio)));
     });
-  }, [clampRatio]);
+  }, []);
 
   const handleSplitPointerUp = useCallback(() => {
     draggingRef.current = false;
     document.body.style.userSelect = "";
     cancelAnimationFrame(rafIdRef.current);
   }, []);
-
-  // Clamp ratio to respect MAX_DOCS_WIDTH on mount and window resize
-  useEffect(() => {
-    const clamp = () => {
-      if (!mainRef.current) return;
-      const width = mainRef.current.getBoundingClientRect().width;
-      setTerminalRatio((prev) => clampRatio(prev, width));
-    };
-    clamp();
-    window.addEventListener("resize", clamp);
-    return () => window.removeEventListener("resize", clamp);
-  }, [clampRatio]);
 
   useEffect(() => {
     return () => cancelAnimationFrame(rafIdRef.current);
@@ -171,66 +148,65 @@ export const MainContent: React.FC = () => {
     );
   }
 
-  const isTerminal = displayMode === "terminal";
+  const isSplit = displayMode === "split";
 
   return (
     <main
-      className={`main-content ${isTerminal ? "terminal-layout" : ""}`}
+      className={`main-content ${isSplit ? "split-layout" : ""}`}
       ref={mainRef}
     >
-      {displayMode === "docs" && (
-        <div className="content-panel docs-only">
-          <MarkdownViewer />
-        </div>
-      )}
-
-      {displayMode === "diff" && (
-        <div className="content-panel diff-only">
-          <DiffContentWithSearch />
-        </div>
-      )}
-
-      {displayMode === "diff-docs" && (
-        <div className="content-panel split-view">
-          <ResizablePane
-            left={<DiffContentWithSearch />}
-            right={<MarkdownViewer />}
-            defaultRatio={0.2}
-            minRatio={0.2}
-            maxRatio={0.8}
-            maxRightWidth={900}
-          />
-        </div>
-      )}
-
-      {/* Terminal always rendered to preserve xterm state; wrapper controls layout */}
+      {/* Left pane — always rendered to preserve terminal state */}
       <div
-        className="terminal-split-main"
-        style={
-          isTerminal
-            ? { flexBasis: `${terminalRatio * 100}%` }
-            : { display: "none" }
-        }
+        className="split-left"
+        style={isSplit ? { flexBasis: `${splitRatio * 100}%` } : { display: "none" }}
       >
-        <TerminalPanel visible={isTerminal} />
-      </div>
-
-      {isTerminal && (
-        <>
+        <div className="left-pane-tabs">
+          <button
+            className={`left-pane-tab ${leftPaneMode === "docs" ? "active" : ""}`}
+            onClick={() => setLeftPaneMode("docs")}
+          >
+            Docs
+          </button>
+          <button
+            className={`left-pane-tab ${leftPaneMode === "terminal" ? "active" : ""}`}
+            onClick={() => setLeftPaneMode("terminal")}
+          >
+            Terminal
+          </button>
+        </div>
+        <div className="left-pane-body">
           <div
-            className="terminal-split-handle"
-            onPointerDown={handleSplitPointerDown}
-            onPointerMove={handleSplitPointerMove}
-            onPointerUp={handleSplitPointerUp}
-          />
-          <div
-            className="terminal-split-docs"
-            style={{ flexBasis: `${(1 - terminalRatio) * 100}%` }}
+            className="left-pane-content"
+            style={leftPaneMode === "docs" ? undefined : { display: "none" }}
           >
             <MarkdownViewer />
           </div>
-        </>
+          <div
+            className="left-pane-content"
+            style={leftPaneMode === "terminal" ? undefined : { display: "none" }}
+          >
+            <TerminalPanel visible={isSplit && leftPaneMode === "terminal"} />
+          </div>
+        </div>
+      </div>
+
+      {/* Resize handle */}
+      {isSplit && (
+        <div
+          className="split-handle"
+          onPointerDown={handleSplitPointerDown}
+          onPointerMove={handleSplitPointerMove}
+          onPointerUp={handleSplitPointerUp}
+        />
       )}
+
+      {/* Right pane — always diff */}
+      <div
+        className={`split-right ${!isSplit ? "diff-only" : ""}`}
+        style={isSplit ? { flexBasis: `${(1 - splitRatio) * 100}%` } : undefined}
+      >
+        <DiffContentWithSearch />
+      </div>
     </main>
   );
 };
