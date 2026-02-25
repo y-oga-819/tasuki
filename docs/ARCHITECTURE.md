@@ -220,11 +220,8 @@ App
 ├── app-body
 │   ├── FileSidebar            # サイドバー：ドキュメント一覧、変更ファイル一覧
 │   └── MainContent            # メインエリア：表示モードに応じてコンテンツを切替
-│       ├── [docs]      → MarkdownViewer
-│       ├── [diff]      → DiffViewer
-│       ├── [diff-docs] → ResizablePane(DiffViewer + MarkdownViewer)
-│       └── [terminal]  → ResizablePane(Terminal + MarkdownViewer)
-└── ReviewPanel                # レビューパネル：コメント一覧、Copy All、判定ボタン
+│       ├── [diff]  → DiffViewer（全画面）
+│       └── [split] → 左ペイン(DiffViewer) + 右ペイン(Docs/Terminal/Review切替)
 ```
 
 #### 追加コンポーネント
@@ -238,14 +235,14 @@ App
 
 ### 表示モード
 
-アプリは 3 つの表示モードを持つ：
+アプリは 2 つの表示モードを持つ：
 
 | モード | 説明 | ユースケース |
 |--------|------|-------------|
-| `docs` | Markdown ドキュメントのみ表示 | 設計書の閲覧 |
-| `diff` | 差分ビューアのみ表示 | コード変更のレビュー |
-| `diff-docs` | 差分 + ドキュメントを横並び表示（デフォルト） | 設計書を参照しながらレビュー |
-| `terminal` | ターミナル + ドキュメントを横並び表示 | シェル操作しながら設計書を参照 |
+| `diff` | 差分ビューアのみ全画面表示 | コード変更のレビューに集中 |
+| `split` | 左ペイン(Diff) + 右ペイン(Docs/Terminal/Review切替)（デフォルト） | 設計書を参照しながらレビュー、ターミナルでClaude Codeを開いてdiffを見ながら調査、レビューコメント一覧の確認 |
+
+Split モードでは右ペインの内容を `Docs` / `Terminal` / `Review` タブで切り替える（`leftPaneMode` で管理）。
 
 差分ビューアは `split`（左右分割）と `unified`（統合表示）の 2 レイアウトに対応（Pierre の `diffStyle` と同一命名）。
 
@@ -256,7 +253,8 @@ Zustand による単一ストアで全アプリ状態を管理する。
 ```
 TasukiState
 ├── 表示設定
-│   ├── displayMode: "docs" | "diff" | "diff-docs" | "terminal"
+│   ├── displayMode: "diff" | "split"
+│   ├── leftPaneMode: "docs" | "terminal" | "review"
 │   ├── diffLayout: "split" | "unified"
 │   ├── diffOverflow: "scroll" | "wrap"           # 長い行の折り返し/横スクロール
 │   ├── expandUnchanged: boolean                   # 未変更行の展開/折りたたみ
@@ -428,7 +426,8 @@ CommitGateData
 | 型 | 説明 |
 |----|------|
 | `DiffSource` | 差分取得元の指定（uncommitted / staged / working / commit / range） |
-| `DisplayMode` | 表示モード（docs / diff / diff-docs / terminal） |
+| `DisplayMode` | 表示モード（diff / split） |
+| `LeftPaneMode` | 右ペイン内容（docs / terminal / review） |
 | `DiffLayout` | diff レイアウト（split / unified） |
 | `ReviewVerdict` | レビュー判定（approve / request_changes / null） |
 | `ReviewRestoreMode` | 復元モード（full: 完全復元 / checklist: チェックリスト / none） |

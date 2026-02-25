@@ -113,7 +113,10 @@ export interface ReviewSession {
 export type ReviewVerdict = "approve" | "request_changes" | null;
 
 /** Display mode for the main content area */
-export type DisplayMode = "docs" | "diff" | "diff-docs" | "terminal";
+export type DisplayMode = "diff" | "split";
+
+/** Which content is shown in the right pane of split mode */
+export type LeftPaneMode = "docs" | "terminal" | "review";
 
 /** Diff view layout (matches Pierre's diffStyle naming) */
 export type DiffLayout = "split" | "unified";

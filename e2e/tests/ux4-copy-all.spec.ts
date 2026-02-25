@@ -14,6 +14,10 @@ test.describe("UX4: Copy All", () => {
   test("Copy All button exists and is initially disabled", async ({
     page,
   }) => {
+    // Switch to Review tab in right pane
+    const reviewTab = page.locator("button.right-pane-tab").filter({ hasText: "Review" });
+    await reviewTab.click();
+
     const copyAllBtn = page.locator("button.copy-all-btn");
     await expect(copyAllBtn).toBeVisible();
     await expect(copyAllBtn).toHaveText("Copy All");
@@ -30,6 +34,10 @@ test.describe("UX4: Copy All", () => {
       body: "First comment",
       codeSnippet: "const x = 1;",
     });
+
+    // Switch to Review tab in right pane
+    const reviewTab = page.locator("button.right-pane-tab").filter({ hasText: "Review" });
+    await reviewTab.click();
 
     await page
       .locator(".comment-body")
