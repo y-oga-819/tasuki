@@ -77,12 +77,11 @@ describe("getCodeSnippet", () => {
         },
       ],
     });
-    // The fallback uses new_lineno ?? old_lineno, so the deleted line
-    // (old_lineno=2, new_lineno=null) also matches the range
-    expect(getCodeSnippet(diff, 1, 3)).toBe("unchanged\nold line\nnew line\nend");
+    // Deleted lines (new_lineno=null) are skipped; only new-side lines included
+    expect(getCodeSnippet(diff, 1, 3)).toBe("unchanged\nnew line\nend");
   });
 
-  it("uses old_lineno as fallback when new_lineno is null in hunk data", () => {
+  it("skips deleted lines (new_lineno=null) in hunk fallback", () => {
     const diff = makeFileDiff({
       new_content: null,
       hunks: [
@@ -99,7 +98,8 @@ describe("getCodeSnippet", () => {
         },
       ],
     });
-    expect(getCodeSnippet(diff, 1, 2)).toBe("deleted1\ndeleted2");
+    // All lines are deletions (new_lineno=null), so nothing matches
+    expect(getCodeSnippet(diff, 1, 2)).toBe("");
   });
 
   it("returns empty string for empty hunks when new_content is null", () => {

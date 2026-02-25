@@ -15,11 +15,12 @@ export function getCodeSnippet(
   }
 
   // Fallback: extract from hunk line data
+  // Use new_lineno to match new-side lines; skip deleted lines (new_lineno=null)
   const lines: string[] = [];
   for (const hunk of fileDiff.hunks) {
     for (const line of hunk.lines) {
-      const lineNo = line.new_lineno ?? line.old_lineno;
-      if (lineNo && lineNo >= lineStart && lineNo <= lineEnd) {
+      const lineNo = line.new_lineno;
+      if (lineNo != null && lineNo >= lineStart && lineNo <= lineEnd) {
         lines.push(cleanLastNewline(line.content));
       }
     }
