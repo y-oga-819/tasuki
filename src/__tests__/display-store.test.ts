@@ -30,9 +30,11 @@ describe("useDisplayStore", () => {
     expect(useDisplayStore.getState().displayMode).toBe("diff");
   });
 
-  it("setLeftPaneMode switches left pane content", () => {
+  it("setLeftPaneMode switches right pane content", () => {
     useDisplayStore.getState().setLeftPaneMode("terminal");
     expect(useDisplayStore.getState().leftPaneMode).toBe("terminal");
+    useDisplayStore.getState().setLeftPaneMode("review");
+    expect(useDisplayStore.getState().leftPaneMode).toBe("review");
     useDisplayStore.getState().setLeftPaneMode("docs");
     expect(useDisplayStore.getState().leftPaneMode).toBe("docs");
   });

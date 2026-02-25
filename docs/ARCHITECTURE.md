@@ -221,8 +221,7 @@ App
 │   ├── FileSidebar            # サイドバー：ドキュメント一覧、変更ファイル一覧
 │   └── MainContent            # メインエリア：表示モードに応じてコンテンツを切替
 │       ├── [diff]  → DiffViewer（全画面）
-│       └── [split] → 左ペイン(DiffViewer) + 右ペイン(Docs/Terminal切替)
-└── ReviewPanel                # レビューパネル：コメント一覧、Copy All、判定ボタン
+│       └── [split] → 左ペイン(DiffViewer) + 右ペイン(Docs/Terminal/Review切替)
 ```
 
 #### 追加コンポーネント
@@ -241,9 +240,9 @@ App
 | モード | 説明 | ユースケース |
 |--------|------|-------------|
 | `diff` | 差分ビューアのみ全画面表示 | コード変更のレビューに集中 |
-| `split` | 左ペイン(Diff) + 右ペイン(Docs/Terminal切替)（デフォルト） | 設計書を参照しながらレビュー、またはターミナルでClaude Codeを開いてdiffを見ながら調査 |
+| `split` | 左ペイン(Diff) + 右ペイン(Docs/Terminal/Review切替)（デフォルト） | 設計書を参照しながらレビュー、ターミナルでClaude Codeを開いてdiffを見ながら調査、レビューコメント一覧の確認 |
 
-Split モードでは右ペインの内容を `Docs` / `Terminal` タブで切り替える（`leftPaneMode` で管理）。
+Split モードでは右ペインの内容を `Docs` / `Terminal` / `Review` タブで切り替える（`leftPaneMode` で管理）。
 
 差分ビューアは `split`（左右分割）と `unified`（統合表示）の 2 レイアウトに対応（Pierre の `diffStyle` と同一命名）。
 
@@ -255,7 +254,7 @@ Zustand による単一ストアで全アプリ状態を管理する。
 TasukiState
 ├── 表示設定
 │   ├── displayMode: "diff" | "split"
-│   ├── leftPaneMode: "docs" | "terminal"
+│   ├── leftPaneMode: "docs" | "terminal" | "review"
 │   ├── diffLayout: "split" | "unified"
 │   ├── diffOverflow: "scroll" | "wrap"           # 長い行の折り返し/横スクロール
 │   ├── expandUnchanged: boolean                   # 未変更行の展開/折りたたみ
@@ -428,7 +427,7 @@ CommitGateData
 |----|------|
 | `DiffSource` | 差分取得元の指定（uncommitted / staged / working / commit / range） |
 | `DisplayMode` | 表示モード（diff / split） |
-| `LeftPaneMode` | 左ペイン内容（docs / terminal） |
+| `LeftPaneMode` | 右ペイン内容（docs / terminal / review） |
 | `DiffLayout` | diff レイアウト（split / unified） |
 | `ReviewVerdict` | レビュー判定（approve / request_changes / null） |
 | `ReviewRestoreMode` | 復元モード（full: 完全復元 / checklist: チェックリスト / none） |

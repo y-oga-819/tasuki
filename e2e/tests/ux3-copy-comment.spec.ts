@@ -22,6 +22,10 @@ test.describe("UX3: Copy Comment", () => {
       codeSnippet: "const x = 1;",
     });
 
+    // Switch to Review tab in right pane
+    const reviewTab = page.locator("button.right-pane-tab").filter({ hasText: "Review" });
+    await reviewTab.click();
+
     const copyBtn = page
       .locator('button.btn-icon[title="Copy this comment"]')
       .first();
@@ -42,6 +46,10 @@ test.describe("UX3: Copy Comment", () => {
       body: "Needs refactoring",
       codeSnippet: "const x = 1;",
     });
+
+    // Switch to Review tab in right pane
+    const reviewTab = page.locator("button.right-pane-tab").filter({ hasText: "Review" });
+    await reviewTab.click();
 
     const copyBtn = page
       .locator('button.btn-icon[title="Copy this comment"]')

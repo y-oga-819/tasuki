@@ -33,7 +33,10 @@ test.describe("UX2: Line Comment", () => {
     await openCommentForm(page, "src/components/DiffViewer.tsx", 12);
     await submitCommentForm(page, "This is a test comment");
 
-    // Verify in the review panel (outside Shadow DOM)
+    // Switch to Review tab in right pane to verify the comment
+    const reviewTab = page.locator("button.right-pane-tab").filter({ hasText: "Review" });
+    await reviewTab.click();
+
     const commentBody = page
       .locator(".comment-body")
       .filter({ hasText: "This is a test comment" });
@@ -48,6 +51,10 @@ test.describe("UX2: Line Comment", () => {
       body: "E2E test comment",
       codeSnippet: "const x = 1;",
     });
+
+    // Switch to Review tab in right pane
+    const reviewTab = page.locator("button.right-pane-tab").filter({ hasText: "Review" });
+    await reviewTab.click();
 
     const reviewPanel = page.locator("div.review-panel");
     await expect(reviewPanel).toBeVisible();

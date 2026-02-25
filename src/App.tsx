@@ -4,7 +4,6 @@ import { Toolbar } from "./components/Toolbar";
 import { FileSidebar } from "./components/FileSidebar";
 import { MainContent } from "./components/MainContent";
 import { ErrorBoundary } from "./components/ErrorBoundary";
-import { ReviewPanel } from "./components/ReviewPanel";
 import { useDiffStore } from "./store/diffStore";
 import { useReviewStore } from "./store/reviewStore";
 import { useDiff } from "./hooks/useDiff";
@@ -170,7 +169,6 @@ const App: React.FC = () => {
             />
             <MainContent />
           </div>
-          <ReviewPanel />
         </div>
       </ErrorBoundary>
     </WorkerPoolContextProvider>

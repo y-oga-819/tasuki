@@ -5,6 +5,7 @@ import { DiffViewer } from "./DiffViewer";
 import { DiffSearchBar } from "./DiffSearchBar";
 import { ErrorBoundary } from "./ErrorBoundary";
 import { MarkdownViewer } from "./MarkdownViewer";
+import { ReviewPanel } from "./ReviewPanel";
 import { TerminalPanel } from "./Terminal";
 
 const isMac =
@@ -191,6 +192,12 @@ export const MainContent: React.FC = () => {
           >
             Terminal
           </button>
+          <button
+            className={`right-pane-tab ${leftPaneMode === "review" ? "active" : ""}`}
+            onClick={() => setLeftPaneMode("review")}
+          >
+            Review
+          </button>
         </div>
         <div className="right-pane-body">
           <div
@@ -204,6 +211,12 @@ export const MainContent: React.FC = () => {
             style={leftPaneMode === "terminal" ? undefined : { display: "none" }}
           >
             <TerminalPanel visible={isSplit && leftPaneMode === "terminal"} />
+          </div>
+          <div
+            className="right-pane-content"
+            style={leftPaneMode === "review" ? undefined : { display: "none" }}
+          >
+            <ReviewPanel />
           </div>
         </div>
       </div>
