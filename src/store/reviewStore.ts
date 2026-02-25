@@ -3,7 +3,6 @@ import type {
   ReviewComment,
   DocComment,
   ReviewVerdict,
-  ReviewRestoreMode,
   GateStatus,
 } from "../types";
 
@@ -57,10 +56,6 @@ interface ReviewState {
   // Commit gate
   gateStatus: GateStatus;
   setGateStatus: (status: GateStatus) => void;
-
-  // Review persistence
-  reviewRestoreMode: ReviewRestoreMode;
-  setReviewRestoreMode: (mode: ReviewRestoreMode) => void;
 }
 
 export const useReviewStore = create<ReviewState>((set) => ({
@@ -103,8 +98,4 @@ export const useReviewStore = create<ReviewState>((set) => ({
   // Commit gate
   gateStatus: "none",
   setGateStatus: (status) => set({ gateStatus: status }),
-
-  // Review persistence
-  reviewRestoreMode: "none",
-  setReviewRestoreMode: (mode) => set({ reviewRestoreMode: mode }),
 }));

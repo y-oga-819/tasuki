@@ -43,7 +43,6 @@ beforeEach(() => {
     docComments: [],
     verdict: null,
     gateStatus: "none",
-    reviewRestoreMode: "none",
   });
 });
 
@@ -243,13 +242,5 @@ describe("useReviewStore - verdict & gate", () => {
   it("setGateStatus changes gate status", () => {
     useReviewStore.getState().setGateStatus("approved");
     expect(useReviewStore.getState().gateStatus).toBe("approved");
-  });
-
-  it("setReviewRestoreMode changes restore mode", () => {
-    useReviewStore.getState().setReviewRestoreMode("full");
-    expect(useReviewStore.getState().reviewRestoreMode).toBe("full");
-
-    useReviewStore.getState().setReviewRestoreMode("checklist");
-    expect(useReviewStore.getState().reviewRestoreMode).toBe("checklist");
   });
 });

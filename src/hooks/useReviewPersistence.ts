@@ -3,7 +3,7 @@ import { useDiffStore } from "../store/diffStore";
 import { useReviewStore } from "../store/reviewStore";
 import * as api from "../utils/tauri-api";
 import { appLogger } from "../utils/app-logger";
-import type { DiffSource, ReviewSession, ReviewRestoreMode } from "../types";
+import type { DiffSource, ReviewSession } from "../types";
 
 /** Derive a stable key string from a DiffSource for file naming */
 function sourceTypeKey(source: DiffSource): string {
@@ -21,14 +21,6 @@ function sourceTypeKey(source: DiffSource): string {
   }
 }
 
-/** Determine how to restore: full (inline), checklist, or none */
-function determineRestoreMode(
-  savedHash: string,
-  currentHash: string,
-): ReviewRestoreMode {
-  return savedHash === currentHash ? "full" : "checklist";
-}
-
 /**
  * Hook that persists review comments to .tasuki/reviews/ and
  * restores them on app startup based on HEAD SHA + diff hash.
@@ -42,7 +34,6 @@ export function useReviewPersistence() {
     setComments,
     setDocComments,
     setVerdict,
-    setReviewRestoreMode,
   } = useReviewStore();
 
   const headShaRef = useRef<string | null>(null);
@@ -67,21 +58,17 @@ export function useReviewPersistence() {
         const saved = await api.loadReview(headSha, sourceKey);
 
         if (!saved) {
-          setReviewRestoreMode("none");
           return;
         }
 
-        const mode = determineRestoreMode(saved.diff_hash, currentHash);
-        setReviewRestoreMode(mode);
         setComments(saved.comments);
         setDocComments(saved.doc_comments);
         setVerdict(saved.verdict);
       } catch {
         // Failed to load (e.g. outside Tauri) — start fresh
-        setReviewRestoreMode("none");
       }
     })();
-  }, [diffResult, diffSource, setComments, setDocComments, setVerdict, setReviewRestoreMode]);
+  }, [diffResult, diffSource, setComments, setDocComments, setVerdict]);
 
   // Save review (debounced) whenever comments/verdict change
   const save = useCallback(async () => {

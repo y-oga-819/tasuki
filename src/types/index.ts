@@ -109,9 +109,6 @@ export interface ReviewSession {
   doc_comments: DocComment[];
 }
 
-/** How to restore a saved review session */
-export type ReviewRestoreMode = "full" | "checklist" | "none";
-
 /** Overall review verdict */
 export type ReviewVerdict = "approve" | "request_changes" | null;
 
