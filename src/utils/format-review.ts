@@ -1,4 +1,5 @@
 import type { ReviewComment, DocComment, ReviewVerdict } from "../types";
+import { formatLineRef } from "./diff-utils";
 
 /** Generate the structured review prompt for Copy All */
 export function formatReviewPrompt(
@@ -29,12 +30,7 @@ export function formatReviewPrompt(
   for (const [filePath, fileComments] of byFile) {
     parts.push(`### ${filePath}`);
     for (const c of fileComments) {
-      const lineRef =
-        c.line_start === c.line_end
-          ? `L${c.line_start}`
-          : `L${c.line_start}-${c.line_end}`;
-
-      parts.push(`- ${lineRef}`);
+      parts.push(`- ${formatLineRef(c.line_start, c.line_end)}`);
       if (c.code_snippet) {
         // Add code snippet as quoted block
         const snippetLines = c.code_snippet
@@ -84,12 +80,7 @@ export function formatReviewPrompt(
 
 /** Format a single comment for Copy Prompt */
 export function formatSingleComment(comment: ReviewComment): string {
-  const lineRef =
-    comment.line_start === comment.line_end
-      ? `L${comment.line_start}`
-      : `L${comment.line_start}-${comment.line_end}`;
-
-  const parts = [`${comment.file_path}:${lineRef}`];
+  const parts = [`${comment.file_path}:${formatLineRef(comment.line_start, comment.line_end)}`];
 
   if (comment.code_snippet) {
     const snippetLines = comment.code_snippet

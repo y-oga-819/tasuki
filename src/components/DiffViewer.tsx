@@ -10,11 +10,13 @@ import type {
   FileDiffOptions,
 } from "@pierre/diffs";
 import { getFiletypeFromFileName, cleanLastNewline } from "@pierre/diffs";
-import { useStore } from "../store";
+import { useDisplayStore } from "../store/displayStore";
+import { useDiffStore } from "../store/diffStore";
+import { useReviewStore } from "../store/reviewStore";
+import type { CommentFormTarget } from "../store/diffStore";
 
 const isMac =
   typeof navigator !== "undefined" && navigator.platform.includes("Mac");
-import type { CommentFormTarget } from "../store";
 import type { FileDiff, ReviewComment } from "../types";
 import { generateGitPatch, getCodeSnippet } from "../utils/diff-utils";
 
@@ -62,20 +64,17 @@ interface DiffViewerProps {
 }
 
 export const DiffViewer: React.FC<DiffViewerProps> = ({ fileDiff }) => {
+  const { diffLayout, diffOverflow, expandUnchanged } = useDisplayStore();
   const {
-    diffLayout,
-    diffOverflow,
-    expandUnchanged,
     collapsedFiles,
     toggleFileCollapse,
-    comments,
-    addComment,
     selectedLineRange,
     selectedLineFile,
     setSelectedLineRange,
     commentFormTarget,
     setCommentFormTarget,
-  } = useStore();
+  } = useDiffStore();
+  const { comments, addComment } = useReviewStore();
 
   const filePath = fileDiff.file.path;
   const isCollapsed = collapsedFiles.has(filePath);
@@ -398,7 +397,7 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({ fileDiff }) => {
 // --- Sub-components ---
 
 const CommentDisplay: React.FC<{ comment: ReviewComment }> = ({ comment }) => {
-  const { removeComment } = useStore();
+  const { removeComment } = useReviewStore();
 
   return (
     <div className="dv-comment">

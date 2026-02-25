@@ -2,6 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { LineSelectionManager } from "@pierre/diffs";
 import App from "./App";
+import "./store"; // side-effect: exposes __zustandStore for E2E tests in DEV
 import "./styles/index.css";
 
 // Patch: prevent LineSelectionManager.setSelection from throwing when

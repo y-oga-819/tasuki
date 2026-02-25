@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef } from "react";
-import { useStore } from "../store";
+import { useDiffStore } from "../store/diffStore";
 import * as api from "../utils/tauri-api";
 import type { DiffSource } from "../types";
 
@@ -13,7 +13,7 @@ export function useDiff() {
     setSelectedFile,
     selectedFile,
     diffResult,
-  } = useStore();
+  } = useDiffStore();
   const sourceRef = useRef<DiffSource>(diffSource);
   const selectedFileRef = useRef<string | null>(selectedFile);
   const inFlightRef = useRef<Promise<void> | null>(null);

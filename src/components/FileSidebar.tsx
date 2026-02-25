@@ -1,5 +1,7 @@
 import React, { useCallback, useMemo, useState } from "react";
-import { useStore } from "../store";
+import { useDisplayStore } from "../store/displayStore";
+import { useDiffStore } from "../store/diffStore";
+import { useReviewStore } from "../store/reviewStore";
 import type { FileDiff } from "../types";
 import { getStatusColor, getStatusLabel } from "../utils/diff-utils";
 import {
@@ -143,20 +145,20 @@ interface FileSidebarProps {
 }
 
 export const FileSidebar: React.FC<FileSidebarProps> = ({ style }) => {
+  const { displayMode } = useDisplayStore();
   const {
     diffResult,
     selectedFile,
     setSelectedFile,
     collapsedFiles,
     toggleFileCollapse,
-    displayMode,
     docFiles,
     selectedDoc,
     setSelectedDoc,
     setDocSource,
     designDocs,
-    comments,
-  } = useStore();
+  } = useDiffStore();
+  const { comments } = useReviewStore();
 
   const isTauri = typeof window !== "undefined" && "__TAURI__" in window;
 

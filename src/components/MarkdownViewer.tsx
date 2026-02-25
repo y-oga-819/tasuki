@@ -5,20 +5,13 @@ import rehypeSlug from "rehype-slug";
 import rehypeRaw from "rehype-raw";
 import GithubSlugger from "github-slugger";
 import { renderMermaid, THEMES } from "beautiful-mermaid";
-import { useStore } from "../store";
+import { useDisplayStore } from "../store/displayStore";
+import { useDiffStore } from "../store/diffStore";
 import * as api from "../utils/tauri-api";
 
 export const MarkdownViewer: React.FC = () => {
-  const {
-    selectedDoc,
-    docContent,
-    setDocContent,
-    docSource,
-    tocOpen,
-    setTocOpen,
-    markdownViewMode,
-    setMarkdownViewMode,
-  } = useStore();
+  const { tocOpen, setTocOpen, markdownViewMode, setMarkdownViewMode } = useDisplayStore();
+  const { selectedDoc, docContent, setDocContent, docSource } = useDiffStore();
   const [tocItems, setTocItems] = useState<
     { id: string; text: string; level: number }[]
   >([]);

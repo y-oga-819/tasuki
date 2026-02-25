@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useRef } from "react";
-import { useStore } from "../store";
+import { useDiffStore } from "../store/diffStore";
+import { useReviewStore } from "../store/reviewStore";
 import * as api from "../utils/tauri-api";
-import type { DiffSource, ReviewSession, ReviewRestoreMode } from "../types";
+import { appLogger } from "../utils/app-logger";
+import type { DiffSource, ReviewSession } from "../types";
 
 /** Derive a stable key string from a DiffSource for file naming */
 function sourceTypeKey(source: DiffSource): string {
@@ -19,30 +21,20 @@ function sourceTypeKey(source: DiffSource): string {
   }
 }
 
-/** Determine how to restore: full (inline), checklist, or none */
-function determineRestoreMode(
-  savedHash: string,
-  currentHash: string,
-): ReviewRestoreMode {
-  return savedHash === currentHash ? "full" : "checklist";
-}
-
 /**
  * Hook that persists review comments to .tasuki/reviews/ and
  * restores them on app startup based on HEAD SHA + diff hash.
  */
 export function useReviewPersistence() {
+  const { diffSource, diffResult } = useDiffStore();
   const {
     comments,
     docComments,
     verdict,
-    diffSource,
-    diffResult,
     setComments,
     setDocComments,
     setVerdict,
-    setReviewRestoreMode,
-  } = useStore();
+  } = useReviewStore();
 
   const headShaRef = useRef<string | null>(null);
   const diffHashRef = useRef<string | null>(null);
@@ -66,21 +58,17 @@ export function useReviewPersistence() {
         const saved = await api.loadReview(headSha, sourceKey);
 
         if (!saved) {
-          setReviewRestoreMode("none");
           return;
         }
 
-        const mode = determineRestoreMode(saved.diff_hash, currentHash);
-        setReviewRestoreMode(mode);
         setComments(saved.comments);
         setDocComments(saved.doc_comments);
         setVerdict(saved.verdict);
       } catch {
         // Failed to load (e.g. outside Tauri) — start fresh
-        setReviewRestoreMode("none");
       }
     })();
-  }, [diffResult, diffSource, setComments, setDocComments, setVerdict, setReviewRestoreMode]);
+  }, [diffResult, diffSource, setComments, setDocComments, setVerdict]);
 
   // Save review (debounced) whenever comments/verdict change
   const save = useCallback(async () => {
@@ -103,8 +91,8 @@ export function useReviewPersistence() {
 
     try {
       await api.saveReview(headSha, sourceKey, session);
-    } catch {
-      // Save failures are non-critical — silently ignore
+    } catch (err) {
+      appLogger.warn("persistence", "Failed to save review session", err);
     }
   }, [comments, docComments, verdict, diffSource]);
 

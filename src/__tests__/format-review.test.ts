@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { formatSingleComment, formatReviewPrompt } from "../utils/format-review";
+import { formatLineRef, getStatusColor, getStatusLabel } from "../utils/diff-utils";
 import type { ReviewComment, DocComment } from "../types";
 
 function makeComment(overrides: Partial<ReviewComment> = {}): ReviewComment {
@@ -36,6 +37,35 @@ function makeDocComment(overrides: Partial<DocComment> = {}): DocComment {
     ...overrides,
   };
 }
+
+describe("formatLineRef", () => {
+  it("returns single line ref for same start/end", () => {
+    expect(formatLineRef(10, 10)).toBe("L10");
+  });
+
+  it("returns range ref for different start/end", () => {
+    expect(formatLineRef(10, 15)).toBe("L10-15");
+  });
+
+  it("returns L1 for line 1", () => {
+    expect(formatLineRef(1, 1)).toBe("L1");
+  });
+});
+
+describe("getStatusColor and getStatusLabel", () => {
+  it("maps all known statuses consistently", () => {
+    // Ensure color and label exist for same statuses
+    for (const status of ["added", "deleted", "modified", "renamed"]) {
+      expect(getStatusColor(status)).toMatch(/^var\(--color-/);
+      expect(getStatusLabel(status)).toMatch(/^[A-Z]$/);
+    }
+  });
+
+  it("returns fallback for unknown status", () => {
+    expect(getStatusColor("unknown")).toBe("var(--color-text-secondary)");
+    expect(getStatusLabel("unknown")).toBe("?");
+  });
+});
 
 describe("formatSingleComment", () => {
   it("formats a comment with line number, snippet, and body", () => {
