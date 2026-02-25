@@ -140,6 +140,94 @@ describe("useReviewStore - docComments", () => {
   });
 });
 
+describe("useReviewStore - edge cases", () => {
+  it("updateComment with non-existent id leaves comments unchanged", () => {
+    useReviewStore.getState().addComment(makeComment({ id: "c1" }));
+    useReviewStore.getState().updateComment("nonexistent", "new body");
+    expect(useReviewStore.getState().comments[0].body).toBe("Fix this.");
+  });
+
+  it("updateComment to empty string is valid", () => {
+    useReviewStore.getState().addComment(makeComment({ id: "c1" }));
+    useReviewStore.getState().updateComment("c1", "");
+    expect(useReviewStore.getState().comments[0].body).toBe("");
+  });
+
+  it("resolveComment with null memo stores null", () => {
+    useReviewStore.getState().addComment(makeComment({ id: "c1" }));
+    useReviewStore.getState().resolveComment("c1", null);
+    const c = useReviewStore.getState().comments[0];
+    expect(c.resolved).toBe(true);
+    expect(c.resolution_memo).toBeNull();
+  });
+
+  it("resolveComment on already-resolved comment updates timestamp and memo", () => {
+    useReviewStore.getState().addComment(makeComment({ id: "c1" }));
+    useReviewStore.getState().resolveComment("c1", "first");
+    const first = useReviewStore.getState().comments[0];
+
+    useReviewStore.getState().resolveComment("c1", "second");
+    const second = useReviewStore.getState().comments[0];
+    expect(second.resolved).toBe(true);
+    expect(second.resolution_memo).toBe("second");
+    expect(second.resolved_at).toBeGreaterThanOrEqual(first.resolved_at!);
+  });
+
+  it("removeComment with non-existent id leaves comments unchanged", () => {
+    useReviewStore.getState().addComment(makeComment({ id: "c1" }));
+    useReviewStore.getState().removeComment("nonexistent");
+    expect(useReviewStore.getState().comments).toHaveLength(1);
+  });
+
+  it("removeComment from empty array produces no error", () => {
+    useReviewStore.getState().removeComment("c1");
+    expect(useReviewStore.getState().comments).toHaveLength(0);
+  });
+
+  it("unresolveComment on non-existent id leaves comments unchanged", () => {
+    useReviewStore.getState().addComment(makeComment({ id: "c1", resolved: true, resolved_at: 1, resolution_memo: "done" }));
+    useReviewStore.getState().unresolveComment("nonexistent");
+    expect(useReviewStore.getState().comments[0].resolved).toBe(true);
+  });
+
+  it("addComment preserves existing comments", () => {
+    useReviewStore.getState().addComment(makeComment({ id: "c1" }));
+    useReviewStore.getState().addComment(makeComment({ id: "c2" }));
+    useReviewStore.getState().addComment(makeComment({ id: "c3" }));
+    expect(useReviewStore.getState().comments).toHaveLength(3);
+    expect(useReviewStore.getState().comments.map((c) => c.id)).toEqual(["c1", "c2", "c3"]);
+  });
+
+  it("setComments replaces entirely, does not merge", () => {
+    useReviewStore.getState().addComment(makeComment({ id: "c1" }));
+    useReviewStore.getState().setComments([makeComment({ id: "c99" })]);
+    expect(useReviewStore.getState().comments).toHaveLength(1);
+    expect(useReviewStore.getState().comments[0].id).toBe("c99");
+  });
+});
+
+describe("useReviewStore - docComment edge cases", () => {
+  it("removeDocComment with non-existent id is a no-op", () => {
+    useReviewStore.getState().addDocComment(makeDocComment({ id: "d1" }));
+    useReviewStore.getState().removeDocComment("nonexistent");
+    expect(useReviewStore.getState().docComments).toHaveLength(1);
+  });
+
+  it("resolveDocComment with null memo", () => {
+    useReviewStore.getState().addDocComment(makeDocComment({ id: "d1" }));
+    useReviewStore.getState().resolveDocComment("d1", null);
+    const d = useReviewStore.getState().docComments[0];
+    expect(d.resolved).toBe(true);
+    expect(d.resolution_memo).toBeNull();
+  });
+
+  it("unresolveDocComment on non-existent id is a no-op", () => {
+    useReviewStore.getState().addDocComment(makeDocComment({ id: "d1", resolved: true, resolved_at: 1, resolution_memo: "x" }));
+    useReviewStore.getState().unresolveDocComment("nonexistent");
+    expect(useReviewStore.getState().docComments[0].resolved).toBe(true);
+  });
+});
+
 describe("useReviewStore - verdict & gate", () => {
   it("setVerdict sets the review verdict", () => {
     useReviewStore.getState().setVerdict("approve");

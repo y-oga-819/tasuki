@@ -129,4 +129,77 @@ describe("useDiffStore", () => {
     useDiffStore.getState().setRepoInfo(info);
     expect(useDiffStore.getState().repoInfo).toEqual(info);
   });
+
+  // --- Missing coverage: setSelectedDoc, setDocContent ----------------------
+
+  it("setSelectedDoc sets and clears selected doc", () => {
+    useDiffStore.getState().setSelectedDoc("architecture.md");
+    expect(useDiffStore.getState().selectedDoc).toBe("architecture.md");
+
+    useDiffStore.getState().setSelectedDoc(null);
+    expect(useDiffStore.getState().selectedDoc).toBeNull();
+  });
+
+  it("setDocContent sets and clears doc content", () => {
+    useDiffStore.getState().setDocContent("# Architecture\nSome content");
+    expect(useDiffStore.getState().docContent).toBe("# Architecture\nSome content");
+
+    useDiffStore.getState().setDocContent(null);
+    expect(useDiffStore.getState().docContent).toBeNull();
+  });
+
+  // --- Edge cases -----------------------------------------------------------
+
+  it("setSelectedLineRange clears range with null", () => {
+    useDiffStore.getState().setSelectedLineRange({ start: 5, end: 10 }, "src/foo.ts");
+    useDiffStore.getState().setSelectedLineRange(null);
+    const s = useDiffStore.getState();
+    expect(s.selectedLineRange).toBeNull();
+    expect(s.selectedLineFile).toBeNull();
+  });
+
+  it("setDiffResult to null clears previous result", () => {
+    useDiffStore.getState().setDiffResult(mockDiffResult);
+    useDiffStore.getState().setDiffResult(null);
+    expect(useDiffStore.getState().diffResult).toBeNull();
+  });
+
+  it("setError to null clears previous error", () => {
+    useDiffStore.getState().setError("failure");
+    useDiffStore.getState().setError(null);
+    expect(useDiffStore.getState().error).toBeNull();
+  });
+
+  it("toggleFileCollapse handles multiple files independently", () => {
+    useDiffStore.getState().toggleFileCollapse("a.ts");
+    useDiffStore.getState().toggleFileCollapse("b.ts");
+    const collapsed = useDiffStore.getState().collapsedFiles;
+    expect(collapsed.has("a.ts")).toBe(true);
+    expect(collapsed.has("b.ts")).toBe(true);
+
+    useDiffStore.getState().toggleFileCollapse("a.ts");
+    const after = useDiffStore.getState().collapsedFiles;
+    expect(after.has("a.ts")).toBe(false);
+    expect(after.has("b.ts")).toBe(true);
+  });
+
+  it("setSelectedFile to null clears selection", () => {
+    useDiffStore.getState().setSelectedFile("src/App.tsx");
+    useDiffStore.getState().setSelectedFile(null);
+    expect(useDiffStore.getState().selectedFile).toBeNull();
+  });
+
+  it("setDiffSource supports all source types", () => {
+    const sources = [
+      { type: "uncommitted" as const },
+      { type: "staged" as const },
+      { type: "working" as const },
+      { type: "commit" as const, ref: "abc123" },
+      { type: "range" as const, from: "abc", to: "def" },
+    ];
+    for (const source of sources) {
+      useDiffStore.getState().setDiffSource(source);
+      expect(useDiffStore.getState().diffSource).toEqual(source);
+    }
+  });
 });
