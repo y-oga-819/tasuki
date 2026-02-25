@@ -221,7 +221,7 @@ App
 │   ├── FileSidebar            # サイドバー：ドキュメント一覧、変更ファイル一覧
 │   └── MainContent            # メインエリア：表示モードに応じてコンテンツを切替
 │       ├── [diff]  → DiffViewer（全画面）
-│       └── [split] → 左ペイン(Docs/Terminal切替) + 右ペイン(DiffViewer)
+│       └── [split] → 左ペイン(DiffViewer) + 右ペイン(Docs/Terminal切替)
 └── ReviewPanel                # レビューパネル：コメント一覧、Copy All、判定ボタン
 ```
 
@@ -241,9 +241,9 @@ App
 | モード | 説明 | ユースケース |
 |--------|------|-------------|
 | `diff` | 差分ビューアのみ全画面表示 | コード変更のレビューに集中 |
-| `split` | 左ペイン(Docs/Terminal) + 右ペイン(Diff)（デフォルト） | 設計書を参照しながらレビュー、またはターミナルでClaude Codeを開いてdiffを見ながら調査 |
+| `split` | 左ペイン(Diff) + 右ペイン(Docs/Terminal切替)（デフォルト） | 設計書を参照しながらレビュー、またはターミナルでClaude Codeを開いてdiffを見ながら調査 |
 
-Split モードでは左ペインの内容を `Docs` / `Terminal` タブで切り替える（`leftPaneMode` で管理）。
+Split モードでは右ペインの内容を `Docs` / `Terminal` タブで切り替える（`leftPaneMode` で管理）。
 
 差分ビューアは `split`（左右分割）と `unified`（統合表示）の 2 レイアウトに対応（Pierre の `diffStyle` と同一命名）。
 

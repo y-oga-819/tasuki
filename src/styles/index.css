@@ -556,7 +556,7 @@ a:hover {
   color: var(--color-text-tertiary);
 }
 
-/* --- Split layout (left pane + handle + right pane) --- */
+/* --- Split layout (left=diff, handle, right=docs/terminal) --- */
 .main-content.split-layout {
   display: flex;
   flex-direction: row;
@@ -564,51 +564,14 @@ a:hover {
 }
 
 .split-left {
-  display: flex;
-  flex-direction: column;
   min-width: 0;
   height: 100%;
-}
-
-.left-pane-tabs {
-  display: flex;
-  gap: 0;
-  padding: 4px 8px 0;
-  border-bottom: 1px solid var(--color-border-primary);
-  background: var(--color-bg-secondary);
-  flex-shrink: 0;
-}
-
-.left-pane-tab {
-  padding: 6px 14px;
-  font-size: var(--font-size-sm);
-  font-weight: 500;
-  color: var(--color-text-secondary);
-  background: none;
-  border: none;
-  border-bottom: 2px solid transparent;
-  cursor: pointer;
-  transition: color 0.15s ease, border-color 0.15s ease;
-}
-
-.left-pane-tab:hover {
-  color: var(--color-text-primary);
-}
-
-.left-pane-tab.active {
-  color: var(--color-text-link);
-  border-bottom-color: var(--color-text-link);
-}
-
-.left-pane-body {
-  flex: 1;
-  min-height: 0;
   overflow: hidden;
 }
 
-.left-pane-content {
-  height: 100%;
-  overflow-y: auto;
+.split-left.diff-only {
+  flex: 1;
+  overflow: hidden;
 }
 
 .split-handle {
@@ -625,14 +588,51 @@ a:hover {
 }
 
 .split-right {
+  display: flex;
+  flex-direction: column;
   min-width: 0;
   height: 100%;
+}
+
+.right-pane-tabs {
+  display: flex;
+  gap: 0;
+  padding: 4px 8px 0;
+  border-bottom: 1px solid var(--color-border-primary);
+  background: var(--color-bg-secondary);
+  flex-shrink: 0;
+}
+
+.right-pane-tab {
+  padding: 6px 14px;
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.right-pane-tab:hover {
+  color: var(--color-text-primary);
+}
+
+.right-pane-tab.active {
+  color: var(--color-text-link);
+  border-bottom-color: var(--color-text-link);
+}
+
+.right-pane-body {
+  flex: 1;
+  min-height: 0;
   overflow: hidden;
 }
 
-.split-right.diff-only {
-  flex: 1;
-  overflow: hidden;
+.right-pane-content {
+  height: 100%;
+  overflow-y: auto;
 }
 
 /* --- Diff search wrapper --- */

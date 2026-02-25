@@ -86,9 +86,9 @@ const DiffContentWithSearch: React.FC = () => {
   );
 };
 
-const MIN_SPLIT_RATIO = 0.2;
-const MAX_SPLIT_RATIO = 0.5;
-const DEFAULT_SPLIT_RATIO = 0.35;
+const MIN_SPLIT_RATIO = 0.5;
+const MAX_SPLIT_RATIO = 0.8;
+const DEFAULT_SPLIT_RATIO = 0.65;
 
 export const MainContent: React.FC = () => {
   const { displayMode, leftPaneMode, setLeftPaneMode } = useDisplayStore();
@@ -155,39 +155,12 @@ export const MainContent: React.FC = () => {
       className={`main-content ${isSplit ? "split-layout" : ""}`}
       ref={mainRef}
     >
-      {/* Left pane — always rendered to preserve terminal state */}
+      {/* Left pane — always diff */}
       <div
-        className="split-left"
-        style={isSplit ? { flexBasis: `${splitRatio * 100}%` } : { display: "none" }}
+        className={`split-left ${!isSplit ? "diff-only" : ""}`}
+        style={isSplit ? { flexBasis: `${splitRatio * 100}%` } : undefined}
       >
-        <div className="left-pane-tabs">
-          <button
-            className={`left-pane-tab ${leftPaneMode === "docs" ? "active" : ""}`}
-            onClick={() => setLeftPaneMode("docs")}
-          >
-            Docs
-          </button>
-          <button
-            className={`left-pane-tab ${leftPaneMode === "terminal" ? "active" : ""}`}
-            onClick={() => setLeftPaneMode("terminal")}
-          >
-            Terminal
-          </button>
-        </div>
-        <div className="left-pane-body">
-          <div
-            className="left-pane-content"
-            style={leftPaneMode === "docs" ? undefined : { display: "none" }}
-          >
-            <MarkdownViewer />
-          </div>
-          <div
-            className="left-pane-content"
-            style={leftPaneMode === "terminal" ? undefined : { display: "none" }}
-          >
-            <TerminalPanel visible={isSplit && leftPaneMode === "terminal"} />
-          </div>
-        </div>
+        <DiffContentWithSearch />
       </div>
 
       {/* Resize handle */}
@@ -200,12 +173,39 @@ export const MainContent: React.FC = () => {
         />
       )}
 
-      {/* Right pane — always diff */}
+      {/* Right pane — always rendered to preserve terminal state */}
       <div
-        className={`split-right ${!isSplit ? "diff-only" : ""}`}
-        style={isSplit ? { flexBasis: `${(1 - splitRatio) * 100}%` } : undefined}
+        className="split-right"
+        style={isSplit ? { flexBasis: `${(1 - splitRatio) * 100}%` } : { display: "none" }}
       >
-        <DiffContentWithSearch />
+        <div className="right-pane-tabs">
+          <button
+            className={`right-pane-tab ${leftPaneMode === "docs" ? "active" : ""}`}
+            onClick={() => setLeftPaneMode("docs")}
+          >
+            Docs
+          </button>
+          <button
+            className={`right-pane-tab ${leftPaneMode === "terminal" ? "active" : ""}`}
+            onClick={() => setLeftPaneMode("terminal")}
+          >
+            Terminal
+          </button>
+        </div>
+        <div className="right-pane-body">
+          <div
+            className="right-pane-content"
+            style={leftPaneMode === "docs" ? undefined : { display: "none" }}
+          >
+            <MarkdownViewer />
+          </div>
+          <div
+            className="right-pane-content"
+            style={leftPaneMode === "terminal" ? undefined : { display: "none" }}
+          >
+            <TerminalPanel visible={isSplit && leftPaneMode === "terminal"} />
+          </div>
+        </div>
       </div>
     </main>
   );

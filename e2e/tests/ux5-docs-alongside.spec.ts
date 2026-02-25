@@ -6,7 +6,7 @@ test.describe("UX5: Docs Alongside", () => {
     await waitForAppReady(page);
   });
 
-  test("split mode shows left pane with docs and right pane with diff", async ({ page }) => {
+  test("split mode shows left pane with diff and right pane with docs/terminal", async ({ page }) => {
     const splitTab = page.locator("button.tab-btn").filter({ hasText: "Split" });
     await expect(splitTab).toHaveAttribute("aria-selected", "true");
 
@@ -15,6 +15,10 @@ test.describe("UX5: Docs Alongside", () => {
 
     const splitRight = page.locator(".split-right");
     await expect(splitRight).toBeVisible();
+
+    // Right pane should have Docs/Terminal tabs
+    const docsTab = splitRight.locator("button.right-pane-tab").filter({ hasText: "Docs" });
+    await expect(docsTab).toBeVisible();
   });
 
   test("selecting a document from sidebar shows its content", async ({ page }) => {
