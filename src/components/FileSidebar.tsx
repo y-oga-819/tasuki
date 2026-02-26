@@ -157,6 +157,11 @@ export const FileSidebar: React.FC<FileSidebarProps> = ({ style }) => {
     setSelectedDoc,
     setDocSource,
     designDocs,
+    externalFolders,
+    addExternalFolder,
+    removeExternalFolder,
+    externalDocs,
+    setExternalDocs,
   } = useDiffStore();
   const { comments } = useReviewStore();
 
@@ -179,8 +184,21 @@ export const FileSidebar: React.FC<FileSidebarProps> = ({ style }) => {
     });
   }, []);
 
-  const showDiffFiles = true; // diff is always visible
-  const showDocFiles = displayMode === "split";
+  const isViewer = displayMode === "viewer";
+  const showDiffFiles = !isViewer;
+  const showDocFiles = displayMode === "split" || isViewer;
+
+  const handleAddFolder = useCallback(async () => {
+    try {
+      const folder = await api.pickFolder();
+      if (!folder) return;
+      addExternalFolder(folder);
+      const files = await api.listDirDocs(folder);
+      setExternalDocs(folder, files);
+    } catch (err) {
+      console.error("Failed to add folder:", err);
+    }
+  }, [addExternalFolder, setExternalDocs]);
 
   // Count comments per file
   const commentCount = (path: string) =>
@@ -406,8 +424,124 @@ export const FileSidebar: React.FC<FileSidebarProps> = ({ style }) => {
     );
   };
 
+  const renderExternalDocTreeNode = (folder: string, node: FileTreeNode, depth: number): React.ReactNode => {
+    if (node.isDir) {
+      const key = `ext:${folder}:${node.path}`;
+      const isCollapsed = collapsedDirs.has(key);
+      return (
+        <React.Fragment key={key}>
+          <li
+            className="file-item tree-dir"
+            style={{ paddingLeft: `${depth * 12 + 12}px` }}
+            onClick={() => toggleDir(key)}
+          >
+            <span className="tree-toggle">
+              {isCollapsed ? "▶" : "▼"}
+            </span>
+            <span className="file-icon">
+              {isCollapsed ? <FolderClosedIcon /> : <FolderOpenIcon />}
+            </span>
+            <span className="file-name">{node.name}</span>
+          </li>
+          {!isCollapsed &&
+            node.children.map((child) =>
+              renderExternalDocTreeNode(folder, child, depth + 1),
+            )}
+        </React.Fragment>
+      );
+    }
+
+    const docId = `external:${folder}/${node.path}`;
+    return (
+      <li
+        key={docId}
+        className={`file-item ${selectedDoc === docId ? "selected" : ""}`}
+        style={{ paddingLeft: `${depth * 12 + 12}px` }}
+        onClick={() => {
+          setDocSource("external");
+          setSelectedDoc(docId);
+        }}
+        title={`${folder}/${node.path}`}
+      >
+        <span className="file-icon">{getFileIcon(node.name)}</span>
+        <span className="file-name">{node.name}</span>
+      </li>
+    );
+  };
+
+  const externalDocTrees = useMemo(
+    () =>
+      Object.fromEntries(
+        externalFolders.map((folder) => [
+          folder,
+          buildPathTree(externalDocs[folder] ?? []),
+        ]),
+      ),
+    [externalFolders, externalDocs],
+  );
+
   return (
     <aside className="file-sidebar" style={style}>
+      {showDocFiles && (
+        <div className="sidebar-section add-folder-section">
+          <button
+            className="add-folder-btn"
+            onClick={handleAddFolder}
+            title="Add a folder to browse"
+          >
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+              <path d="M1.75 1A1.75 1.75 0 0 0 0 2.75v10.5C0 14.216.784 15 1.75 15h12.5A1.75 1.75 0 0 0 16 13.25v-8.5A1.75 1.75 0 0 0 14.25 3H7.5a.25.25 0 0 1-.2-.1l-.9-1.2C6.07 1.26 5.55 1 5 1H1.75z" />
+            </svg>
+            Add Folder
+          </button>
+        </div>
+      )}
+
+      {showDocFiles && externalFolders.map((folder) => {
+        const folderName = folder.split("/").pop() || folder;
+        const sectionId = `external:${folder}`;
+        const tree = externalDocTrees[folder] ?? [];
+        return (
+          <div
+            key={sectionId}
+            className={`sidebar-section ${collapsedSections.has(sectionId) ? "collapsed" : ""}`}
+          >
+            <h3
+              className="sidebar-section-title sidebar-section-toggle"
+              onClick={() => toggleSection(sectionId)}
+            >
+              <span className="section-chevron">▼</span>
+              {folderName}
+              <button
+                className="remove-folder-btn"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  removeExternalFolder(folder);
+                }}
+                title="Remove folder"
+              >
+                &#x2715;
+              </button>
+            </h3>
+            <div
+              className={`section-collapse ${collapsedSections.has(sectionId) ? "collapsed" : ""}`}
+            >
+              <div className="section-collapse-inner">
+                {tree.length === 0 ? (
+                  <p className="sidebar-empty-hint">No .md files found</p>
+                ) : (
+                  <ul className="file-list">
+                    {tree.map((node) =>
+                      renderExternalDocTreeNode(folder, node, 0),
+                    )}
+                  </ul>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })}
+
       {showDocFiles && docFiles.length > 0 && (
         <div
           className={`sidebar-section ${collapsedSections.has("documents") ? "collapsed" : ""}`}

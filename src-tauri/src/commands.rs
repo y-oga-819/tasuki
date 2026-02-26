@@ -299,6 +299,54 @@ pub fn read_design_doc(
         .map_err(|e| TasukiError::Io(format!("Cannot read design doc: {}", e)))
 }
 
+// ---- External Docs ----
+
+/// List markdown files in an arbitrary directory (for viewer mode).
+/// The dir_path must be an absolute path.
+#[tauri::command]
+pub fn list_dir_docs(dir_path: String) -> Result<Vec<String>, TasukiError> {
+    let path = PathBuf::from(&dir_path);
+
+    if !path.is_absolute() {
+        return Err(TasukiError::Io(
+            "dir_path must be an absolute path".to_string(),
+        ));
+    }
+    if !path.is_dir() {
+        return Err(TasukiError::Io(format!(
+            "Not a directory: {}",
+            dir_path
+        )));
+    }
+
+    let mut files = Vec::new();
+    collect_md_files(&path, &path, &mut files)?;
+    files.sort();
+    Ok(files)
+}
+
+/// Read a file by absolute path (for external docs in viewer mode).
+/// Only allows reading .md files for security.
+#[tauri::command]
+pub fn read_external_file(file_path: String) -> Result<String, TasukiError> {
+    let path = PathBuf::from(&file_path);
+
+    if !path.is_absolute() {
+        return Err(TasukiError::Io(
+            "file_path must be an absolute path".to_string(),
+        ));
+    }
+
+    if path.extension().map_or(true, |ext| ext != "md") {
+        return Err(TasukiError::Io(
+            "Only .md files can be read".to_string(),
+        ));
+    }
+
+    fs::read_to_string(&path)
+        .map_err(|e| TasukiError::Io(format!("Cannot read file: {}", e)))
+}
+
 // ---- Commit Gate ----
 
 /// Build the path for the commit gate file: /tmp/tasuki/{repo}/{branch}/review.json

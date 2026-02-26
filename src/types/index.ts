@@ -113,7 +113,7 @@ export interface ReviewSession {
 export type ReviewVerdict = "approve" | "request_changes" | null;
 
 /** Display mode for the main content area */
-export type DisplayMode = "diff" | "split";
+export type DisplayMode = "diff" | "split" | "viewer";
 
 /** Which content is shown in the right pane of split mode */
 export type LeftPaneMode = "docs" | "terminal" | "review";

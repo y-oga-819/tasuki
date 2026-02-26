@@ -30,6 +30,11 @@ describe("useDisplayStore", () => {
     expect(useDisplayStore.getState().displayMode).toBe("diff");
   });
 
+  it("setDisplayMode changes to viewer mode", () => {
+    useDisplayStore.getState().setDisplayMode("viewer");
+    expect(useDisplayStore.getState().displayMode).toBe("viewer");
+  });
+
   it("setLeftPaneMode switches right pane content", () => {
     useDisplayStore.getState().setLeftPaneMode("terminal");
     expect(useDisplayStore.getState().leftPaneMode).toBe("terminal");

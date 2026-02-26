@@ -1,11 +1,13 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import { useDisplayStore } from "../store/displayStore";
 import { useDiffStore } from "../store/diffStore";
+import { clampSplitRatio, MAX_RIGHT_WIDTH } from "../utils/layout";
 import { DiffViewer } from "./DiffViewer";
 import { DiffSearchBar } from "./DiffSearchBar";
 import { ErrorBoundary } from "./ErrorBoundary";
 import { MarkdownViewer } from "./MarkdownViewer";
 import { ReviewPanel } from "./ReviewPanel";
+import { ResizablePane } from "./ResizablePane";
 import { TerminalPanel } from "./Terminal";
 
 const isMac =
@@ -87,8 +89,6 @@ const DiffContentWithSearch: React.FC = () => {
   );
 };
 
-const MIN_SPLIT_RATIO = 0.5;
-const MAX_SPLIT_RATIO = 0.8;
 const DEFAULT_SPLIT_RATIO = 0.65;
 
 export const MainContent: React.FC = () => {
@@ -116,7 +116,7 @@ export const MainContent: React.FC = () => {
       if (!mainRef.current) return;
       const rect = mainRef.current.getBoundingClientRect();
       const ratio = (clientX - rect.left) / rect.width;
-      setSplitRatio(Math.max(MIN_SPLIT_RATIO, Math.min(MAX_SPLIT_RATIO, ratio)));
+      setSplitRatio(clampSplitRatio(ratio, rect.width));
     });
   }, []);
 
@@ -124,6 +124,18 @@ export const MainContent: React.FC = () => {
     draggingRef.current = false;
     document.body.style.userSelect = "";
     cancelAnimationFrame(rafIdRef.current);
+  }, []);
+
+  // Clamp ratio to respect MAX_RIGHT_WIDTH on mount and window resize
+  useEffect(() => {
+    const onResize = () => {
+      if (!mainRef.current) return;
+      const width = mainRef.current.getBoundingClientRect().width;
+      setSplitRatio((prev) => clampSplitRatio(prev, width));
+    };
+    onResize();
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
   }, []);
 
   useEffect(() => {
@@ -150,6 +162,22 @@ export const MainContent: React.FC = () => {
   }
 
   const isSplit = displayMode === "split";
+  const isViewer = displayMode === "viewer";
+
+  if (isViewer) {
+    return (
+      <main className="main-content viewer-layout" ref={mainRef}>
+        <ResizablePane
+          defaultRatio={0.6}
+          minRatio={0.3}
+          maxRatio={0.85}
+          maxRightWidth={MAX_RIGHT_WIDTH}
+          left={<MarkdownViewer />}
+          right={<TerminalPanel visible />}
+        />
+      </main>
+    );
+  }
 
   return (
     <main
