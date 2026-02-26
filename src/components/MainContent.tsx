@@ -1,6 +1,7 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import { useDisplayStore } from "../store/displayStore";
 import { useDiffStore } from "../store/diffStore";
+import { clampSplitRatio, MAX_RIGHT_WIDTH } from "../utils/layout";
 import { DiffViewer } from "./DiffViewer";
 import { DiffSearchBar } from "./DiffSearchBar";
 import { ErrorBoundary } from "./ErrorBoundary";
@@ -88,10 +89,7 @@ const DiffContentWithSearch: React.FC = () => {
   );
 };
 
-const MIN_SPLIT_RATIO = 0.5;
-const MAX_SPLIT_RATIO = 0.8;
 const DEFAULT_SPLIT_RATIO = 0.65;
-const MAX_RIGHT_WIDTH = 900;
 
 export const MainContent: React.FC = () => {
   const { displayMode, leftPaneMode, setLeftPaneMode } = useDisplayStore();
@@ -102,14 +100,6 @@ export const MainContent: React.FC = () => {
   const mainRef = useRef<HTMLDivElement>(null);
   const draggingRef = useRef(false);
   const rafIdRef = useRef(0);
-
-  const clampSplitRatio = useCallback((ratio: number, containerWidth: number) => {
-    const effectiveMin = Math.max(
-      MIN_SPLIT_RATIO,
-      1 - MAX_RIGHT_WIDTH / containerWidth,
-    );
-    return Math.max(effectiveMin, Math.min(MAX_SPLIT_RATIO, ratio));
-  }, []);
 
   const handleSplitPointerDown = useCallback((e: React.PointerEvent) => {
     e.preventDefault();
@@ -128,7 +118,7 @@ export const MainContent: React.FC = () => {
       const ratio = (clientX - rect.left) / rect.width;
       setSplitRatio(clampSplitRatio(ratio, rect.width));
     });
-  }, [clampSplitRatio]);
+  }, []);
 
   const handleSplitPointerUp = useCallback(() => {
     draggingRef.current = false;
@@ -138,15 +128,15 @@ export const MainContent: React.FC = () => {
 
   // Clamp ratio to respect MAX_RIGHT_WIDTH on mount and window resize
   useEffect(() => {
-    const clamp = () => {
+    const onResize = () => {
       if (!mainRef.current) return;
       const width = mainRef.current.getBoundingClientRect().width;
       setSplitRatio((prev) => clampSplitRatio(prev, width));
     };
-    clamp();
-    window.addEventListener("resize", clamp);
-    return () => window.removeEventListener("resize", clamp);
-  }, [clampSplitRatio]);
+    onResize();
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
 
   useEffect(() => {
     return () => cancelAnimationFrame(rafIdRef.current);

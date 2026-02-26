@@ -1,13 +1,10 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { clampScale, ZOOM_STEP } from "../utils/zoom";
 
 interface MermaidZoomModalProps {
   svg: string;
   onClose: () => void;
 }
-
-const MIN_SCALE = 0.25;
-const MAX_SCALE = 5;
-const ZOOM_STEP = 0.15;
 
 export const MermaidZoomModal: React.FC<MermaidZoomModalProps> = ({
   svg,
@@ -32,7 +29,7 @@ export const MermaidZoomModal: React.FC<MermaidZoomModalProps> = ({
   const handleWheel = useCallback((e: React.WheelEvent) => {
     e.preventDefault();
     const delta = e.deltaY > 0 ? -ZOOM_STEP : ZOOM_STEP;
-    setScale((prev) => Math.max(MIN_SCALE, Math.min(MAX_SCALE, prev + delta)));
+    setScale((prev) => clampScale(prev + delta));
   }, []);
 
   // Pan with mouse drag
@@ -61,11 +58,11 @@ export const MermaidZoomModal: React.FC<MermaidZoomModalProps> = ({
   }, []);
 
   const handleZoomIn = useCallback(() => {
-    setScale((prev) => Math.min(MAX_SCALE, prev + ZOOM_STEP * 2));
+    setScale((prev) => clampScale(prev + ZOOM_STEP * 2));
   }, []);
 
   const handleZoomOut = useCallback(() => {
-    setScale((prev) => Math.max(MIN_SCALE, prev - ZOOM_STEP * 2));
+    setScale((prev) => clampScale(prev - ZOOM_STEP * 2));
   }, []);
 
   // Prevent body scroll while modal is open
