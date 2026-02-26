@@ -101,6 +101,12 @@ export const MainContent: React.FC = () => {
   const draggingRef = useRef(false);
   const rafIdRef = useRef(0);
 
+  // Terminal singleton refs
+  const terminalRef = useRef<HTMLDivElement>(null);
+  const viewerTermSlotRef = useRef<HTMLDivElement>(null);
+  const splitTermSlotRef = useRef<HTMLDivElement>(null);
+  const parkingRef = useRef<HTMLDivElement>(null);
+
   const handleSplitPointerDown = useCallback((e: React.PointerEvent) => {
     e.preventDefault();
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
@@ -125,6 +131,29 @@ export const MainContent: React.FC = () => {
     document.body.style.userSelect = "";
     cancelAnimationFrame(rafIdRef.current);
   }, []);
+
+  const isSplit = displayMode === "split";
+  const isViewer = displayMode === "viewer";
+  const terminalVisible = isViewer || (isSplit && leftPaneMode === "terminal");
+
+  // DOM reparenting: move terminal container to the appropriate slot
+  useEffect(() => {
+    const el = terminalRef.current;
+    if (!el) return;
+
+    let target: HTMLElement | null;
+    if (isViewer) {
+      target = viewerTermSlotRef.current;
+    } else if (isSplit && leftPaneMode === "terminal") {
+      target = splitTermSlotRef.current;
+    } else {
+      target = parkingRef.current;
+    }
+
+    if (target && el.parentElement !== target) {
+      target.appendChild(el);
+    }
+  }, [isViewer, isSplit, leftPaneMode]);
 
   // Clamp ratio to respect MAX_RIGHT_WIDTH on mount and window resize
   useEffect(() => {
@@ -161,93 +190,96 @@ export const MainContent: React.FC = () => {
     );
   }
 
-  const isSplit = displayMode === "split";
-  const isViewer = displayMode === "viewer";
-
-  if (isViewer) {
-    return (
-      <main className="main-content viewer-layout" ref={mainRef}>
-        <ResizablePane
-          defaultRatio={0.6}
-          minRatio={0.3}
-          maxRatio={0.85}
-          maxRightWidth={MAX_RIGHT_WIDTH}
-          left={<MarkdownViewer />}
-          right={<TerminalPanel visible />}
-        />
-      </main>
-    );
-  }
-
   return (
-    <main
-      className={`main-content ${isSplit ? "split-layout" : ""}`}
-      ref={mainRef}
-    >
-      {/* Left pane — always diff */}
-      <div
-        className={`split-left ${!isSplit ? "diff-only" : ""}`}
-        style={isSplit ? { flexBasis: `${splitRatio * 100}%` } : undefined}
-      >
-        <DiffContentWithSearch />
-      </div>
+    <>
+      {isViewer ? (
+        <main className="main-content viewer-layout" ref={mainRef}>
+          <ResizablePane
+            defaultRatio={0.6}
+            minRatio={0.3}
+            maxRatio={0.85}
+            maxRightWidth={MAX_RIGHT_WIDTH}
+            left={<MarkdownViewer />}
+            right={<div ref={viewerTermSlotRef} className="terminal-slot" />}
+          />
+        </main>
+      ) : (
+        <main
+          className={`main-content ${isSplit ? "split-layout" : ""}`}
+          ref={mainRef}
+        >
+          {/* Left pane — always diff */}
+          <div
+            className={`split-left ${!isSplit ? "diff-only" : ""}`}
+            style={isSplit ? { flexBasis: `${splitRatio * 100}%` } : undefined}
+          >
+            <DiffContentWithSearch />
+          </div>
 
-      {/* Resize handle */}
-      {isSplit && (
-        <div
-          className="split-handle"
-          onPointerDown={handleSplitPointerDown}
-          onPointerMove={handleSplitPointerMove}
-          onPointerUp={handleSplitPointerUp}
-        />
+          {/* Resize handle */}
+          {isSplit && (
+            <div
+              className="split-handle"
+              onPointerDown={handleSplitPointerDown}
+              onPointerMove={handleSplitPointerMove}
+              onPointerUp={handleSplitPointerUp}
+            />
+          )}
+
+          {/* Right pane — always rendered to preserve terminal state */}
+          <div
+            className="split-right"
+            style={isSplit ? { flexBasis: `${(1 - splitRatio) * 100}%` } : { display: "none" }}
+          >
+            <div className="right-pane-tabs">
+              <button
+                className={`right-pane-tab ${leftPaneMode === "docs" ? "active" : ""}`}
+                onClick={() => setLeftPaneMode("docs")}
+              >
+                Docs
+              </button>
+              <button
+                className={`right-pane-tab ${leftPaneMode === "terminal" ? "active" : ""}`}
+                onClick={() => setLeftPaneMode("terminal")}
+              >
+                Terminal
+              </button>
+              <button
+                className={`right-pane-tab ${leftPaneMode === "review" ? "active" : ""}`}
+                onClick={() => setLeftPaneMode("review")}
+              >
+                Review
+              </button>
+            </div>
+            <div className="right-pane-body">
+              <div
+                className="right-pane-content"
+                style={leftPaneMode === "docs" ? undefined : { display: "none" }}
+              >
+                <MarkdownViewer />
+              </div>
+              <div
+                className="right-pane-content"
+                style={leftPaneMode === "terminal" ? undefined : { display: "none" }}
+                ref={splitTermSlotRef}
+              >
+                {/* Terminal moved here via DOM reparenting */}
+              </div>
+              <div
+                className="right-pane-content"
+                style={leftPaneMode === "review" ? undefined : { display: "none" }}
+              >
+                <ReviewPanel />
+              </div>
+            </div>
+          </div>
+        </main>
       )}
 
-      {/* Right pane — always rendered to preserve terminal state */}
-      <div
-        className="split-right"
-        style={isSplit ? { flexBasis: `${(1 - splitRatio) * 100}%` } : { display: "none" }}
-      >
-        <div className="right-pane-tabs">
-          <button
-            className={`right-pane-tab ${leftPaneMode === "docs" ? "active" : ""}`}
-            onClick={() => setLeftPaneMode("docs")}
-          >
-            Docs
-          </button>
-          <button
-            className={`right-pane-tab ${leftPaneMode === "terminal" ? "active" : ""}`}
-            onClick={() => setLeftPaneMode("terminal")}
-          >
-            Terminal
-          </button>
-          <button
-            className={`right-pane-tab ${leftPaneMode === "review" ? "active" : ""}`}
-            onClick={() => setLeftPaneMode("review")}
-          >
-            Review
-          </button>
-        </div>
-        <div className="right-pane-body">
-          <div
-            className="right-pane-content"
-            style={leftPaneMode === "docs" ? undefined : { display: "none" }}
-          >
-            <MarkdownViewer />
-          </div>
-          <div
-            className="right-pane-content"
-            style={leftPaneMode === "terminal" ? undefined : { display: "none" }}
-          >
-            <TerminalPanel visible={isSplit && leftPaneMode === "terminal"} />
-          </div>
-          <div
-            className="right-pane-content"
-            style={leftPaneMode === "review" ? undefined : { display: "none" }}
-          >
-            <ReviewPanel />
-          </div>
-        </div>
+      {/* Terminal singleton — always mounted, moved between slots via DOM reparenting */}
+      <div ref={parkingRef} style={{ display: "none" }}>
+        <TerminalPanel ref={terminalRef} visible={terminalVisible} />
       </div>
-    </main>
+    </>
   );
 };
