@@ -132,7 +132,7 @@ test.describe("UX6: Viewer Mode & Mermaid Zoom", () => {
       return;
     }
 
-    const svg = mermaidBlock.locator("svg");
+    const svg = mermaidBlock.locator(".mermaid-render-area svg");
     await expect(svg).toBeVisible({ timeout: 10000 });
 
     // Open modal
