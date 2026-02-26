@@ -94,7 +94,7 @@ export const MermaidZoomModal: React.FC<MermaidZoomModalProps> = ({
         />
       </div>
 
-      <div className="mermaid-zoom-controls">
+      <div className="mermaid-zoom-controls" onClick={(e) => e.stopPropagation()}>
         <button
           className="mermaid-zoom-ctrl-btn"
           onClick={handleZoomOut}
