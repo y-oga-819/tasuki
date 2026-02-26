@@ -1,9 +1,16 @@
 /// <reference types="vitest/config" />
 import { defineConfig } from "vite";
+import fs from "fs";
+import path from "path";
 import react from "@vitejs/plugin-react";
 
 // https://v2.tauri.app/start/frontend/vite/
 const host = process.env.TAURI_DEV_HOST;
+
+// When running in a git worktree with a symlinked node_modules,
+// Vite resolves the real path which falls outside the default allow list.
+// Allow the real node_modules location so workers (e.g. @pierre/diffs) can load.
+const nodeModulesTarget = fs.realpathSync(path.resolve("node_modules"));
 
 export default defineConfig({
   plugins: [react()],
@@ -16,6 +23,9 @@ export default defineConfig({
     host: host || false,
     port: 1420,
     strictPort: true,
+    fs: {
+      allow: [nodeModulesTarget, "."],
+    },
     hmr: host
       ? {
           protocol: "ws",

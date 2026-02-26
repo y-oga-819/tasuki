@@ -46,8 +46,6 @@ const CodeCommentItem: React.FC<{
   onResolve: (id: string, memo: string | null) => void;
   onUnresolve: (id: string) => void;
 }> = ({ comment, onCopy, onRemove, onResolve, onUnresolve }) => {
-  const [showResolveForm, setShowResolveForm] = useState(false);
-
   const c = comment;
   return (
     <li className={`comment-item ${c.resolved ? "resolved" : ""}`}>
@@ -58,7 +56,7 @@ const CodeCommentItem: React.FC<{
           {c.line_end !== c.line_start ? `-${c.line_end}` : ""}
         </span>
         <div className="comment-item-actions">
-          {c.resolved ? (
+          {c.resolved && (
             <button
               className="btn-icon"
               onClick={() => onUnresolve(c.id)}
@@ -66,23 +64,15 @@ const CodeCommentItem: React.FC<{
             >
               &#x21A9;
             </button>
-          ) : (
-            <>
-              <button
-                className="btn-icon"
-                onClick={() => onCopy(c.id)}
-                title="Copy this comment"
-              >
-                &#x1F4CB;
-              </button>
-              <button
-                className="btn-icon"
-                onClick={() => setShowResolveForm(true)}
-                title="解決する"
-              >
-                &#x2713;
-              </button>
-            </>
+          )}
+          {!c.resolved && (
+            <button
+              className="btn-icon"
+              onClick={() => onCopy(c.id)}
+              title="Copy this comment"
+            >
+              &#x1F4CB;
+            </button>
           )}
           <button
             className="btn-icon"
@@ -102,13 +92,10 @@ const CodeCommentItem: React.FC<{
       {c.resolved && c.resolution_memo && (
         <div className="resolution-memo">解決メモ: {c.resolution_memo}</div>
       )}
-      {showResolveForm && !c.resolved && (
+      {!c.resolved && (
         <ResolveMemoForm
-          onConfirm={(memo) => {
-            onResolve(c.id, memo);
-            setShowResolveForm(false);
-          }}
-          onCancel={() => setShowResolveForm(false)}
+          onConfirm={(memo) => onResolve(c.id, memo)}
+          onCancel={() => {}}
         />
       )}
     </li>
@@ -122,8 +109,6 @@ const DocCommentItem: React.FC<{
   onResolve: (id: string, memo: string | null) => void;
   onUnresolve: (id: string) => void;
 }> = ({ comment, onRemove, onResolve, onUnresolve }) => {
-  const [showResolveForm, setShowResolveForm] = useState(false);
-
   const c = comment;
   return (
     <li className={`comment-item doc-comment ${c.resolved ? "resolved" : ""}`}>
@@ -134,21 +119,13 @@ const DocCommentItem: React.FC<{
           {c.section ? ` — ${c.section}` : ""}
         </span>
         <div className="comment-item-actions">
-          {c.resolved ? (
+          {c.resolved && (
             <button
               className="btn-icon"
               onClick={() => onUnresolve(c.id)}
               title="解決を取り消し"
             >
               &#x21A9;
-            </button>
-          ) : (
-            <button
-              className="btn-icon"
-              onClick={() => setShowResolveForm(true)}
-              title="解決する"
-            >
-              &#x2713;
             </button>
           )}
           <button
@@ -164,13 +141,10 @@ const DocCommentItem: React.FC<{
       {c.resolved && c.resolution_memo && (
         <div className="resolution-memo">解決メモ: {c.resolution_memo}</div>
       )}
-      {showResolveForm && !c.resolved && (
+      {!c.resolved && (
         <ResolveMemoForm
-          onConfirm={(memo) => {
-            onResolve(c.id, memo);
-            setShowResolveForm(false);
-          }}
-          onCancel={() => setShowResolveForm(false)}
+          onConfirm={(memo) => onResolve(c.id, memo)}
+          onCancel={() => {}}
         />
       )}
     </li>
