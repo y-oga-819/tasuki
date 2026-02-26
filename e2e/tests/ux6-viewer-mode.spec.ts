@@ -17,7 +17,7 @@ test.describe("UX6: Viewer Mode & Mermaid Zoom", () => {
     await expect(viewerLayout).toBeVisible();
 
     // Markdown viewer should be visible in the left pane
-    const markdownViewer = page.locator(".resizable-pane-left .markdown-viewer");
+    const markdownViewer = page.locator(".resizable-left .markdown-viewer");
     await expect(markdownViewer).toBeVisible();
   });
 
@@ -91,8 +91,8 @@ test.describe("UX6: Viewer Mode & Mermaid Zoom", () => {
       return;
     }
 
-    // Wait for SVG rendering
-    const svg = mermaidBlock.locator("svg");
+    // Wait for SVG rendering (use .mermaid-render-area to avoid the zoom button's SVG icon)
+    const svg = mermaidBlock.locator(".mermaid-render-area svg");
     await expect(svg).toBeVisible({ timeout: 10000 });
 
     // Click the zoom button
