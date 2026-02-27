@@ -20,6 +20,9 @@ const AllFileDiffs: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const prevFileRef = useRef<string | null>(null);
 
+  // selectedFile変更時のみ実行。collapsedFiles/toggleFileCollapseは
+  // 意図的に依存配列から除外（折りたたみ操作でのスクロール発火を防止）
+  /* eslint-disable react-hooks/exhaustive-deps */
   useEffect(() => {
     if (!selectedFile || selectedFile === prevFileRef.current) return;
     prevFileRef.current = selectedFile;
@@ -33,6 +36,7 @@ const AllFileDiffs: React.FC = () => {
     );
     el?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [selectedFile]);
+  /* eslint-enable react-hooks/exhaustive-deps */
 
   if (!diffResult || diffResult.files.length === 0) {
     return (

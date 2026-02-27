@@ -1294,7 +1294,6 @@ kbd {
   display: flex;
   flex-direction: column;
   height: 100%;
-  max-width: 900px;
 }
 
 .markdown-scroll {
@@ -1880,6 +1879,10 @@ kbd {
 
 .main-content.viewer-layout .resizable-pane {
   flex: 1;
+}
+
+.main-content.viewer-layout .markdown-content {
+  font-size: 15px;
 }
 
 /* --- Add Folder Button (Sidebar) --- */
