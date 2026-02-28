@@ -22,18 +22,19 @@ function sourceTypeKey(source: DiffSource): string {
 }
 
 /**
- * Hook that persists review comments to .tasuki/reviews/ and
+ * Hook that persists review threads to .tasuki/reviews/ and
  * restores them on app startup based on HEAD SHA + diff hash.
  */
 export function useReviewPersistence() {
   const { diffSource, diffResult } = useDiffStore();
   const {
-    comments,
+    threads,
     docComments,
     verdict,
-    setComments,
+    setThreads,
     setDocComments,
     setVerdict,
+    getAllThreads,
   } = useReviewStore();
 
   const headShaRef = useRef<string | null>(null);
@@ -61,16 +62,16 @@ export function useReviewPersistence() {
           return;
         }
 
-        setComments(saved.comments);
+        setThreads(saved.threads);
         setDocComments(saved.doc_comments);
         setVerdict(saved.verdict);
       } catch {
         // Failed to load (e.g. outside Tauri) — start fresh
       }
     })();
-  }, [diffResult, diffSource, setComments, setDocComments, setVerdict]);
+  }, [diffResult, diffSource, setThreads, setDocComments, setVerdict]);
 
-  // Save review (debounced) whenever comments/verdict change
+  // Save review (debounced) whenever threads/verdict change
   const save = useCallback(async () => {
     const headSha = headShaRef.current;
     const diffHash = diffHashRef.current;
@@ -80,10 +81,10 @@ export function useReviewPersistence() {
       head_commit: headSha,
       diff_hash: diffHash,
       diff_source: diffSource,
-      created_at: Date.now(), // Will be overwritten on first save only
+      created_at: Date.now(),
       updated_at: Date.now(),
       verdict,
-      comments,
+      threads: getAllThreads(),
       doc_comments: docComments,
     };
 
@@ -94,11 +95,10 @@ export function useReviewPersistence() {
     } catch (err) {
       appLogger.warn("persistence", "Failed to save review session", err);
     }
-  }, [comments, docComments, verdict, diffSource]);
+  }, [threads, docComments, verdict, diffSource, getAllThreads]);
 
   // Debounced auto-save on state changes
   useEffect(() => {
-    // Don't save until initial load is done
     if (!loadedRef.current) return;
 
     if (saveTimeoutRef.current) {

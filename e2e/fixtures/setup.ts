@@ -57,7 +57,7 @@ export async function openCommentForm(
 }
 
 /**
- * Add a review comment programmatically via the Zustand store.
+ * Add a review thread programmatically via the Zustand store.
  */
 export async function addCommentViaStore(
   page: Page,
@@ -74,7 +74,7 @@ export async function addCommentViaStore(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const store = (window as any).__zustandStore;
       if (!store) throw new Error("Zustand store not exposed on window");
-      store.getState().addComment({
+      store.getState().addThread(filePath, {
         id: crypto.randomUUID(),
         file_path: filePath,
         line_start: lineStart,
@@ -83,11 +83,7 @@ export async function addCommentViaStore(
         body,
         type: "comment",
         created_at: Date.now(),
-        parent_id: null,
         author: "human",
-        resolved: false,
-        resolved_at: null,
-        resolution_memo: null,
       });
     },
     opts,
