@@ -95,6 +95,7 @@ export function useReviewPersistence() {
     } catch (err) {
       appLogger.warn("persistence", "Failed to save review session", err);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- threads triggers recomputation
   }, [threads, docComments, verdict, diffSource, getAllThreads]);
 
   // Debounced auto-save on state changes

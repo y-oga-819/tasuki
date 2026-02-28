@@ -163,7 +163,7 @@ export const FileSidebar: React.FC<FileSidebarProps> = ({ style }) => {
     externalDocs,
     setExternalDocs,
   } = useDiffStore();
-  const { comments } = useReviewStore();
+  const { threads } = useReviewStore();
 
   const isTauri = typeof window !== "undefined" && "__TAURI__" in window;
 
@@ -200,9 +200,9 @@ export const FileSidebar: React.FC<FileSidebarProps> = ({ style }) => {
     }
   }, [addExternalFolder, setExternalDocs]);
 
-  // Count comments per file
+  // Count threads per file
   const commentCount = (path: string) =>
-    comments.filter((c) => c.file_path === path).length;
+    (threads.get(path) ?? []).length;
 
   const fileTree = useMemo(
     () => (diffResult ? buildFileTree(diffResult.files) : []),

@@ -600,6 +600,9 @@ a:hover {
   border-bottom: 1px solid var(--color-border-primary);
   background: var(--color-bg-secondary);
   flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  z-index: 10;
 }
 
 .right-pane-tab {
@@ -956,6 +959,45 @@ a:hover {
   white-space: pre-wrap;
 }
 
+/* Thread replies inside diff annotation */
+.dv-comment-reply {
+  display: flex;
+  gap: var(--space-1);
+  padding: var(--space-1) 0;
+  padding-left: var(--space-2);
+  font-size: var(--font-size-sm);
+  border-top: 1px solid var(--color-border-secondary);
+  margin-top: var(--space-1);
+}
+
+.dv-reply-arrow {
+  color: var(--color-text-tertiary);
+  flex-shrink: 0;
+}
+
+.dv-reply-body {
+  color: var(--color-text-primary);
+  white-space: pre-wrap;
+  flex: 1;
+}
+
+.dv-reply-author {
+  color: var(--color-text-tertiary);
+  font-size: var(--font-size-xs);
+  flex-shrink: 0;
+}
+
+/* Resolved thread in diff annotation */
+.dv-comment--resolved {
+  opacity: 0.5;
+  border-left-color: var(--color-approve);
+}
+
+.dv-comment--resolved .dv-comment-body {
+  text-decoration: line-through;
+  text-decoration-color: var(--color-text-tertiary);
+}
+
 /* Inline comment form (rendered as annotation) */
 .dv-comment-form {
   margin: var(--space-1) 0;
@@ -1169,21 +1211,105 @@ kbd {
   font-weight: 700;
 }
 
-.resolution-memo {
-  font-size: var(--font-size-xs);
-  color: var(--color-text-tertiary);
-  font-style: italic;
-  margin-top: var(--space-1);
+/* --- Thread cards (ReviewPanel) --- */
+.thread-card {
+  padding: var(--space-2) var(--space-4);
+  border-bottom: 1px solid var(--color-border-secondary);
 }
 
-.resolve-form {
+.thread-card:hover {
+  background: var(--color-bg-tertiary);
+}
+
+.thread-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-1);
+}
+
+.thread-header-actions {
+  display: flex;
+  gap: var(--space-1);
+  align-items: center;
+}
+
+.thread-menu-container {
+  position: relative;
+}
+
+.thread-menu {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  z-index: 20;
+  min-width: 140px;
+  padding: var(--space-1) 0;
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border-primary);
+  border-radius: var(--radius-md);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.thread-menu-item {
+  display: block;
+  width: 100%;
+  padding: var(--space-1) var(--space-3);
+  background: none;
+  border: none;
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  text-align: left;
+}
+
+.thread-menu-item:hover {
+  background: var(--color-bg-tertiary);
+}
+
+.thread-menu-item--danger {
+  color: var(--color-btn-danger);
+}
+
+.thread-menu-item--danger:hover {
+  background: rgba(248, 81, 73, 0.1);
+}
+
+/* Thread replies (ReviewPanel) */
+.thread-reply {
+  display: flex;
+  gap: var(--space-1);
+  padding: var(--space-1) 0;
+  padding-left: var(--space-3);
+  font-size: var(--font-size-sm);
+}
+
+.thread-reply-arrow {
+  color: var(--color-text-tertiary);
+  flex-shrink: 0;
+}
+
+.thread-reply-body {
+  color: var(--color-text-primary);
+  white-space: pre-wrap;
+  flex: 1;
+}
+
+.thread-reply-author {
+  color: var(--color-text-tertiary);
+  font-size: var(--font-size-xs);
+  flex-shrink: 0;
+}
+
+/* Thread footer (reply input + actions) */
+.thread-footer {
   margin-top: var(--space-2);
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
 }
 
-.resolve-memo-input {
+.thread-reply-input {
   width: 100%;
   padding: var(--space-1) var(--space-2);
   background: var(--color-bg-primary);
@@ -1192,17 +1318,46 @@ kbd {
   color: var(--color-text-primary);
   font-size: var(--font-size-sm);
   font-family: var(--font-sans);
+  resize: none;
 }
 
-.resolve-memo-input:focus {
+.thread-reply-input:focus {
   outline: none;
   border-color: var(--color-text-link);
 }
 
-.resolve-form-actions {
+.thread-actions {
   display: flex;
   gap: var(--space-1);
   justify-content: flex-end;
+}
+
+/* Resolved thread variant */
+.thread-card--resolved {
+  opacity: 0.6;
+}
+
+.thread-card--resolved .comment-body {
+  text-decoration: line-through;
+  text-decoration-color: var(--color-text-tertiary);
+}
+
+/* Resolved section (collapsible <details>) */
+.resolved-section {
+  border-top: 1px solid var(--color-border-secondary);
+}
+
+.resolved-header {
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  user-select: none;
+}
+
+.resolved-header:hover {
+  color: var(--color-text-primary);
+  background: var(--color-bg-tertiary);
 }
 
 .btn-xs {

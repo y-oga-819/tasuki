@@ -214,6 +214,7 @@ export const ReviewPanel: React.FC = () => {
   } = useReviewStore();
   const { diffResult } = useDiffStore();
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- threads triggers recomputation
   const allThreads = useMemo(() => getAllThreads(), [threads, getAllThreads]);
 
   const unresolvedThreads = useMemo(

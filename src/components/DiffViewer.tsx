@@ -17,7 +17,7 @@ import type { CommentFormTarget } from "../store/diffStore";
 
 const isMac =
   typeof navigator !== "undefined" && navigator.platform.includes("Mac");
-import type { FileDiff, ReviewComment, ReviewThread } from "../types";
+import type { FileDiff, ReviewThread } from "../types";
 import { generateGitPatch, getCodeSnippet } from "../utils/diff-utils";
 
 // --- Change type icon SVGs (from @pierre/diffs sprite) ---
