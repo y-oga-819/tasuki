@@ -611,65 +611,367 @@ UI レベルでも制約:
 
 ---
 
-## 6. CSS アーキテクチャ再設計
+## 6. CSS デザイントークン再設計
 
-### 現状 → 提案
+### 6.1 現状の分析
+
+**フォントサイズの使用実態 (全77宣言を集計)**
 
 ```
-現状                              提案
-src/styles/index.css (2000行)     src/styles/
-                                   ├─ tokens.css        CSS変数定義 (色, 間隔, フォント)
-                                   ├─ reset.css         リセット + ベーススタイル
-                                   ├─ global.css        app, body のレイアウト
-                                   └─ (各コンポーネントに *.module.css)
-
-                                  src/components/
-                                   ├─ Toolbar/
-                                   │    ├─ Toolbar.tsx
-                                   │    └─ Toolbar.module.css
-                                   ├─ Sidebar/
-                                   │    ├─ Sidebar.tsx
-                                   │    └─ Sidebar.module.css
-                                   ...
+font-size-xs  (11px): 28回  ████████████████████████████  36%
+font-size-sm  (12px): 27回  ███████████████████████████   35%
+font-size-base(13px):  3回  ███                            4%  ← "base" なのにほぼ未使用
+font-size-md  (14px):  4回  ████                           5%
+font-size-lg  (16px):  2回  ██                             3%
+ハードコード:         13回  █████████████                 17%  ← トークン未使用
+  10px ×4, 12px ×3, 13px ×1, 14px ×1, 15px ×1, 16px ×1, 20px ×1, 24px ×1
 ```
 
-### 主な改善
+**問題点**:
+
+1. **「base」が base ではない** — 13px は 3回しか使われず、実際の主役は xs(11px) と sm(12px)
+2. **5段階中3段階 (11/12/13px) が1pxずつの差** — 視覚的にほぼ区別不能、階層感が生まれない
+3. **10px が 4箇所** — WCAG SC 1.4.4 (テキストの拡大) で推奨される最小サイズを下回る
+4. **13件のハードコード値** — トークンシステムが浸透していない
+5. **全て px 固定** — ブラウザのフォント設定を変更しても反映されない
+
+**spacing の使用実態**
+
+```
+トークン使用:  gap, padding でトークン使用率 ≈ 70%
+ハードコード:  padding: 1px 6px, 2px, 0 5px, 1px 5px 等
+               → 4px グリッドを逸脱する値が多数
+```
+
+**line-height の使用実態**
+
+```
+1.5  (2箇所), 1.0 (3箇所), 1.6 (1箇所), 1.8 (1箇所), 20px (1箇所)
+→ 体系なし、場当たり的
+```
+
+---
+
+### 6.2 rem と 4px グリッドの関係
+
+ユーザーが知っている「px で 4 の倍数」は rem でもそのまま使えます。
+
+```
+ブラウザのデフォルト: 1rem = 16px
+
+0.25rem =  4px    ← 4 の倍数の最小単位
+0.5rem  =  8px
+0.75rem = 12px
+1rem    = 16px
+1.5rem  = 24px
+2rem    = 32px
+3rem    = 48px
+```
+
+**なぜ rem を使うのか**:
+px は「絶対値」なので、ユーザーがブラウザの文字サイズを「大」に変更しても
+px で指定した要素は一切変わりません。
+rem はブラウザのルートフォントサイズに連動するため、
+ユーザーの設定変更に自動で追従し、アクセシビリティを確保できます。
+
+**「1rem を基準にすべきでは」という疑問への回答**:
+
+- `1rem` はブラウザのデフォルト (16px) を意味する単位であり、
+  アプリの base font size とは別の概念です
+- 開発ツールの UI テキストは 14px が業界標準
+  (VS Code: 13px, GitHub: 14px, Figma: 13px)
+- したがって `--font-size-base: 0.875rem` (= 14px) は適切です
+- ただし「1rem = base」にしたい場合は
+  `html { font-size: 87.5%; }` と宣言すれば `1rem = 14px` にできます
+- 後者はサードパーティコンポーネント (@pierre/diffs, xterm.js) の
+  想定する 1rem を狂わせるリスクがあるため、**推奨しません**
+
+---
+
+### 6.3 フォントサイズスケール再設計
+
+**現状: 5段階、ほぼ区別不能**
+
+```
+xs=11  sm=12  base=13  md=14  lg=16    (px)
+  △1     △1      △1     △2
+```
+
+**提案: 4段階、明確なコントラスト**
+
+```
+sm=12  base=14  lg=16  xl=20    (px)
+  △2      △2     △4
+
+sm     = 0.75rem   (12px)  メタデータ, バッジ, タイムスタンプ
+base   = 0.875rem  (14px)  本文, ボタン, 入力フォーム, ツリー
+lg     = 1rem      (16px)  セクション見出し, ファイル名ヘッダー
+xl     = 1.25rem   (20px)  ページタイトル (使用頻度: 低)
+```
+
+**設計根拠**:
+
+1. **段階間の差を 2px 以上にする**
+   — 1px の差 (11 vs 12, 12 vs 13) は人間の目で区別が難しく、
+   タイポグラフィ階層として機能しない
+
+2. **xs (11px) と 10px を廃止**
+   — 現状 xs=11px が 28回使われているが、
+   これは「小さく見せたい」意図で乱用されている
+   — 情報密度は font-size を下げるのではなく、
+   color (secondary/tertiary) と font-weight で表現すべき
+   — 例: 変更行数 `+5 -2` は font-size-xs(11px) ではなく
+   font-size-sm(12px) + color-text-secondary で十分区別できる
+
+3. **lg = 1rem にする**
+   — 「1rem を意識しやすい」という直感に応える
+   — セクション見出しやファイルヘッダーという「目立つべき要素」に使うため、
+   「1rem = ブラウザの推奨サイズ = 見出し」という意味的な一致がある
+
+4. **base は変えない (0.875rem = 14px)**
+   — 開発ツールの UI テキスト標準
+   — コードリーディングが主用途なので、
+   16px base だと密度が不足し画面内の情報量が減る
+
+**マイグレーション方針: xs → sm / base への統合**
+
+```
+現状の xs (11px) 28回の使用先を分類:
+
+a. メタデータ・補助情報 (20箇所)
+   → sm (12px) に変更 + color-text-secondary で補助的に見せる
+   例: ファイルサイズ, タイムスタンプ, バッジ, ステータスラベル
+
+b. 極小UI要素 (8箇所)
+   → padding 調整で対応、font-size は sm (12px) に統一
+   例: ツリーの折りたたみアイコン脇テキスト, 行番号
+```
+
+---
+
+### 6.4 スペーシングスケール (rem)
+
+**現状: px ベース (既に 4の倍数)**
 
 ```css
-/* tokens.css */
-:root {
-  /* rem ベースに変更 (アクセシビリティ) */
-  --font-size-sm: 0.75rem;   /* 12px → 0.75rem */
-  --font-size-base: 0.875rem; /* 14px → 0.875rem */
+--space-1: 4px;   --space-2: 8px;   --space-3: 12px;
+--space-4: 16px;  --space-5: 24px;  --space-6: 32px;
+```
 
-  /* z-index レイヤーを体系化 */
+**提案: rem ベース (4px グリッドを維持)**
+
+```css
+--space-1: 0.25rem;   /*  4px */
+--space-2: 0.5rem;    /*  8px */
+--space-3: 0.75rem;   /* 12px */
+--space-4: 1rem;      /* 16px */
+--space-5: 1.5rem;    /* 24px */
+--space-6: 2rem;      /* 32px */
+```
+
+変換ルールは単純: **px ÷ 16 = rem**。覚えるのはこれだけです。
+
+| 4px グリッド | rem |
+|-------------|-----|
+| 4px | 0.25rem |
+| 8px | 0.5rem |
+| 12px | 0.75rem |
+| 16px | 1rem |
+| 24px | 1.5rem |
+| 32px | 2rem |
+| 48px | 3rem |
+
+**ハードコード値の修正方針**
+
+```
+padding: 1px 6px  → padding: 0.125rem 0.375rem  → ❌ グリッド逸脱
+                  → padding: var(--space-1) var(--space-2) に近似  → ✅
+
+padding: 2px      → padding: 0.25rem (= --space-1) に統一
+padding: 0 5px    → padding: 0 var(--space-2) (= 0.5rem = 8px) に近似
+padding: 6px 14px → padding: var(--space-2) var(--space-4) に近似
+```
+
+原則: **4px グリッドに乗らない値 (1px, 2px, 3px, 5px, 6px, 14px) は
+最も近い 4px 倍数に丸める**。1px の違いはユーザーに知覚されない。
+
+---
+
+### 6.5 line-height スケール
+
+**現状: 体系なし (1, 1.5, 1.6, 1.8, 20px)**
+
+**提案: 3段階**
+
+```css
+--line-height-tight: 1.25;  /* ボタン, バッジ, 単行要素 */
+--line-height-base:  1.5;   /* 本文, コメント, UI テキスト */
+--line-height-loose: 1.75;  /* Markdown 本文 (長文の可読性) */
+```
+
+- **無単位**の比率で統一 (px 指定の `20px` は廃止)
+- 無単位なら font-size が変わっても比率を維持する
+- `line-height: 1` (現状 3箇所) は `1.25` に変更
+  — `line-height: 1` はアセンダー/ディセンダーが切れるリスクがある
+
+---
+
+### 6.6 border-radius スケール
+
+**現状**:
+```css
+--radius-sm: 4px;   --radius-md: 6px;   --radius-lg: 8px;
+```
+
+**問題**: 6px は 4px グリッドに乗っていない
+
+**提案**:
+```css
+--radius-sm: 0.25rem;  /*  4px — ボタン, バッジ, インライン要素 */
+--radius-md: 0.5rem;   /*  8px — カード, パネル, 入力フォーム */
+--radius-lg: 0.75rem;  /* 12px — モーダル, 大きなコンテナ */
+```
+
+---
+
+### 6.7 インタラクティブ要素の最小サイズ
+
+**現状**: `height: 16px`, `height: 20px`, `height: 22px` のボタンが存在
+
+**問題**: WCAG 2.5.8 (Target Size) は最小 24×24px を要求
+
+**提案**:
+```css
+--interactive-min-size: 1.5rem;  /* 24px — 最小タッチ/クリックターゲット */
+--interactive-comfortable: 2rem; /* 32px — 推奨タッチターゲット */
+```
+
+```css
+/* 全インタラクティブ要素に適用 */
+button, [role="button"], a, input, select, textarea {
+  min-height: var(--interactive-min-size);
+  min-width: var(--interactive-min-size);
+}
+```
+
+---
+
+### 6.8 tokens.css 全体像
+
+```css
+/* tokens.css — Tasuki Design System Tokens */
+:root {
+  /* ── Color ── */
+  /* (既存のカラートークンは変更なし — 省略) */
+
+  /* ── Typography ── */
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans",
+    Helvetica, Arial, sans-serif;
+  --font-mono: "SF Mono", "Fira Code", "Fira Mono", "Roboto Mono", Menlo,
+    Consolas, monospace;
+
+  --font-size-sm:   0.75rem;   /* 12px — メタデータ, 補助テキスト */
+  --font-size-base: 0.875rem;  /* 14px — 本文, UI コントロール */
+  --font-size-lg:   1rem;      /* 16px — セクション見出し */
+  --font-size-xl:   1.25rem;   /* 20px — ページタイトル */
+
+  --line-height-tight: 1.25;   /* ボタン, バッジ */
+  --line-height-base:  1.5;    /* 本文 */
+  --line-height-loose: 1.75;   /* Markdown 長文 */
+
+  --font-weight-normal:   400;
+  --font-weight-medium:   500;
+  --font-weight-semibold: 600;
+
+  /* ── Spacing (4px grid → 0.25rem 単位) ── */
+  --space-1: 0.25rem;   /*  4px */
+  --space-2: 0.5rem;    /*  8px */
+  --space-3: 0.75rem;   /* 12px */
+  --space-4: 1rem;      /* 16px */
+  --space-5: 1.5rem;    /* 24px */
+  --space-6: 2rem;      /* 32px */
+  --space-8: 3rem;      /* 48px */
+
+  /* ── Border Radius (4px grid) ── */
+  --radius-sm: 0.25rem;  /*  4px */
+  --radius-md: 0.5rem;   /*  8px */
+  --radius-lg: 0.75rem;  /* 12px */
+
+  /* ── Layout ── */
+  --sidebar-width: 260px;       /* px 維持 (固定幅コンテナ) */
+  --toolbar-height: 3rem;       /* 48px → rem */
+  --interactive-min: 1.5rem;    /* 24px 最小タッチターゲット */
+  --interactive-comfortable: 2rem; /* 32px 推奨タッチターゲット */
+
+  /* ── Resize Handle ── */
+  --resize-handle-width: 4px;
+  --resize-handle-hitarea: 12px;
+
+  /* ── Z-Index Layers ── */
   --z-base: 0;
   --z-sticky: 10;
   --z-dropdown: 100;
   --z-overlay: 500;
   --z-modal: 1000;
 
-  /* リサイズハンドルのヒットエリア */
-  --resize-handle-width: 4px;
-  --resize-handle-hitarea: 12px;  /* 実際のクリック範囲 */
+  /* ── Pierre Integration ── */
+  --diffs-font-family: var(--font-mono);
+  --diffs-font-fallback: Menlo, Consolas, monospace;
+  --diffs-header-font-family: var(--font-sans);
+  --diffs-font-size: var(--font-size-base);
+  --diffs-line-height: var(--line-height-base);
+  --diffs-tab-size: 4;
+  --diffs-gap-inline: var(--space-2);
 }
 ```
 
-```css
-/* ResizeHandle.module.css */
-.handle {
-  width: var(--resize-handle-width);
-  position: relative;
-  cursor: col-resize;
-}
+### 6.9 マイグレーション影響まとめ
 
-/* 透明な拡大ヒットエリア */
-.handle::before {
-  content: "";
-  position: absolute;
-  inset: 0 calc(-1 * (var(--resize-handle-hitarea) - var(--resize-handle-width)) / 2);
-}
 ```
+変更前                    変更後                    影響
+─────────────────────────────────────────────────────────────────
+--font-size-xs: 11px      廃止                     28箇所を sm/base に振り分け
+--font-size-sm: 12px      0.75rem (12px)           値は同じ、単位だけ変更
+--font-size-base: 13px    0.875rem (14px)          ← 1px 大きくなる (3箇所のみ)
+--font-size-md: 14px      廃止 (base に統合)       4箇所を base に変更
+--font-size-lg: 16px      1rem (16px)              値は同じ、単位だけ変更
+(なし)                    --font-size-xl: 1.25rem  新規追加 (20px, 24px の統一先)
+ハードコード 10px ×4      sm (0.75rem) に統一      可読性向上
+ハードコード 12px ×3      sm (0.75rem) に統一      トークン使用
+--radius-md: 6px          0.5rem (8px)             2px 大きくなる
+line-height: 1 ×3         1.25                     テキスト切れ防止
+line-height: 20px ×1      --line-height-base       比率化
+```
+
+### 6.10 CSS アーキテクチャ (ファイル分割)
+
+```
+src/styles/
+  ├─ tokens.css        CSS変数定義 (上記の全トークン)
+  ├─ reset.css         box-sizing, margin/padding リセット
+  ├─ global.css        html, body, #root, a のベーススタイル
+  └─ pierre.css        @pierre/diffs Shadow DOM へ注入する追加スタイル
+
+src/components/
+  ├─ Toolbar/
+  │    ├─ Toolbar.tsx
+  │    └─ Toolbar.module.css
+  ├─ Sidebar/
+  │    ├─ Sidebar.tsx
+  │    └─ Sidebar.module.css
+  ├─ ReviewPanel/
+  │    ├─ ReviewPanel.tsx
+  │    ├─ ThreadCard.tsx
+  │    ├─ ThreadFooter.tsx
+  │    └─ ReviewPanel.module.css
+  ...
+```
+
+CSS Modules の利点:
+- クラス名の自動スコープ (`.handle` → `.ResizeHandle_handle_a1b2c`)
+- 名前衝突を構造的に不可能にする
+- 未使用クラスの検出が容易 (import 追跡)
+- Vite が標準サポート (設定不要)
 
 ---
 
