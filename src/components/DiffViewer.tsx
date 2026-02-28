@@ -17,7 +17,7 @@ import type { CommentFormTarget } from "../store/diffStore";
 
 const isMac =
   typeof navigator !== "undefined" && navigator.platform.includes("Mac");
-import type { FileDiff, ReviewComment } from "../types";
+import type { FileDiff, ReviewComment, ReviewThread } from "../types";
 import { generateGitPatch, getCodeSnippet } from "../utils/diff-utils";
 
 // --- Change type icon SVGs (from @pierre/diffs sprite) ---
@@ -54,7 +54,7 @@ const arrowRightIcon = (
 // --- Annotation metadata types ---
 
 type AnnotationMeta =
-  | { kind: "comment"; comment: ReviewComment }
+  | { kind: "comment"; thread: ReviewThread }
   | { kind: "form"; target: CommentFormTarget };
 
 // --- Main component ---
@@ -74,9 +74,15 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({ fileDiff }) => {
     commentFormTarget,
     setCommentFormTarget,
   } = useDiffStore();
-  const { comments, addComment } = useReviewStore();
 
   const filePath = fileDiff.file.path;
+
+  // File-scoped thread subscription (only re-renders when THIS file's threads change)
+  const fileThreads = useReviewStore(
+    useCallback((s) => s.threads.get(filePath) ?? EMPTY_THREADS, [filePath]),
+  );
+  const addThread = useReviewStore((s) => s.addThread);
+
   const isCollapsed = collapsedFiles.has(filePath);
 
   // DiffLayout now uses Pierre-native naming directly
@@ -116,21 +122,15 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({ fileDiff }) => {
     [hasFileContents, fileDiff],
   );
 
-  // --- Comments for this file ---
-  const fileComments = useMemo(
-    () => comments.filter((c) => c.file_path === filePath),
-    [comments, filePath],
-  );
-
-  // --- Build annotations: saved comments + active form ---
+  // --- Build annotations: saved threads + active form ---
   const lineAnnotations = useMemo(() => {
     const annotations: DiffLineAnnotation<AnnotationMeta>[] = [];
 
-    for (const comment of fileComments) {
+    for (const thread of fileThreads) {
       annotations.push({
         side: "additions",
-        lineNumber: comment.line_end,
-        metadata: { kind: "comment", comment },
+        lineNumber: thread.root.line_end,
+        metadata: { kind: "comment", thread },
       });
     }
 
@@ -143,20 +143,12 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({ fileDiff }) => {
     }
 
     return annotations;
-  }, [fileComments, commentFormTarget, filePath]);
+  }, [fileThreads, commentFormTarget, filePath]);
 
   // --- Line selection handling ---
-  // NOTE: Avoid capturing commentFormTarget in the closure to keep
-  // handleLineSelected (and thus `options`) referentially stable.
-  // Changing `options` triggers a full DOM rebuild in @pierre/diffs.
   const handleLineSelected = useCallback(
     (range: SelectedLineRange | null) => {
       setSelectedLineRange(range, range ? filePath : null);
-      // Do NOT close the comment form here. Pierre's LineSelectionManager
-      // fires onLineSelected during programmatic setSelectedLines calls
-      // (triggered by the selectedLines prop update when commentFormTarget
-      // changes), creating a feedback loop that immediately clears the form.
-      // The form is closed explicitly via Cancel, Escape, or Submit actions.
     },
     [setSelectedLineRange, filePath],
   );
@@ -180,7 +172,6 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({ fileDiff }) => {
             const line = getHoveredLine();
             if (!line) return;
 
-            // Use the active line selection range if available (and it belongs to this file)
             if (selectedLineRange && selectedLineFile === filePath && selectedLineRange.start !== selectedLineRange.end) {
               const start = Math.min(selectedLineRange.start, selectedLineRange.end);
               const end = Math.max(selectedLineRange.start, selectedLineRange.end);
@@ -214,7 +205,7 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({ fileDiff }) => {
   const renderAnnotation = useCallback(
     (annotation: DiffLineAnnotation<AnnotationMeta>) => {
       if (annotation.metadata.kind === "comment") {
-        return <CommentDisplay comment={annotation.metadata.comment} />;
+        return <ThreadDisplay thread={annotation.metadata.thread} />;
       }
 
       if (annotation.metadata.kind === "form") {
@@ -227,7 +218,7 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({ fileDiff }) => {
               const start = Math.min(t.target.selectionStart, t.target.selectionEnd);
               const end = Math.max(t.target.selectionStart, t.target.selectionEnd);
               const snippet = getCodeSnippet(fileDiff, start, end);
-              addComment({
+              addThread(filePath, {
                 id: crypto.randomUUID(),
                 file_path: filePath,
                 line_start: start,
@@ -236,11 +227,7 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({ fileDiff }) => {
                 body,
                 type: "comment",
                 created_at: Date.now(),
-                parent_id: null,
                 author: "human",
-                resolved: false,
-                resolved_at: null,
-                resolution_memo: null,
               });
               setCommentFormTarget(null);
               setSelectedLineRange(null);
@@ -252,7 +239,7 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({ fileDiff }) => {
 
       return null;
     },
-    [fileDiff, filePath, addComment, setCommentFormTarget, setSelectedLineRange],
+    [fileDiff, filePath, addThread, setCommentFormTarget, setSelectedLineRange],
   );
 
   // --- selectedLines prop ---
@@ -264,7 +251,6 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({ fileDiff }) => {
         side: commentFormTarget.side,
       } satisfies SelectedLineRange;
     }
-    // Only apply selection to the file that owns it
     if (selectedLineFile === filePath) {
       return selectedLineRange;
     }
@@ -394,13 +380,17 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({ fileDiff }) => {
   );
 };
 
+// --- Empty array singleton ---
+const EMPTY_THREADS: ReviewThread[] = [];
+
 // --- Sub-components ---
 
-const CommentDisplay: React.FC<{ comment: ReviewComment }> = ({ comment }) => {
-  const { removeComment } = useReviewStore();
+const ThreadDisplay: React.FC<{ thread: ReviewThread }> = ({ thread }) => {
+  const { removeThread } = useReviewStore();
+  const comment = thread.root;
 
   return (
-    <div className="dv-comment">
+    <div className={`dv-comment ${thread.resolved ? "dv-comment--resolved" : ""}`}>
       <div className="dv-comment-header">
         <span className="dv-comment-location">
           L{comment.line_start}
@@ -409,16 +399,23 @@ const CommentDisplay: React.FC<{ comment: ReviewComment }> = ({ comment }) => {
         <span className="dv-comment-type">{comment.type}</span>
         <button
           className="dv-comment-delete"
-          onClick={() => removeComment(comment.id)}
+          onClick={() => removeThread(comment.id)}
           title="Remove comment"
         >
           {"\u00D7"}
         </button>
       </div>
-      {comment.code_snippet && (
+      {comment.code_snippet && !thread.resolved && (
         <pre className="dv-comment-snippet">{comment.code_snippet}</pre>
       )}
       <div className="dv-comment-body">{comment.body}</div>
+      {thread.replies.map((reply) => (
+        <div key={reply.id} className="dv-comment-reply">
+          <span className="dv-reply-arrow">{"\u21B3"}</span>
+          <span className="dv-reply-body">{reply.body}</span>
+          <span className="dv-reply-author">{reply.author}</span>
+        </div>
+      ))}
     </div>
   );
 };
