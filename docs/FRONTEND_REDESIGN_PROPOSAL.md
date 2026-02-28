@@ -1,45 +1,45 @@
-# フロントエンド再設計提案
+# フロントエンド再設計 設計仕様書
 
-## 現状の課題サマリ
+## 対象課題
 
-### Critical (設計に根本的な影響)
+本設計で解決する課題の一覧。各課題 ID は設計内の該当セクションから参照される。
 
-| # | 課題 | 現状 | 影響 |
-|---|------|------|------|
-| C1 | **全 DiffViewer が全コメント変更で再描画** | `comments` 配列を全ファイルの DiffViewer が購読。1件の解決で50ファイル分が再計算 | 大規模diffで顕著なパフォーマンス劣化 |
-| C2 | **ResolveMemoForm が全未解決コメントに同時表示** | ReviewPanel 内で `{!c.resolved && <ResolveMemoForm />}` が全件展開 | UIの圧倒的なクラッタ |
-| C3 | **diffStore が5つの責務を兼務 (27フィールド)** | diff データ, ドキュメント管理, ファイル選択, 行選択, リポジトリ情報 | 変更影響範囲が広く、テスト困難 |
-| C4 | **split-right が diff-only モードでも全マウント** | MarkdownViewer, ReviewPanel が display:none で描画され続ける | 不要なメモリ消費とイベントリスナー |
+### Critical
 
-### High (UX上の大きな摩擦)
+| ID | 課題 | 解決セクション |
+|----|------|---------------|
+| C1 | 全 DiffViewer が全コメント変更で再描画される | §3 DiffViewer 最適化 |
+| C2 | ResolveMemoForm が全未解決コメントに同時表示される | §5 ReviewPanel |
+| C3 | diffStore が5つの責務を兼務 (27フィールド) | §1 Store 設計 |
+| C4 | split-right が diff-only モードでも全マウントされる | §2 コンポーネントツリー |
 
-| # | 課題 | 現状 | 影響 |
-|---|------|------|------|
-| H1 | サイドバーに検索/フィルタなし | 100+ファイルをスクロールで探す | 大規模changeset で致命的 |
-| H2 | サイドバーに仮想化なし | 全ツリーノードを一括DOM生成 | 初期描画の遅延 |
-| H3 | キーボードナビゲーションの欠落 | フォーカスインジケータなし, ARIA属性不足 | アクセシビリティ障壁 |
-| H4 | 右ペインタブが sticky でない | スクロールでタブが画面外に出る | タブ切替にスクロールバックが必要 |
-| H5 | 解決フォームが click-outside で閉じない | Cancel/Escape のみ | ユーザーが「閉じ方がわからない」 |
-| H6 | Cmd+F のコンテキスト競合 | diff検索と terminal 検索が競合 | terminal 内検索が到達不能になるケース |
-| H7 | API呼び出しにタイムアウトなし | Tauri バックエンド停止時に永久ハング | アプリがフリーズして見える |
+### High
 
-### Medium (改善すべき点)
+| ID | 課題 | 解決セクション |
+|----|------|---------------|
+| H1 | サイドバーに検索/フィルタなし | §4 Sidebar |
+| H2 | サイドバーに仮想化なし | §4 Sidebar |
+| H3 | キーボードナビゲーション・ARIA 属性の欠落 | §7 アクセシビリティ |
+| H4 | 右ペインタブが sticky でない | §2 コンポーネントツリー |
+| H5 | 解決フォームが click-outside で閉じない | §5 ReviewPanel |
+| H6 | Cmd+F のコンテキスト競合 (diff vs terminal) | §2 コンポーネントツリー |
+| H7 | API 呼び出しにタイムアウトなし | §9 エラーハンドリング |
 
-| # | 課題 | 現状 |
-|---|------|------|
-| M1 | レスポンシブ対応なし (media query ゼロ) | 固定px, モバイル完全非対応 |
-| M2 | CSS が 1ファイル 2000行 | スコープなし、名前衝突リスク |
-| M3 | リサイズハンドルが 4px (タッチ不可) | 最低8px必要 |
-| M4 | ローディング/エラー状態が貧弱 | `Loading...` テキストのみ、スケルトンなし |
-| M5 | Terminal の色がCSS変数でなくJS内ハードコード | テーマ変更時に二箇所修正が必要 |
-| M6 | `LeftPaneMode` が右ペインを制御 (命名矛盾) | コードの可読性低下 |
-| M7 | 検索状態がファイル切替で消失 | diff内検索のワークフロー断絶 |
+### Medium
+
+| ID | 課題 | 解決セクション |
+|----|------|---------------|
+| M1 | レスポンシブ対応なし (media query ゼロ) | §6 CSS トークン |
+| M2 | CSS が 1ファイル 2000行、スコープなし | §6.8 CSS アーキテクチャ |
+| M3 | リサイズハンドルが 4px (タッチ不可) | §6.5 インタラクティブ要素 |
+| M4 | ローディング/エラー状態が貧弱 | §9 エラーハンドリング |
+| M5 | Terminal の色が JS 内ハードコード | §8 Terminal |
+| M6 | `LeftPaneMode` が右ペインを制御 (命名矛盾) | §1 Store 設計 |
+| M7 | 検索状態がファイル切替で消失 | §1 Store 設計 |
 
 ---
 
-## 再設計の方針
-
-### 設計原則
+## 設計原則
 
 ```
 1. Fine-Grained Reactivity  — 変更が影響するコンポーネントだけが再描画される
@@ -52,65 +52,63 @@
 
 ---
 
-## 1. Store 再設計
+## 1. Store 設計
 
-### 現状 → 提案
+現状の 3 store (diffStore 27項目 + displayStore 7項目 + reviewStore 8項目) を
+責務ごとに 5 store へ分割する。 [C3, M6, M7]
 
 ```
-現状 (3 stores)                      提案 (5 stores)
-┌─────────────────────┐              ┌──────────────────┐
-│ diffStore (27項目)   │              │ diffStore (8項目) │  diff データに集中
-│  - diff データ       │              │  diffResult      │
-│  - ドキュメント管理  │──分離──→     │  diffSource      │
-│  - ファイル選択      │              │  isLoading       │
-│  - 行選択/コメント   │              │  error           │
-│  - リポジトリ情報    │              │  repoPath        │
-├─────────────────────┤              │  repoInfo        │
-│ displayStore (7項目) │              │  selectedFile    │
-├─────────────────────┤              │  collapsedFiles  │
-│ reviewStore (8項目)  │              └──────────────────┘
-└─────────────────────┘              ┌──────────────────┐
-                                     │ docStore (8項目)  │  ドキュメント専用
-                                     │  docFiles        │
-                                     │  designDocs      │
-                                     │  externalFolders │
-                                     │  externalDocs    │
-                                     │  selectedDoc     │
-                                     │  docSource       │
-                                     │  docContent      │
-                                     │  isDocLoading    │
-                                     └──────────────────┘
-                                     ┌──────────────────┐
-                                     │ uiStore (7項目)   │  旧 displayStore + 名前修正
-                                     │  displayMode     │
-                                     │  rightPaneMode   │  ← LeftPaneMode から改名
-                                     │  diffLayout      │
-                                     │  diffOverflow    │
-                                     │  expandUnchanged │
-                                     │  tocOpen         │
-                                     │  mdViewMode      │
-                                     └──────────────────┘
-                                     ┌──────────────────┐
-                                     │ reviewStore      │  スレッドモデルに変更
-                                     │  threads         │  ← Map<fileId, Thread[]>
-                                     │  docComments     │
-                                     │  verdict         │
-                                     │  gateStatus      │
-                                     └──────────────────┘
-                                     ┌──────────────────┐
-                                     │ editorStore      │  diff内インタラクション専用
-                                     │  lineSelection   │  { range, file } を1つのオブジェクトに
-                                     │  commentForm     │  commentFormTarget
-                                     │  searchQuery     │  diff検索状態 (維持される)
-                                     │  searchMatches   │
-                                     └──────────────────┘
+┌──────────────────┐
+│ diffStore (8項目) │  diff データに集中
+│  diffResult      │
+│  diffSource      │
+│  isLoading       │
+│  error           │
+│  repoPath        │
+│  repoInfo        │
+│  selectedFile    │
+│  collapsedFiles  │
+└──────────────────┘
+┌──────────────────┐
+│ docStore (8項目)  │  ドキュメント専用
+│  docFiles        │
+│  designDocs      │
+│  externalFolders │
+│  externalDocs    │
+│  selectedDoc     │
+│  docSource       │
+│  docContent      │
+│  isDocLoading    │
+└──────────────────┘
+┌──────────────────┐
+│ uiStore (7項目)   │  旧 displayStore + 命名修正
+│  displayMode     │
+│  rightPaneMode   │  ← LeftPaneMode から改名 [M6]
+│  diffLayout      │
+│  diffOverflow    │
+│  expandUnchanged │
+│  tocOpen         │
+│  mdViewMode      │
+└──────────────────┘
+┌──────────────────┐
+│ reviewStore      │  スレッドモデル
+│  threads         │  ← Map<fileId, ReviewThread[]>
+│  docComments     │
+│  verdict         │
+│  gateStatus      │
+└──────────────────┘
+┌──────────────────┐
+│ editorStore      │  diff 内インタラクション専用
+│  lineSelection   │  { range, file } を1つのオブジェクトに統合
+│  commentForm     │  commentFormTarget
+│  searchQuery     │  diff 検索状態 (ファイル切替でも維持) [M7]
+│  searchMatches   │
+└──────────────────┘
 ```
 
-### コメントのスレッドモデル + ファイル正規化 (C1, C2 解決)
+### 1.1 スレッドモデル [C1]
 
 ```typescript
-// ── データ型 ──
-
 // 親コメント・返信コメントの共通型
 interface ReviewComment {
   id: string;
@@ -131,13 +129,18 @@ interface ReviewThread {
   resolved: boolean;             // 解決済みか (スレッド単位)
   resolved_at: number | null;
 }
+```
 
-// ── Store ──
+旧モデルからの変更:
+- `parent_id` フィールド廃止 — `ReviewThread` が構造的に親子関係を表現
+- `resolution_memo` 廃止 — 返信で代替
+- `resolved` はスレッドの属性 (個々のコメントではない)
+- 孫コメント不可は型レベルで保証 (`replies` が `ReviewComment[]` であり `ReviewThread[]` ではない)
 
-// 現状: 全コメントを1つの配列で管理
-comments: ReviewComment[]
+Store のデータ構造:
 
-// 提案: ファイルパスでインデックス化した Map<string, ReviewThread[]>
+```typescript
+// ファイルパスでインデックス化
 threads: Map<string, ReviewThread[]>
 // ├─ "src/App.tsx" → [thread1, thread2]
 // └─ "src/store/diffStore.ts" → [thread3]
@@ -149,44 +152,22 @@ const fileThreads = useReviewStore(
 // → 他ファイルのコメント変更で再描画されない
 ```
 
-**変更のポイント**:
-- `parent_id` フィールドを廃止し、`ReviewThread` が構造的に親子関係を表現
-- `resolution_memo` を廃止 (返信で代替)
-- `resolved` は `ReviewThread` の属性 (個々のコメントではない)
-- 孫コメント不可は型レベルで保証 (`replies` が `ReviewComment[]` であり、`ReviewThread[]` ではない)
-
-### 行選択の統合 (editorStore)
+### 1.2 行選択の統合
 
 ```typescript
-// 現状: 2つの独立したフィールド (不整合リスク)
-selectedLineRange: SelectedLineRange | null;
-selectedLineFile: string | null;
-
-// 提案: 1つのオブジェクト (null は「選択なし」)
+// 2つの独立フィールドを1つのオブジェクトに統合 (不整合リスク排除)
 lineSelection: {
   file: string;
   range: SelectedLineRange;
-} | null;
+} | null;  // null = 選択なし
 ```
 
 ---
 
-## 2. コンポーネントツリー再設計
+## 2. コンポーネントツリー
 
-### 現状の問題
-
-```
-MainContent
- ├─ [isViewer]  main.viewer-layout → ResizablePane
- ├─ [!isViewer] main → split-left + split-right (常にマウント)
- └─ Terminal (parkingRef, DOM reparenting)
-```
-
-- viewer / split / diff の3モードで条件分岐が複雑
-- split-right が diff-only でも全子コンポーネントをマウント
-- Terminal の DOM reparenting が React ツリーとブラウザ DOM を乖離させる
-
-### 提案: レイアウトを3つの独立コンポーネントに分離
+レイアウトを3つの独立コンポーネントに分離し、
+LayoutSwitch で displayMode に基づいて排他的にレンダリングする。 [C4, H4, H6]
 
 ```
 App
@@ -203,7 +184,7 @@ App
                      │             ├─ DiffPane (左)
                      │             ├─ ResizeHandle
                      │             └─ RightPane (右)
-                     │                  ├─ RightPaneTabs (sticky)
+                     │                  ├─ RightPaneTabs (sticky) [H4]
                      │                  └─ Suspense
                      │                       ├─ [docs]     MarkdownViewer (lazy)
                      │                       ├─ [terminal] TerminalPane (lazy)
@@ -215,13 +196,9 @@ App
                                    └─ TerminalPane (右, lazy)
 ```
 
-### 変更のポイント
-
-**a. LayoutSwitch でモード別コンポーネントを排他的にレンダリング**
+### 2.1 LayoutSwitch
 
 ```tsx
-// 現状: 条件分岐で1つの巨大コンポーネント内に全モードを詰め込む
-// 提案: 各モードが独立したコンポーネント
 const LayoutSwitch: React.FC = () => {
   const mode = useUiStore((s) => s.displayMode);
 
@@ -233,10 +210,11 @@ const LayoutSwitch: React.FC = () => {
 };
 ```
 
-- diff-only モードでは ReviewPanel, MarkdownViewer が一切マウントされない (C4 解決)
-- 各レイアウトが自身のリサイズロジックを持ち、MainContent の肥大化を防止
+- diff-only モードでは ReviewPanel, MarkdownViewer が一切マウントされない [C4]
+- 各レイアウトが自身のリサイズロジックを持つ
+- Cmd+F はアクティブなレイアウト内でのみ発火する [H6]
 
-**b. Terminal を React.lazy + Suspense でオンデマンドロード**
+### 2.2 Terminal の遅延ロードと永続化
 
 ```tsx
 const TerminalPane = React.lazy(() => import("./TerminalPane"));
@@ -247,43 +225,20 @@ const TerminalPane = React.lazy(() => import("./TerminalPane"));
 </Suspense>
 ```
 
-- Terminal のバンドルコスト (xterm.js 200KB+) を初期ロードから除外
-- `visible` prop による制御ではなく、コンポーネント自体をマウント/アンマウント
-
-**c. Terminal の永続化: React.lazy + PortalではなくContextで管理**
-
-```tsx
-// TerminalContext: Terminal インスタンスをアプリ全体で共有
-const TerminalContext = createContext<XTermInstance | null>(null);
-
-// TerminalProvider (App レベル):
-// - 初回 TerminalPane マウント時に XTerm インスタンスを生成
-// - Context 経由でインスタンスを共有
-// - TerminalPane はアンマウントされてもインスタンスは Context が保持
-// - 再マウント時に containerRef に term.open() で再アタッチ
-
-// DOM reparenting を排除し、React の正規のツリー構造を維持
-```
+Terminal インスタンスのライフサイクルは TerminalManagerProvider (App レベル) が管理し、
+TerminalPane のマウント/アンマウントに関わらずセッションを保持する。
+DOM reparenting は使用しない。詳細は §8 参照。
 
 ---
 
-## 3. DiffViewer の再描画最適化
+## 3. DiffViewer 最適化 [C1]
 
-### 現状の問題フロー
+ファイル単位の購読と annotation の分離により、
+コメント変更時の再描画を対象ファイルのみに限定する。
 
-```
-コメント1件追加
-  → reviewStore.comments 変更
-  → 全 DiffViewer が fileComments を再計算
-  → lineAnnotations 再計算
-  → Pierre options 再構築
-  → @pierre/diffs が Shadow DOM を全再構築
-```
-
-### 提案: ファイル単位の購読 + annotation の分離
+### 3.1 ファイル単位の購読
 
 ```tsx
-// DiffViewer は自分のファイルのデータだけを購読
 const DiffViewerOptimized: React.FC<{ filePath: string }> = React.memo(({ filePath }) => {
   // ファイル固有のコメントだけを購読 (他ファイルの変更で再描画されない)
   const fileComments = useReviewStore(
@@ -295,8 +250,8 @@ const DiffViewerOptimized: React.FC<{ filePath: string }> = React.memo(({ filePa
     useCallback((s) => s.commentForm?.filePath === filePath ? s.commentForm : null, [filePath])
   );
 
-  // Pierre options は displayStore のみに依存 (コメントに依存しない)
-  const options = usePierreOptions(); // カスタムフック, memo済み
+  // Pierre options は uiStore のみに依存 (コメントに依存しない)
+  const options = usePierreOptions();
 
   // annotations は fileComments + formTarget のみから構築
   const annotations = useMemo(
@@ -308,25 +263,18 @@ const DiffViewerOptimized: React.FC<{ filePath: string }> = React.memo(({ filePa
     <PierreDiffComponent
       options={options}
       annotations={annotations}
-      // ...
     />
   );
 });
 ```
 
-### options の参照安定性
+### 3.2 Pierre options の参照安定性
 
 ```tsx
-// 現状: DiffViewer 内で毎回 useMemo
-// 問題: handleLineSelected の依存で options が不安定
-
-// 提案: Pierre options をカスタムフックで一元管理
 function usePierreOptions(): FileDiffOptions {
   const layout = useUiStore((s) => s.diffLayout);
   const overflow = useUiStore((s) => s.diffOverflow);
   const expand = useUiStore((s) => s.expandUnchanged);
-
-  // onLineSelected は editorStore 経由で安定した参照
   const onLineSelected = useEditorStore((s) => s.setLineSelection);
 
   return useMemo(() => ({
@@ -334,18 +282,17 @@ function usePierreOptions(): FileDiffOptions {
     overflow,
     expandUnchanged: expand,
     onLineSelected,
-    // ... 他の固定オプション
   }), [layout, overflow, expand, onLineSelected]);
 }
-// → UI設定変更時のみ options が再生成される
-// → コメント追加/削除では options は変わらない
+// UI 設定変更時のみ options が再生成される
+// コメント追加/削除では options は変わらない
 ```
 
 ---
 
-## 4. Sidebar 再設計
+## 4. Sidebar [H1, H2]
 
-### ファイル検索 (H1 解決)
+### 4.1 ファイル検索
 
 ```
 ┌─ Sidebar ──────────────────────┐
@@ -368,7 +315,6 @@ function usePierreOptions(): FileDiffOptions {
 ```
 
 ```tsx
-// フィルタはローカルstate + useMemo で実装
 const [filter, setFilter] = useState("");
 const filteredFiles = useMemo(
   () => filter
@@ -378,10 +324,11 @@ const filteredFiles = useMemo(
 );
 ```
 
-### 仮想化 (H2 解決)
+### 4.2 仮想化
+
+react-window の VariableSizeList でツリーをフラット化して仮想化する。
 
 ```tsx
-// react-window の VariableSizeList でツリーをフラット化して仮想化
 import { VariableSizeList } from "react-window";
 
 const flatNodes = useMemo(() => flattenTree(fileTree, collapsedDirs), [fileTree, collapsedDirs]);
@@ -397,27 +344,12 @@ const flatNodes = useMemo(() => flattenTree(fileTree, collapsedDirs), [fileTree,
 
 ---
 
-## 5. ReviewPanel 再設計 — GitHub スレッドモデル (C2 解決)
+## 5. ReviewPanel — スレッドモデル [C2, H5]
 
-### 現状の問題
+GitHub の Review Thread をモデルとし、スレッドベースの ReviewPanel に再設計する。
+ResolveMemoForm は廃止し、解決はワンクリック、文脈は返信で残す。
 
-```
-1. ResolveMemoForm が全未解決コメントに同時表示 → 10件で10個のフォームが並ぶ
-2. ✓ (解決) と ✕ (削除) の用途がアイコンだけでは不明
-3. 解決メモは冗長 — 解決するならそれでライフサイクル終了
-4. 「すぐ解決できない」ケースの体験が未整理
-   — 追加の修正依頼や議論の返信ができない
-```
-
-### 参考モデル: GitHub Review Thread
-
-GitHub のレビュー機能がこのユースケースに最も近い:
-- 各コメントは「スレッド」の起点になる
-- スレッド内に返信 (フラット, 孫なし) を追加できる
-- 「Resolve conversation」はスレッド単位で、ワンクリック
-- 解決メモという概念は不要 (返信が文脈を担う)
-
-### 提案: スレッドベース ReviewPanel
+### 5.1 レイアウト
 
 ```
 ┌─ ReviewPanel ─────────────────────────────────────┐
@@ -429,19 +361,8 @@ GitHub のレビュー機能がこのユースケースに最も近い:
 │ │ > const result = await fetch(url);            │ │
 │ │ エラーハンドリングが不足しています              │ │
 │ │                                               │ │
-│ │   ↳ try-catch を追加しました — author          │ │  ← 返信 (子コメント)
-│ │   ↳ catch 内で再throwした方が良いです — human  │ │  ← 返信 (子コメント)
-│ │                                               │ │
-│ │ ┌────────────────────────────────────────┐    │ │
-│ │ │ Write a reply...                       │    │ │  ← 返信入力欄
-│ │ └────────────────────────────────────────┘    │ │
-│ │                        [Reply]  [Resolve]     │ │  ← 常に表示
-│ └───────────────────────────────────────────────┘ │
-│                                                    │
-│ ┌─ Thread ──────────────────────────────────────┐ │
-│ │ src/App.tsx:L55-L60                      📋  │ │
-│ │ > function processData(input: any) {          │ │
-│ │ any型を避けてください                         │ │
+│ │   ↳ try-catch を追加しました — author          │ │  ← 返信
+│ │   ↳ catch 内で再throwした方が良いです — human  │ │  ← 返信
 │ │                                               │ │
 │ │ ┌────────────────────────────────────────┐    │ │
 │ │ │ Write a reply...                       │    │ │
@@ -461,9 +382,7 @@ GitHub のレビュー機能がこのユースケースに最も近い:
 └───────────────────────────────────────────────────┘
 ```
 
-### 設計詳細
-
-**a. 各スレッドのアクション**
+### 5.2 スレッドアクション
 
 | 操作 | UI | 条件 |
 |------|-----|------|
@@ -472,14 +391,13 @@ GitHub のレビュー機能がこのユースケースに最も近い:
 | テキスト入力 + 解決 | テキスト入力 + [Resolve] | 返信追加 & 即座に解決 |
 | 解決取消 | [↩] ボタン | 解決済みスレッドのみ |
 | コピー | [📋] ボタン | 常時 |
-| 削除 | スレッドメニュー or スワイプ | 常時 (確認ダイアログ付き) |
+| 削除 | スレッドメニュー (…) 内 | 常時 (確認ダイアログ付き) |
 
-**旧 ✓ (解決) と ✕ (削除) を廃止** — アイコンだけでは用途不明だった。
-代わりに:
-- 解決は明示的な `[Resolve]` ラベル付きボタン
-- 削除はスレッドメニュー (…) 内に移動 (誤操作防止)
+旧アイコンボタン (✓ 解決 / ✕ 削除) は廃止。
+解決は明示的な `[Resolve]` ラベル付きボタン、
+削除はメニュー内に移動し誤操作を防止する。
 
-**b. [Reply] と [Resolve] の振る舞い**
+### 5.3 ThreadFooter コンポーネント
 
 ```tsx
 function ThreadFooter({ threadId }: { threadId: string }) {
@@ -494,7 +412,6 @@ function ThreadFooter({ threadId }: { threadId: string }) {
   };
 
   const handleResolve = () => {
-    // テキストがあれば返信追加してから解決
     if (replyText.trim()) {
       addReply(threadId, replyText.trim());
     }
@@ -512,19 +429,13 @@ function ThreadFooter({ threadId }: { threadId: string }) {
         onKeyDown={(e) => {
           if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handleReply();
         }}
-        rows={1}  // 自動拡張 (入力量に応じて高さ増加)
+        rows={1}
       />
       <div className={styles.threadActions}>
-        <button
-          onClick={handleReply}
-          disabled={!replyText.trim()}
-        >
+        <button onClick={handleReply} disabled={!replyText.trim()}>
           Reply
         </button>
-        <button
-          onClick={handleResolve}
-          className={styles.resolveBtn}
-        >
+        <button onClick={handleResolve} className={styles.resolveBtn}>
           Resolve
         </button>
       </div>
@@ -533,41 +444,33 @@ function ThreadFooter({ threadId }: { threadId: string }) {
 }
 ```
 
-**c. Store アクション**
+### 5.4 Store アクション
 
 ```typescript
-// reviewStore に追加するアクション
-
-// 返信を追加 (スレッドの replies に push)
 addReply: (threadId: string, body: string) => {
-  // threads Map 内の該当 thread を見つけて replies に追加
-  // parent_id 概念は不要 — Thread 構造が親子を保証
+  // threads Map 内の該当 thread の replies に追加
 };
 
-// スレッドを解決 (ワンクリック, メモ不要)
 resolveThread: (threadId: string) => {
   // thread.resolved = true, thread.resolved_at = Date.now()
 };
 
-// スレッドの解決を取消
 unresolveThread: (threadId: string) => {
   // thread.resolved = false, thread.resolved_at = null
 };
 
-// スレッドを削除 (確認ダイアログ経由)
 removeThread: (threadId: string) => {
-  // threads Map から該当 thread を除去
+  // threads Map から該当 thread を除去 (確認ダイアログ経由)
 };
 ```
 
-**d. 解決済みセクション**
+### 5.5 解決済みセクション
+
+デフォルト折りたたみ。解決済みは「終わった話」として扱う。
 
 ```tsx
-// デフォルト折りたたみ — 解決済みは「終わった話」
-const [showResolved, setShowResolved] = useState(false);
-
 {resolvedThreads.length > 0 && (
-  <details open={showResolved} onToggle={(e) => setShowResolved(e.currentTarget.open)}>
+  <details>
     <summary className={styles.resolvedHeader}>
       Resolved ({resolvedThreads.length})
     </summary>
@@ -582,231 +485,14 @@ const [showResolved, setShowResolved] = useState(false);
 )}
 ```
 
-**e. スレッド構造の制約 (孫コメント不可)**
-
-型レベルで保証:
-```typescript
-interface ReviewThread {
-  root: ReviewComment;         // 親: 1つ
-  replies: ReviewComment[];    // 子: 0〜N (フラット)
-  // ↑ ReviewThread[] ではなく ReviewComment[]
-  // → 返信に対する返信 (孫) は構造的に不可能
-  resolved: boolean;
-  resolved_at: number | null;
-}
-```
-
-UI レベルでも制約:
-- 返信入力欄はスレッド末尾に1つだけ
-- 個別の返信に「返信」ボタンは付かない
-
-### ResolveMemoForm 廃止の根拠
-
-| 旧フロー | 新フロー |
-|----------|---------|
-| ✓ クリック → メモ入力欄展開 → メモ記入 → 確定 (3ステップ) | [Resolve] クリック (1ステップ) |
-| 解決の文脈はメモに書く | 解決の文脈は返信として残る (スレッド履歴) |
-| メモは任意だが毎回フォームが出る | 返信は必要な時だけ書く |
-| 全コメントにフォームが並ぶ (C2) | フォームは返信用のみ、コンパクト |
-
 ---
 
-## 6. CSS デザイントークン再設計
+## 6. CSS デザイントークン
 
-### 6.1 現状の分析
+全トークンを rem ベースに統一し、4px グリッドを維持する。
+ブラウザのフォント設定に追従するアクセシビリティを確保する。
 
-**フォントサイズの使用実態 (全77宣言を集計)**
-
-```
-font-size-xs  (11px): 28回  ████████████████████████████  36%
-font-size-sm  (12px): 27回  ███████████████████████████   35%
-font-size-base(13px):  3回  ███                            4%  ← "base" なのにほぼ未使用
-font-size-md  (14px):  4回  ████                           5%
-font-size-lg  (16px):  2回  ██                             3%
-ハードコード:         13回  █████████████                 17%  ← トークン未使用
-  10px ×4, 12px ×3, 13px ×1, 14px ×1, 15px ×1, 16px ×1, 20px ×1, 24px ×1
-```
-
-**問題点**:
-
-1. **「base」が base ではない** — 13px は 3回しか使われず、実際の主役は xs(11px) と sm(12px)
-2. **5段階中3段階 (11/12/13px) が1pxずつの差** — 視覚的にほぼ区別不能、階層感が生まれない
-3. **10px が 4箇所** — WCAG SC 1.4.4 (テキストの拡大) で推奨される最小サイズを下回る
-4. **13件のハードコード値** — トークンシステムが浸透していない
-5. **全て px 固定** — ブラウザのフォント設定を変更しても反映されない
-
-**spacing の使用実態**
-
-```
-トークン使用:  gap, padding でトークン使用率 ≈ 70%
-ハードコード:  padding: 1px 6px, 2px, 0 5px, 1px 5px 等
-               → 4px グリッドを逸脱する値が多数
-```
-
-**line-height の使用実態**
-
-```
-1.5  (2箇所), 1.0 (3箇所), 1.6 (1箇所), 1.8 (1箇所), 20px (1箇所)
-→ 体系なし、場当たり的
-```
-
----
-
-### 6.2 rem と 4px グリッドの関係
-
-ユーザーが知っている「px で 4 の倍数」は rem でもそのまま使えます。
-
-```
-ブラウザのデフォルト: 1rem = 16px
-
-0.25rem =  4px    ← 4 の倍数の最小単位
-0.5rem  =  8px
-0.75rem = 12px
-1rem    = 16px
-1.5rem  = 24px
-2rem    = 32px
-3rem    = 48px
-```
-
-**なぜ rem を使うのか**:
-px は「絶対値」なので、ユーザーがブラウザの文字サイズを「大」に変更しても
-px で指定した要素は一切変わりません。
-rem はブラウザのルートフォントサイズに連動するため、
-ユーザーの設定変更に自動で追従し、アクセシビリティを確保できます。
-
-**「1rem を基準にすべきでは」という疑問への回答**:
-
-- `1rem` はブラウザのデフォルト (16px) を意味する単位であり、
-  アプリの base font size とは別の概念です
-- 開発ツールの UI テキストは 14px が業界標準
-  (VS Code: 13px, GitHub: 14px, Figma: 13px)
-- したがって `--font-size-base: 0.875rem` (= 14px) は適切です
-- ただし「1rem = base」にしたい場合は
-  `html { font-size: 87.5%; }` と宣言すれば `1rem = 14px` にできます
-- 後者はサードパーティコンポーネント (@pierre/diffs, xterm.js) の
-  想定する 1rem を狂わせるリスクがあるため、**推奨しません**
-
----
-
-### 6.3 フォントサイズスケール再設計
-
-**現状: 5段階、ほぼ区別不能**
-
-```
-xs=11  sm=12  base=13  md=14  lg=16    (px)
-  △1     △1      △1     △2
-```
-
-**提案: 5トークン (4段階 + prose)**
-
-```
-UIスケール:  sm=12  base=14  lg=16  xl=20    (px)
-               △2      △2     △4
-散文:                         prose=16
-
-sm     = 0.75rem   (12px)  メタデータ, バッジ, タイムスタンプ
-base   = 0.875rem  (14px)  UI テキスト, diff, コード, ボタン, ツリー
-prose  = 1rem      (16px)  Markdown 本文 (日本語の可読性確保)
-lg     = 1rem      (16px)  セクション見出し, ファイル名ヘッダー
-xl     = 1.25rem   (20px)  ページタイトル (使用頻度: 低)
-```
-
-`prose` と `lg` は同じ 1rem (16px) だが意味が異なる:
-- `prose` = 散文本文の標準サイズ (MarkdownViewer の本文)
-- `lg` = UI 要素の見出しサイズ (ツールバー, サイドバーヘッダー)
-同じ値でもセマンティックトークンを分けることで、将来一方だけ変更する自由度を残す。
-
-**コード vs 散文で文字サイズを分ける根拠**:
-
-日本語の漢字はラテン文字より画数が多く、14px ではストロークが潰れやすい。
-業界の標準もコードと散文でサイズを分けている:
-
-| サービス | コード | Markdown 本文 |
-|---------|--------|--------------|
-| GitHub | 14px mono | **16px** proportional |
-| VS Code | 13px mono | **14-16px** preview |
-| Notion | — | **16px** |
-| Zenn | 14px mono | **16-17px** |
-
-統一感より **コンテキスト最適化** が正解。コードはスキャン (パターン認識)、
-文章はリーディング (連続読み) で読み方が根本的に異なるため、
-異なるサイズは不整合ではなく適切な使い分け。
-
-```css
-/* MarkdownViewer に適用 */
-.markdown-content {
-  font-size: var(--font-size-prose);      /* 16px */
-  line-height: var(--line-height-loose);  /* 1.75 — 日本語長文向け */
-}
-
-/* Markdown 内のコードブロックは code サイズに戻す */
-.markdown-content pre code {
-  font-size: var(--font-size-base);       /* 14px */
-  line-height: var(--line-height-base);   /* 1.5 */
-}
-```
-
-**設計根拠**:
-
-1. **段階間の差を 2px 以上にする**
-   — 1px の差 (11 vs 12, 12 vs 13) は人間の目で区別が難しく、
-   タイポグラフィ階層として機能しない
-
-2. **xs (11px) と 10px を廃止**
-   — 現状 xs=11px が 28回使われているが、
-   これは「小さく見せたい」意図で乱用されている
-   — 情報密度は font-size を下げるのではなく、
-   color (secondary/tertiary) と font-weight で表現すべき
-   — 例: 変更行数 `+5 -2` は font-size-xs(11px) ではなく
-   font-size-sm(12px) + color-text-secondary で十分区別できる
-
-3. **lg = 1rem にする**
-   — 「1rem を意識しやすい」という直感に応える
-   — セクション見出しやファイルヘッダーという「目立つべき要素」に使うため、
-   「1rem = ブラウザの推奨サイズ = 見出し」という意味的な一致がある
-
-4. **base は変えない (0.875rem = 14px)**
-   — 開発ツールの UI テキスト標準
-   — コードリーディングが主用途なので、
-   16px base だと密度が不足し画面内の情報量が減る
-
-**マイグレーション方針: xs → sm / base への統合**
-
-```
-現状の xs (11px) 28回の使用先を分類:
-
-a. メタデータ・補助情報 (20箇所)
-   → sm (12px) に変更 + color-text-secondary で補助的に見せる
-   例: ファイルサイズ, タイムスタンプ, バッジ, ステータスラベル
-
-b. 極小UI要素 (8箇所)
-   → padding 調整で対応、font-size は sm (12px) に統一
-   例: ツリーの折りたたみアイコン脇テキスト, 行番号
-```
-
----
-
-### 6.4 スペーシングスケール (rem)
-
-**現状: px ベース (既に 4の倍数)**
-
-```css
---space-1: 4px;   --space-2: 8px;   --space-3: 12px;
---space-4: 16px;  --space-5: 24px;  --space-6: 32px;
-```
-
-**提案: rem ベース (4px グリッドを維持)**
-
-```css
---space-1: 0.25rem;   /*  4px */
---space-2: 0.5rem;    /*  8px */
---space-3: 0.75rem;   /* 12px */
---space-4: 1rem;      /* 16px */
---space-5: 1.5rem;    /* 24px */
---space-6: 2rem;      /* 32px */
-```
-
-変換ルールは単純: **px ÷ 16 = rem**。覚えるのはこれだけです。
+rem の換算: `px ÷ 16 = rem` (ブラウザデフォルト 1rem = 16px)
 
 | 4px グリッド | rem |
 |-------------|-----|
@@ -818,27 +504,80 @@ b. 極小UI要素 (8箇所)
 | 32px | 2rem |
 | 48px | 3rem |
 
-**ハードコード値の修正方針**
+`html { font-size }` の変更は行わない。
+`--font-size-base: 0.875rem (14px)` は開発ツールの業界標準に合わせた値であり、
+サードパーティコンポーネント (@pierre/diffs, xterm.js) が想定する
+`1rem = 16px` との互換性を維持する。
+
+### 6.1 フォントサイズスケール
+
+5トークン (4段階 + prose)。段階間の差は最低 2px 以上とし、
+視覚的に明確なタイポグラフィ階層を構成する。
 
 ```
-padding: 1px 6px  → padding: 0.125rem 0.375rem  → ❌ グリッド逸脱
-                  → padding: var(--space-1) var(--space-2) に近似  → ✅
-
-padding: 2px      → padding: 0.25rem (= --space-1) に統一
-padding: 0 5px    → padding: 0 var(--space-2) (= 0.5rem = 8px) に近似
-padding: 6px 14px → padding: var(--space-2) var(--space-4) に近似
+UIスケール:  sm=12  base=14  lg=16  xl=20    (px)
+               △2      △2     △4
+散文:                         prose=16
 ```
 
-原則: **4px グリッドに乗らない値 (1px, 2px, 3px, 5px, 6px, 14px) は
-最も近い 4px 倍数に丸める**。1px の違いはユーザーに知覚されない。
+| トークン | 値 | px | 用途 |
+|---------|-----|-----|------|
+| `--font-size-sm` | 0.75rem | 12px | メタデータ, バッジ, タイムスタンプ |
+| `--font-size-base` | 0.875rem | 14px | UI テキスト, diff, コード, ボタン, ツリー |
+| `--font-size-prose` | 1rem | 16px | Markdown 本文 (日本語の可読性確保) |
+| `--font-size-lg` | 1rem | 16px | セクション見出し, ファイル名ヘッダー |
+| `--font-size-xl` | 1.25rem | 20px | ページタイトル |
 
----
+`prose` と `lg` は同じ 1rem (16px) だがセマンティクスが異なる:
+- `prose` = 散文本文 (MarkdownViewer の本文)
+- `lg` = UI 見出し (ツールバー, サイドバーヘッダー)
 
-### 6.5 line-height スケール
+同じ値でもトークンを分けることで、将来一方だけ変更する自由度を残す。
 
-**現状: 体系なし (1, 1.5, 1.6, 1.8, 20px)**
+**コード vs 散文で文字サイズを分ける根拠**:
 
-**提案: 3段階**
+日本語漢字はラテン文字より画数が多く、14px ではストローク潰れのリスクがある。
+コードはスキャン (パターン認識)、文章はリーディング (連続読み) で
+読み方が根本的に異なるため、異なるサイズは不整合ではなく適切な使い分け。
+GitHub, Notion, Zenn 等もコード 14px / 散文 16px で使い分けている。
+
+```css
+.markdown-content {
+  font-size: var(--font-size-prose);      /* 16px */
+  line-height: var(--line-height-loose);  /* 1.75 */
+}
+
+.markdown-content pre code {
+  font-size: var(--font-size-base);       /* 14px */
+  line-height: var(--line-height-base);   /* 1.5 */
+}
+```
+
+**旧トークンの廃止**:
+- `--font-size-xs` (11px) — 28箇所を sm/base に振り分け。情報密度は color + font-weight で表現
+- `--font-size-md` (14px) — base に統合
+- ハードコード 10px — sm (12px) に統一 (WCAG 最小サイズ確保)
+
+### 6.2 スペーシングスケール
+
+4px グリッドを rem で表現する。
+4px グリッドに乗らないハードコード値 (1px, 2px, 3px, 5px, 6px) は
+最も近い 4px 倍数に丸める。
+
+```css
+--space-1: 0.25rem;   /*  4px */
+--space-2: 0.5rem;    /*  8px */
+--space-3: 0.75rem;   /* 12px */
+--space-4: 1rem;      /* 16px */
+--space-5: 1.5rem;    /* 24px */
+--space-6: 2rem;      /* 32px */
+--space-8: 3rem;      /* 48px */
+```
+
+### 6.3 line-height スケール
+
+無単位の比率で統一する。font-size が変わっても比率を維持する。
+`line-height: 1` (アセンダー/ディセンダー切れのリスク) は 1.25 に変更する。
 
 ```css
 --line-height-tight: 1.25;  /* ボタン, バッジ, 単行要素 */
@@ -846,57 +585,36 @@ padding: 6px 14px → padding: var(--space-2) var(--space-4) に近似
 --line-height-loose: 1.75;  /* Markdown 本文 (長文の可読性) */
 ```
 
-- **無単位**の比率で統一 (px 指定の `20px` は廃止)
-- 無単位なら font-size が変わっても比率を維持する
-- `line-height: 1` (現状 3箇所) は `1.25` に変更
-  — `line-height: 1` はアセンダー/ディセンダーが切れるリスクがある
+### 6.4 border-radius スケール
 
----
+旧 `--radius-md: 6px` は 4px グリッドに乗っていなかったため 8px に変更する。
 
-### 6.6 border-radius スケール
-
-**現状**:
-```css
---radius-sm: 4px;   --radius-md: 6px;   --radius-lg: 8px;
-```
-
-**問題**: 6px は 4px グリッドに乗っていない
-
-**提案**:
 ```css
 --radius-sm: 0.25rem;  /*  4px — ボタン, バッジ, インライン要素 */
 --radius-md: 0.5rem;   /*  8px — カード, パネル, 入力フォーム */
 --radius-lg: 0.75rem;  /* 12px — モーダル, 大きなコンテナ */
 ```
 
----
+### 6.5 インタラクティブ要素の最小サイズ
 
-### 6.7 インタラクティブ要素の最小サイズ
+WCAG 2.5.8 (Target Size) に準拠し、最小 24×24px を確保する。
 
-**現状**: `height: 16px`, `height: 20px`, `height: 22px` のボタンが存在
-
-**問題**: WCAG 2.5.8 (Target Size) は最小 24×24px を要求
-
-**提案**:
 ```css
---interactive-min-size: 1.5rem;  /* 24px — 最小タッチ/クリックターゲット */
---interactive-comfortable: 2rem; /* 32px — 推奨タッチターゲット */
+--interactive-min: 1.5rem;         /* 24px — 最小タッチ/クリックターゲット */
+--interactive-comfortable: 2rem;   /* 32px — 推奨タッチターゲット */
 ```
 
 ```css
-/* 全インタラクティブ要素に適用 */
 button, [role="button"], a, input, select, textarea {
-  min-height: var(--interactive-min-size);
-  min-width: var(--interactive-min-size);
+  min-height: var(--interactive-min);
+  min-width: var(--interactive-min);
 }
 ```
 
----
-
-### 6.8 tokens.css 全体像
+### 6.6 tokens.css
 
 ```css
-/* tokens.css — Tasuki Design System Tokens */
+/* tokens.css — Tasuki Design Tokens */
 :root {
   /* ── Color ── */
   /* (既存のカラートークンは変更なし — 省略) */
@@ -913,15 +631,15 @@ button, [role="button"], a, input, select, textarea {
   --font-size-lg:    1rem;      /* 16px — セクション見出し */
   --font-size-xl:    1.25rem;   /* 20px — ページタイトル */
 
-  --line-height-tight: 1.25;   /* ボタン, バッジ */
-  --line-height-base:  1.5;    /* 本文 */
-  --line-height-loose: 1.75;   /* Markdown 長文 */
+  --line-height-tight: 1.25;
+  --line-height-base:  1.5;
+  --line-height-loose: 1.75;
 
   --font-weight-normal:   400;
   --font-weight-medium:   500;
   --font-weight-semibold: 600;
 
-  /* ── Spacing (4px grid → 0.25rem 単位) ── */
+  /* ── Spacing (4px grid) ── */
   --space-1: 0.25rem;   /*  4px */
   --space-2: 0.5rem;    /*  8px */
   --space-3: 0.75rem;   /* 12px */
@@ -936,10 +654,10 @@ button, [role="button"], a, input, select, textarea {
   --radius-lg: 0.75rem;  /* 12px */
 
   /* ── Layout ── */
-  --sidebar-width: 260px;       /* px 維持 (固定幅コンテナ) */
-  --toolbar-height: 3rem;       /* 48px → rem */
-  --interactive-min: 1.5rem;    /* 24px 最小タッチターゲット */
-  --interactive-comfortable: 2rem; /* 32px 推奨タッチターゲット */
+  --sidebar-width: 260px;
+  --toolbar-height: 3rem;       /* 48px */
+  --interactive-min: 1.5rem;    /* 24px */
+  --interactive-comfortable: 2rem; /* 32px */
 
   /* ── Resize Handle ── */
   --resize-handle-width: 4px;
@@ -963,7 +681,7 @@ button, [role="button"], a, input, select, textarea {
 }
 ```
 
-### 6.9 マイグレーション影響まとめ
+### 6.7 マイグレーション影響
 
 ```
 変更前                    変更後                    影響
@@ -973,7 +691,7 @@ button, [role="button"], a, input, select, textarea {
 --font-size-base: 13px    0.875rem (14px)          ← 1px 大きくなる (3箇所のみ)
 --font-size-md: 14px      廃止 (base に統合)       4箇所を base に変更
 --font-size-lg: 16px      1rem (16px)              値は同じ、単位だけ変更
-(なし)                    --font-size-prose: 1rem  新規追加 (Markdown 本文用, 日本語可読性)
+(なし)                    --font-size-prose: 1rem  新規追加 (Markdown 本文用)
 (なし)                    --font-size-xl: 1.25rem  新規追加 (20px, 24px の統一先)
 ハードコード 10px ×4      sm (0.75rem) に統一      可読性向上
 ハードコード 12px ×3      sm (0.75rem) に統一      トークン使用
@@ -982,11 +700,13 @@ line-height: 1 ×3         1.25                     テキスト切れ防止
 line-height: 20px ×1      --line-height-base       比率化
 ```
 
-### 6.10 CSS アーキテクチャ (ファイル分割)
+### 6.8 CSS アーキテクチャ [M2]
+
+CSS Modules でコンポーネント単位にスコープする。
 
 ```
 src/styles/
-  ├─ tokens.css        CSS変数定義 (上記の全トークン)
+  ├─ tokens.css        CSS 変数定義 (上記の全トークン)
   ├─ reset.css         box-sizing, margin/padding リセット
   ├─ global.css        html, body, #root, a のベーススタイル
   └─ pierre.css        @pierre/diffs Shadow DOM へ注入する追加スタイル
@@ -1014,12 +734,12 @@ CSS Modules の利点:
 
 ---
 
-## 7. アクセシビリティ (H3 解決)
+## 7. アクセシビリティ [H3]
 
-### キーボードナビゲーション設計
+### 7.1 キーボードナビゲーション
 
 ```
-Tab順序:
+Tab 順序:
   Toolbar → Sidebar → Main Content
 
 Toolbar 内:
@@ -1030,10 +750,10 @@ Sidebar 内:
   ↑↓ でファイル/ドキュメント間移動
   ←→ でツリー展開/折りたたみ
   Enter でファイル選択
-  / でフィルタ入力にフォーカス (vim風)
+  / でフィルタ入力にフォーカス
 
 Diff 内:
-  j/k で変更ファイル間移動 (vim風)
+  j/k で変更ファイル間移動
   n/N で次/前の差分ハンクへジャンプ
   c でコメントフォーム開始
   Escape でコメントフォーム閉じ
@@ -1044,7 +764,7 @@ Review Panel 内:
   Escape でフォーム閉じ
 ```
 
-### ARIA 属性
+### 7.2 ARIA 属性
 
 ```tsx
 // Sidebar: tree view パターン
@@ -1080,39 +800,31 @@ Review Panel 内:
 
 ---
 
-## 8. Terminal 再設計
+## 8. Terminal [M5]
 
-### 現状の問題
+### 8.1 TerminalManager
 
-- DOM reparenting で React ツリーとブラウザ DOM が乖離
-- visible prop による制御（常にマウント）
-- バンドルサイズに常に含まれる (xterm.js ~200KB)
-
-### 提案: Context + lazy + Portal なし
+XTerm インスタンスのライフサイクルを管理するクラス。
+DOM reparenting を排除し、React の正規のツリー構造を維持する。
 
 ```tsx
-// TerminalManager: XTerm インスタンスのライフサイクルを管理
 class TerminalManager {
   private term: XTerm | null = null;
   private spawned = false;
 
   async init(container: HTMLElement): Promise<void> {
     if (this.term) {
-      // 再アタッチ (コンテナが変わった場合)
       this.term.open(container);
       this.fit();
       return;
     }
-    // 新規生成
     this.term = new XTerm({ /* ... */ });
     this.term.open(container);
-    // addons, listeners...
     await this.spawn();
   }
 
   detach(): void {
     // コンテナからの切り離し (インスタンスは破棄しない)
-    // xterm.js の内部状態は保持される
   }
 
   dispose(): void {
@@ -1120,13 +832,13 @@ class TerminalManager {
     this.term = null;
   }
 }
+```
 
-// React 側:
-const terminalManager = useRef(new TerminalManager());
+### 8.2 React 統合
 
+```tsx
 const TerminalPane = React.lazy(() => import("./TerminalPane"));
 
-// TerminalPane.tsx:
 function TerminalPane() {
   const containerRef = useRef<HTMLDivElement>(null);
   const manager = useContext(TerminalManagerContext);
@@ -1142,19 +854,15 @@ function TerminalPane() {
 }
 ```
 
-**利点**:
-- DOM reparenting 不要 (React のツリー = ブラウザの DOM)
-- コード分割で初期バンドルから除外
-- マウント/アンマウントしてもセッション保持
+Terminal の色は CSS 変数で定義し、JS 内ハードコードを廃止する [M5]。
 
 ---
 
-## 9. エラーハンドリング・ローディング統一
+## 9. エラーハンドリング・ローディング [H7, M4]
 
-### 提案: 統一的な非同期状態管理
+### 9.1 非同期状態管理フック
 
 ```tsx
-// useAsyncAction: ローディング + エラーを統一管理するフック
 function useAsyncAction<T>(
   action: () => Promise<T>,
   options?: { timeout?: number }
@@ -1184,17 +892,16 @@ function useAsyncAction<T>(
 }
 ```
 
-### スケルトンローディング
+### 9.2 スケルトンローディング
 
 ```tsx
-// MarkdownViewer のローディング状態
 function MarkdownSkeleton() {
   return (
     <div className={styles.skeleton}>
-      <div className={styles.skeletonTitle} />   {/* 太い短いバー */}
-      <div className={styles.skeletonLine} />    {/* 細い長いバー */}
+      <div className={styles.skeletonTitle} />
       <div className={styles.skeletonLine} />
-      <div className={styles.skeletonShort} />   {/* 細い短いバー */}
+      <div className={styles.skeletonLine} />
+      <div className={styles.skeletonShort} />
       <div className={styles.skeletonLine} />
     </div>
   );
@@ -1203,13 +910,13 @@ function MarkdownSkeleton() {
 
 ---
 
-## 10. 提案コンポーネントツリー (最終形)
+## 10. コンポーネントツリー全体像
 
 ```
 App
- ├─ hooks: useInitialize()  ← 初期化ロジックを1つのフックに集約
+ ├─ hooks: useInitialize()
  │
- └─ TerminalManagerProvider  ← Terminal インスタンスのライフサイクル管理
+ └─ TerminalManagerProvider
       └─ WorkerPoolContextProvider
            └─ ErrorBoundary
                 └─ div.app
@@ -1244,9 +951,9 @@ App
                                │                           │    └─ ThreadCard × N
                                │                           │         ├─ RootComment
                                │                           │         ├─ ReplyComment × M
-                               │                           │         └─ ThreadFooter (reply input + [Reply] + [Resolve])
-                               │                           ├─ ResolvedSection (collapsible, <details>)
-                               │                           │    └─ ResolvedThreadCard × N (compact, [↩] unresolve)
+                               │                           │         └─ ThreadFooter
+                               │                           ├─ ResolvedSection (<details>)
+                               │                           │    └─ ResolvedThreadCard × N
                                │                           └─ VerdictBar
                                │
                                └─ [viewer] ViewerLayout (ResizablePane)
@@ -1257,100 +964,81 @@ App
 
 ---
 
-## 11. 再描画フロー比較
+## 11. 再描画フロー
 
-### コメント追加時 (新規スレッド作成)
+### スレッド作成時
 
 ```
-現状:
-  addComment()
-  → reviewStore.comments 配列が新しい参照に
-  → FileSidebar 再描画 (badge計算)
-  → DiffViewer × 50 全て再描画 (fileComments フィルタ再実行)
-  → ReviewPanel 再描画
-  合計: 52 コンポーネント再描画
-
-提案:
-  addThread("src/App.tsx", rootComment)
+addThread("src/App.tsx", rootComment)
   → reviewStore.threads.get("src/App.tsx") のみ新しい参照に
-  → DiffFileView("src/App.tsx") のみ再描画 (selector が一致)
-  → ReviewPanel 再描画 (スレッド一覧更新)
-  → Sidebar のバッジは useSyncExternalStore で最小限更新
+  → DiffFileView("src/App.tsx") のみ再描画
+  → ReviewPanel 再描画
+  → Sidebar バッジ最小限更新
   合計: 3 コンポーネント再描画
 ```
 
 ### 返信追加時
 
 ```
-提案:
-  addReply(threadId, replyBody)
+addReply(threadId, replyBody)
   → 該当スレッドの replies のみ更新
   → ThreadCard (該当スレッド1つ) のみ再描画
-  → DiffFileView は再描画されない (スレッド数や root は変わらないため)
+  → DiffFileView は再描画されない
   合計: 1 コンポーネント再描画
 ```
 
 ### スレッド解決時
 
 ```
-提案:
-  resolveThread(threadId)
-  → thread.resolved = true (ワンクリック, メモ不要)
+resolveThread(threadId)
+  → thread.resolved = true (ワンクリック)
   → ThreadCard が UnresolvedSection → ResolvedSection へ移動
-  → ReviewPanel の unresolvedCount 更新 (Approve ボタンの活性化判定)
-  合計: 2 コンポーネント再描画 (ThreadCard + VerdictBar)
+  → VerdictBar の unresolvedCount 更新
+  合計: 2 コンポーネント再描画
 ```
 
 ### モード切替時
 
 ```
-現状:
-  setDisplayMode("split")
-  → MainContent 全体が再描画
-  → split-right 内の MarkdownViewer, ReviewPanel が display変更
-  → Terminal useEffect で DOM reparenting
-
-提案:
-  setDisplayMode("split")
+setDisplayMode("split")
   → LayoutSwitch が DiffLayout をアンマウント、SplitLayout をマウント
-  → DiffPane は既にマウント済み (共有コンポーネント、state 維持)
   → RightTabbedPane 初回マウント (Suspense で lazy load)
-  → Terminal は TerminalManagerProvider が状態保持、TerminalPane 初回マウント時に再アタッチ
+  → Terminal は TerminalManagerProvider が状態保持、再アタッチ
 ```
 
 ---
 
 ## 12. マイグレーション戦略
 
-段階的に移行する場合の優先順位:
+段階的に移行する。各 Phase は独立してリリース可能。
 
 ```
-Phase 1 (即効性が高い、既存構造で実施可能)
+Phase 1 — レビュー体験改善 (既存構造で実施可能)
   ├─ reviewStore をスレッドモデルに変更 (Map<string, Thread[]>)
   ├─ DiffViewer にファイル単位の selector を適用
   ├─ ResolveMemoForm 廃止 → ThreadFooter (reply + resolve) に置換
   ├─ 返信機能の追加 (フラット, 孫なし)
   └─ 右ペインタブを sticky に修正
 
-Phase 2 (Store 分離)
+Phase 2 — Store 分離
   ├─ diffStore → diffStore + docStore + editorStore に分割
-  ├─ LeftPaneMode → RightPaneMode に改名
-  └─ 検索状態を editorStore に移動 (ファイル切替で消えない)
+  ├─ LeftPaneMode → rightPaneMode に改名
+  └─ 検索状態を editorStore に移動
 
-Phase 3 (レイアウト再設計)
+Phase 3 — レイアウト再設計
   ├─ MainContent → LayoutSwitch + 3つのレイアウトコンポーネント
   ├─ Terminal を React.lazy + TerminalManager に移行
   └─ split-right の常時マウントを排除
 
-Phase 4 (CSS + アクセシビリティ)
+Phase 4 — CSS + アクセシビリティ
   ├─ CSS Modules 移行
-  ├─ rem ベースのフォントサイズ
-  ├─ ARIA属性の追加
+  ├─ rem ベースのデザイントークン適用
+  ├─ ARIA 属性の追加
   ├─ キーボードナビゲーション実装
   └─ リサイズハンドルのヒットエリア拡大
 
-Phase 5 (仮想化 + パフォーマンス)
+Phase 5 — 仮想化 + パフォーマンス
   ├─ サイドバーの仮想化 (react-window)
   ├─ サイドバー検索/フィルタ
-  └─ DiffList の仮想化 (大規模changeset対応)
+  └─ DiffList の仮想化 (大規模 changeset 対応)
 ```
