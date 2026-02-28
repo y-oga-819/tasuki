@@ -91,8 +91,8 @@
                                      │  mdViewMode      │
                                      └──────────────────┘
                                      ┌──────────────────┐
-                                     │ reviewStore      │  ほぼ現状維持
-                                     │  comments        │  ← Map<fileId, Comment[]> に変更
+                                     │ reviewStore      │  スレッドモデルに変更
+                                     │  threads         │  ← Map<fileId, Thread[]>
                                      │  docComments     │
                                      │  verdict         │
                                      │  gateStatus      │
@@ -106,23 +106,54 @@
                                      └──────────────────┘
 ```
 
-### コメントの正規化 (C1 解決)
+### コメントのスレッドモデル + ファイル正規化 (C1, C2 解決)
 
 ```typescript
+// ── データ型 ──
+
+// 親コメント・返信コメントの共通型
+interface ReviewComment {
+  id: string;
+  file_path: string;
+  line_start: number;
+  line_end: number;
+  code_snippet: string;
+  body: string;
+  type: "comment" | "suggestion" | "question" | "approval";
+  created_at: number;
+  author: "human" | "claude";
+}
+
+// スレッド = 親コメント + 返信 + 解決状態
+interface ReviewThread {
+  root: ReviewComment;           // 親コメント (1つ)
+  replies: ReviewComment[];      // 返信 (0〜N件, フラット, 孫なし)
+  resolved: boolean;             // 解決済みか (スレッド単位)
+  resolved_at: number | null;
+}
+
+// ── Store ──
+
 // 現状: 全コメントを1つの配列で管理
 comments: ReviewComment[]
 
-// 提案: ファイルパスでインデックス化した Map
-comments: Map<string, ReviewComment[]>
-// ├─ "src/App.tsx" → [comment1, comment2]
-// └─ "src/store/diffStore.ts" → [comment3]
+// 提案: ファイルパスでインデックス化した Map<string, ReviewThread[]>
+threads: Map<string, ReviewThread[]>
+// ├─ "src/App.tsx" → [thread1, thread2]
+// └─ "src/store/diffStore.ts" → [thread3]
 
-// DiffViewer は自分のファイルのコメントだけを購読:
-const fileComments = useReviewStore(
-  (s) => s.comments.get(filePath) ?? EMPTY_ARRAY
+// DiffViewer は自分のファイルのスレッドだけを購読:
+const fileThreads = useReviewStore(
+  (s) => s.threads.get(filePath) ?? EMPTY_ARRAY
 );
 // → 他ファイルのコメント変更で再描画されない
 ```
+
+**変更のポイント**:
+- `parent_id` フィールドを廃止し、`ReviewThread` が構造的に親子関係を表現
+- `resolution_memo` を廃止 (返信で代替)
+- `resolved` は `ReviewThread` の属性 (個々のコメントではない)
+- 孫コメント不可は型レベルで保証 (`replies` が `ReviewComment[]` であり、`ReviewThread[]` ではない)
 
 ### 行選択の統合 (editorStore)
 
@@ -366,64 +397,217 @@ const flatNodes = useMemo(() => flattenTree(fileTree, collapsedDirs), [fileTree,
 
 ---
 
-## 5. ReviewPanel 再設計 (C2 解決)
+## 5. ReviewPanel 再設計 — GitHub スレッドモデル (C2 解決)
 
 ### 現状の問題
 
 ```
-全コメントに ResolveMemoForm が同時表示される
-→ 10件のコメントがあると10個のフォームが並ぶ
+1. ResolveMemoForm が全未解決コメントに同時表示 → 10件で10個のフォームが並ぶ
+2. ✓ (解決) と ✕ (削除) の用途がアイコンだけでは不明
+3. 解決メモは冗長 — 解決するならそれでライフサイクル終了
+4. 「すぐ解決できない」ケースの体験が未整理
+   — 追加の修正依頼や議論の返信ができない
 ```
 
-### 提案: Progressive Disclosure
+### 参考モデル: GitHub Review Thread
+
+GitHub のレビュー機能がこのユースケースに最も近い:
+- 各コメントは「スレッド」の起点になる
+- スレッド内に返信 (フラット, 孫なし) を追加できる
+- 「Resolve conversation」はスレッド単位で、ワンクリック
+- 解決メモという概念は不要 (返信が文脈を担う)
+
+### 提案: スレッドベース ReviewPanel
 
 ```
-┌─ ReviewPanel ────────────────────────────────┐
-│ Review Comments (5)          [Copy All]       │
-├──────────────────────────────────────────────┤
-│                                              │
-│ src/App.tsx:L42                         ✓ ✕  │  ← ✓ クリックで解決フォーム開く
-│ > const result = await fetch(url);           │
-│ エラーハンドリングが不足しています             │
-│                                              │
-│ src/App.tsx:L55-L60                    ✓ ✕  │
-│ > function processData(input: any) {         │
-│ any型を避けてください                        │
-│ ┌─ 解決メモ ──────────────────────────┐      │  ← ✓ クリック後のみ表示
-│ │ 型を追加しました                     │      │
-│ │                    [確定] [取消]     │      │
-│ └─────────────────────────────────────┘      │
-│                                              │
-│ ──── 解決済み (3) ────────────────────────── │  ← 折りたたみ可能セクション
-│ ✓ src/store/index.ts:L12          ↩ ✕       │
-│   型エクスポートを修正                        │
-│                                              │
-├──────────────────────────────────────────────┤
-│ 未解決: 2件                                   │
-│                        [Approve] [Reject]    │
-└──────────────────────────────────────────────┘
+┌─ ReviewPanel ─────────────────────────────────────┐
+│ Review Comments (3 threads)        [Copy All]      │
+├───────────────────────────────────────────────────┤
+│                                                    │
+│ ┌─ Thread ──────────────────────────────────────┐ │
+│ │ src/App.tsx:L42                           📋  │ │
+│ │ > const result = await fetch(url);            │ │
+│ │ エラーハンドリングが不足しています              │ │
+│ │                                               │ │
+│ │   ↳ try-catch を追加しました — author          │ │  ← 返信 (子コメント)
+│ │   ↳ catch 内で再throwした方が良いです — human  │ │  ← 返信 (子コメント)
+│ │                                               │ │
+│ │ ┌────────────────────────────────────────┐    │ │
+│ │ │ Write a reply...                       │    │ │  ← 返信入力欄
+│ │ └────────────────────────────────────────┘    │ │
+│ │                        [Reply]  [Resolve]     │ │  ← 常に表示
+│ └───────────────────────────────────────────────┘ │
+│                                                    │
+│ ┌─ Thread ──────────────────────────────────────┐ │
+│ │ src/App.tsx:L55-L60                      📋  │ │
+│ │ > function processData(input: any) {          │ │
+│ │ any型を避けてください                         │ │
+│ │                                               │ │
+│ │ ┌────────────────────────────────────────┐    │ │
+│ │ │ Write a reply...                       │    │ │
+│ │ └────────────────────────────────────────┘    │ │
+│ │                        [Reply]  [Resolve]     │ │
+│ └───────────────────────────────────────────────┘ │
+│                                                    │
+│ ──── Resolved (1) ──────────────────────────────── │  ← 折りたたみ可能
+│ ┌─ Thread (resolved) ──────────────────────────┐  │
+│ │ ✓ src/store/index.ts:L12                 ↩   │  │  ← ↩ で解決取消
+│ │   型エクスポートを修正                        │  │
+│ └───────────────────────────────────────────────┘ │
+│                                                    │
+├───────────────────────────────────────────────────┤
+│ Unresolved: 2 threads                              │
+│                            [Approve]  [Reject]     │
+└───────────────────────────────────────────────────┘
 ```
 
-**変更点**:
+### 設計詳細
 
-1. **解決フォームはクリック時のみ展開** (1件ずつ、排他的)
-2. **解決済みコメントは折りたたみセクション**に分離 (デフォルト折りたたみ)
-3. **未解決→解決済みの移動時にアニメーション**で文脈を維持
+**a. 各スレッドのアクション**
+
+| 操作 | UI | 条件 |
+|------|-----|------|
+| 返信 | テキスト入力 + [Reply] ボタン | 未解決スレッドのみ |
+| 解決 | [Resolve] ボタン (ワンクリック) | 未解決スレッドのみ |
+| テキスト入力 + 解決 | テキスト入力 + [Resolve] | 返信追加 & 即座に解決 |
+| 解決取消 | [↩] ボタン | 解決済みスレッドのみ |
+| コピー | [📋] ボタン | 常時 |
+| 削除 | スレッドメニュー or スワイプ | 常時 (確認ダイアログ付き) |
+
+**旧 ✓ (解決) と ✕ (削除) を廃止** — アイコンだけでは用途不明だった。
+代わりに:
+- 解決は明示的な `[Resolve]` ラベル付きボタン
+- 削除はスレッドメニュー (…) 内に移動 (誤操作防止)
+
+**b. [Reply] と [Resolve] の振る舞い**
 
 ```tsx
-const [resolvingId, setResolvingId] = useState<string | null>(null);
+function ThreadFooter({ threadId }: { threadId: string }) {
+  const [replyText, setReplyText] = useState("");
+  const addReply = useReviewStore((s) => s.addReply);
+  const resolveThread = useReviewStore((s) => s.resolveThread);
 
-// ✓ ボタンクリック → フォーム表示
-<button onClick={() => setResolvingId(c.id)}>✓</button>
+  const handleReply = () => {
+    if (!replyText.trim()) return;
+    addReply(threadId, replyText.trim());
+    setReplyText("");
+  };
 
-// フォームは resolvingId が一致する1件だけ
-{resolvingId === c.id && (
-  <ResolveMemoForm
-    onConfirm={(memo) => { resolveComment(c.id, memo); setResolvingId(null); }}
-    onCancel={() => setResolvingId(null)}
-  />
+  const handleResolve = () => {
+    // テキストがあれば返信追加してから解決
+    if (replyText.trim()) {
+      addReply(threadId, replyText.trim());
+    }
+    resolveThread(threadId);
+    setReplyText("");
+  };
+
+  return (
+    <div className={styles.threadFooter}>
+      <textarea
+        className={styles.replyInput}
+        placeholder="Write a reply..."
+        value={replyText}
+        onChange={(e) => setReplyText(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handleReply();
+        }}
+        rows={1}  // 自動拡張 (入力量に応じて高さ増加)
+      />
+      <div className={styles.threadActions}>
+        <button
+          onClick={handleReply}
+          disabled={!replyText.trim()}
+        >
+          Reply
+        </button>
+        <button
+          onClick={handleResolve}
+          className={styles.resolveBtn}
+        >
+          Resolve
+        </button>
+      </div>
+    </div>
+  );
+}
+```
+
+**c. Store アクション**
+
+```typescript
+// reviewStore に追加するアクション
+
+// 返信を追加 (スレッドの replies に push)
+addReply: (threadId: string, body: string) => {
+  // threads Map 内の該当 thread を見つけて replies に追加
+  // parent_id 概念は不要 — Thread 構造が親子を保証
+};
+
+// スレッドを解決 (ワンクリック, メモ不要)
+resolveThread: (threadId: string) => {
+  // thread.resolved = true, thread.resolved_at = Date.now()
+};
+
+// スレッドの解決を取消
+unresolveThread: (threadId: string) => {
+  // thread.resolved = false, thread.resolved_at = null
+};
+
+// スレッドを削除 (確認ダイアログ経由)
+removeThread: (threadId: string) => {
+  // threads Map から該当 thread を除去
+};
+```
+
+**d. 解決済みセクション**
+
+```tsx
+// デフォルト折りたたみ — 解決済みは「終わった話」
+const [showResolved, setShowResolved] = useState(false);
+
+{resolvedThreads.length > 0 && (
+  <details open={showResolved} onToggle={(e) => setShowResolved(e.currentTarget.open)}>
+    <summary className={styles.resolvedHeader}>
+      Resolved ({resolvedThreads.length})
+    </summary>
+    {resolvedThreads.map((t) => (
+      <ResolvedThreadCard
+        key={t.root.id}
+        thread={t}
+        onUnresolve={() => unresolveThread(t.root.id)}
+      />
+    ))}
+  </details>
 )}
 ```
+
+**e. スレッド構造の制約 (孫コメント不可)**
+
+型レベルで保証:
+```typescript
+interface ReviewThread {
+  root: ReviewComment;         // 親: 1つ
+  replies: ReviewComment[];    // 子: 0〜N (フラット)
+  // ↑ ReviewThread[] ではなく ReviewComment[]
+  // → 返信に対する返信 (孫) は構造的に不可能
+  resolved: boolean;
+  resolved_at: number | null;
+}
+```
+
+UI レベルでも制約:
+- 返信入力欄はスレッド末尾に1つだけ
+- 個別の返信に「返信」ボタンは付かない
+
+### ResolveMemoForm 廃止の根拠
+
+| 旧フロー | 新フロー |
+|----------|---------|
+| ✓ クリック → メモ入力欄展開 → メモ記入 → 確定 (3ステップ) | [Resolve] クリック (1ステップ) |
+| 解決の文脈はメモに書く | 解決の文脈は返信として残る (スレッド履歴) |
+| メモは任意だが毎回フォームが出る | 返信は必要な時だけ書く |
+| 全コメントにフォームが並ぶ (C2) | フォームは返信用のみ、コンパクト |
 
 ---
 
@@ -716,8 +900,12 @@ App
                                │                      ├─ TerminalPane (lazy)
                                │                      └─ ReviewPanel (lazy)
                                │                           ├─ UnresolvedSection
-                               │                           │    └─ CommentCard × N
-                               │                           ├─ ResolvedSection (collapsible)
+                               │                           │    └─ ThreadCard × N
+                               │                           │         ├─ RootComment
+                               │                           │         ├─ ReplyComment × M
+                               │                           │         └─ ThreadFooter (reply input + [Reply] + [Resolve])
+                               │                           ├─ ResolvedSection (collapsible, <details>)
+                               │                           │    └─ ResolvedThreadCard × N (compact, [↩] unresolve)
                                │                           └─ VerdictBar
                                │
                                └─ [viewer] ViewerLayout (ResizablePane)
@@ -730,7 +918,7 @@ App
 
 ## 11. 再描画フロー比較
 
-### コメント追加時
+### コメント追加時 (新規スレッド作成)
 
 ```
 現状:
@@ -742,12 +930,34 @@ App
   合計: 52 コンポーネント再描画
 
 提案:
-  addComment("src/App.tsx", comment)
-  → reviewStore.comments.get("src/App.tsx") のみ新しい参照に
+  addThread("src/App.tsx", rootComment)
+  → reviewStore.threads.get("src/App.tsx") のみ新しい参照に
   → DiffFileView("src/App.tsx") のみ再描画 (selector が一致)
-  → ReviewPanel 再描画 (コメント一覧更新)
+  → ReviewPanel 再描画 (スレッド一覧更新)
   → Sidebar のバッジは useSyncExternalStore で最小限更新
   合計: 3 コンポーネント再描画
+```
+
+### 返信追加時
+
+```
+提案:
+  addReply(threadId, replyBody)
+  → 該当スレッドの replies のみ更新
+  → ThreadCard (該当スレッド1つ) のみ再描画
+  → DiffFileView は再描画されない (スレッド数や root は変わらないため)
+  合計: 1 コンポーネント再描画
+```
+
+### スレッド解決時
+
+```
+提案:
+  resolveThread(threadId)
+  → thread.resolved = true (ワンクリック, メモ不要)
+  → ThreadCard が UnresolvedSection → ResolvedSection へ移動
+  → ReviewPanel の unresolvedCount 更新 (Approve ボタンの活性化判定)
+  合計: 2 コンポーネント再描画 (ThreadCard + VerdictBar)
 ```
 
 ### モード切替時
@@ -775,9 +985,10 @@ App
 
 ```
 Phase 1 (即効性が高い、既存構造で実施可能)
-  ├─ reviewStore のコメントを Map<string, Comment[]> に変更
+  ├─ reviewStore をスレッドモデルに変更 (Map<string, Thread[]>)
   ├─ DiffViewer にファイル単位の selector を適用
-  ├─ ResolveMemoForm を1件ずつ表示に変更
+  ├─ ResolveMemoForm 廃止 → ThreadFooter (reply + resolve) に置換
+  ├─ 返信機能の追加 (フラット, 孫なし)
   └─ 右ペインタブを sticky に修正
 
 Phase 2 (Store 分離)
