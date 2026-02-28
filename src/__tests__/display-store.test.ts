@@ -4,7 +4,7 @@ import { useDisplayStore } from "../store/displayStore";
 beforeEach(() => {
   useDisplayStore.setState({
     displayMode: "split",
-    leftPaneMode: "docs",
+    rightPaneMode: "docs",
     diffLayout: "split",
     diffOverflow: "scroll",
     expandUnchanged: false,
@@ -17,7 +17,7 @@ describe("useDisplayStore", () => {
   it("has correct initial state", () => {
     const s = useDisplayStore.getState();
     expect(s.displayMode).toBe("split");
-    expect(s.leftPaneMode).toBe("docs");
+    expect(s.rightPaneMode).toBe("docs");
     expect(s.diffLayout).toBe("split");
     expect(s.diffOverflow).toBe("scroll");
     expect(s.expandUnchanged).toBe(false);
@@ -35,13 +35,13 @@ describe("useDisplayStore", () => {
     expect(useDisplayStore.getState().displayMode).toBe("viewer");
   });
 
-  it("setLeftPaneMode switches right pane content", () => {
-    useDisplayStore.getState().setLeftPaneMode("terminal");
-    expect(useDisplayStore.getState().leftPaneMode).toBe("terminal");
-    useDisplayStore.getState().setLeftPaneMode("review");
-    expect(useDisplayStore.getState().leftPaneMode).toBe("review");
-    useDisplayStore.getState().setLeftPaneMode("docs");
-    expect(useDisplayStore.getState().leftPaneMode).toBe("docs");
+  it("setRightPaneMode switches right pane content", () => {
+    useDisplayStore.getState().setRightPaneMode("terminal");
+    expect(useDisplayStore.getState().rightPaneMode).toBe("terminal");
+    useDisplayStore.getState().setRightPaneMode("review");
+    expect(useDisplayStore.getState().rightPaneMode).toBe("review");
+    useDisplayStore.getState().setRightPaneMode("docs");
+    expect(useDisplayStore.getState().rightPaneMode).toBe("docs");
   });
 
   it("setDiffLayout toggles between split and unified", () => {

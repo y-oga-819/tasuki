@@ -96,7 +96,7 @@ const DiffContentWithSearch: React.FC = () => {
 const DEFAULT_SPLIT_RATIO = 0.65;
 
 export const MainContent: React.FC = () => {
-  const { displayMode, leftPaneMode, setLeftPaneMode } = useDisplayStore();
+  const { displayMode, rightPaneMode, setRightPaneMode } = useDisplayStore();
   const { isLoading, error } = useDiffStore();
 
   // Left-right split resize
@@ -138,7 +138,7 @@ export const MainContent: React.FC = () => {
 
   const isSplit = displayMode === "split";
   const isViewer = displayMode === "viewer";
-  const terminalVisible = isViewer || (isSplit && leftPaneMode === "terminal");
+  const terminalVisible = isViewer || (isSplit && rightPaneMode === "terminal");
 
   // DOM reparenting: move terminal container to the appropriate slot
   useEffect(() => {
@@ -148,7 +148,7 @@ export const MainContent: React.FC = () => {
     let target: HTMLElement | null;
     if (isViewer) {
       target = viewerTermSlotRef.current;
-    } else if (isSplit && leftPaneMode === "terminal") {
+    } else if (isSplit && rightPaneMode === "terminal") {
       target = splitTermSlotRef.current;
     } else {
       target = parkingRef.current;
@@ -157,7 +157,7 @@ export const MainContent: React.FC = () => {
     if (target && el.parentElement !== target) {
       target.appendChild(el);
     }
-  }, [isViewer, isSplit, leftPaneMode]);
+  }, [isViewer, isSplit, rightPaneMode]);
 
   // Clamp ratio to respect MAX_RIGHT_WIDTH on mount and window resize
   useEffect(() => {
@@ -237,20 +237,20 @@ export const MainContent: React.FC = () => {
           >
             <div className="right-pane-tabs">
               <button
-                className={`right-pane-tab ${leftPaneMode === "docs" ? "active" : ""}`}
-                onClick={() => setLeftPaneMode("docs")}
+                className={`right-pane-tab ${rightPaneMode === "docs" ? "active" : ""}`}
+                onClick={() => setRightPaneMode("docs")}
               >
                 Docs
               </button>
               <button
-                className={`right-pane-tab ${leftPaneMode === "terminal" ? "active" : ""}`}
-                onClick={() => setLeftPaneMode("terminal")}
+                className={`right-pane-tab ${rightPaneMode === "terminal" ? "active" : ""}`}
+                onClick={() => setRightPaneMode("terminal")}
               >
                 Terminal
               </button>
               <button
-                className={`right-pane-tab ${leftPaneMode === "review" ? "active" : ""}`}
-                onClick={() => setLeftPaneMode("review")}
+                className={`right-pane-tab ${rightPaneMode === "review" ? "active" : ""}`}
+                onClick={() => setRightPaneMode("review")}
               >
                 Review
               </button>
@@ -258,20 +258,20 @@ export const MainContent: React.FC = () => {
             <div className="right-pane-body">
               <div
                 className="right-pane-content"
-                style={leftPaneMode === "docs" ? undefined : { display: "none" }}
+                style={rightPaneMode === "docs" ? undefined : { display: "none" }}
               >
                 <MarkdownViewer />
               </div>
               <div
                 className="right-pane-content"
-                style={leftPaneMode === "terminal" ? undefined : { display: "none" }}
+                style={rightPaneMode === "terminal" ? undefined : { display: "none" }}
                 ref={splitTermSlotRef}
               >
                 {/* Terminal moved here via DOM reparenting */}
               </div>
               <div
                 className="right-pane-content"
-                style={leftPaneMode === "review" ? undefined : { display: "none" }}
+                style={rightPaneMode === "review" ? undefined : { display: "none" }}
               >
                 <ReviewPanel />
               </div>

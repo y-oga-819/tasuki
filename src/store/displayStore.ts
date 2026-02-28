@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { DisplayMode, LeftPaneMode, DiffLayout } from "../types";
+import type { DisplayMode, RightPaneMode, DiffLayout } from "../types";
 
 /** Overflow mode for diff lines (Pierre-native) */
 export type DiffOverflow = "scroll" | "wrap";
@@ -7,8 +7,8 @@ export type DiffOverflow = "scroll" | "wrap";
 interface DisplayState {
   displayMode: DisplayMode;
   setDisplayMode: (mode: DisplayMode) => void;
-  leftPaneMode: LeftPaneMode;
-  setLeftPaneMode: (mode: LeftPaneMode) => void;
+  rightPaneMode: RightPaneMode;
+  setRightPaneMode: (mode: RightPaneMode) => void;
   diffLayout: DiffLayout;
   setDiffLayout: (layout: DiffLayout) => void;
   diffOverflow: DiffOverflow;
@@ -24,8 +24,8 @@ interface DisplayState {
 export const useDisplayStore = create<DisplayState>((set) => ({
   displayMode: "split",
   setDisplayMode: (mode) => set({ displayMode: mode }),
-  leftPaneMode: "docs",
-  setLeftPaneMode: (mode) => set({ leftPaneMode: mode }),
+  rightPaneMode: "docs",
+  setRightPaneMode: (mode) => set({ rightPaneMode: mode }),
   diffLayout: "split",
   setDiffLayout: (layout) => set({ diffLayout: layout }),
   diffOverflow: "scroll",
