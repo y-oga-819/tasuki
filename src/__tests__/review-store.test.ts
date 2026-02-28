@@ -12,11 +12,7 @@ function makeComment(overrides: Partial<ReviewComment> = {}): ReviewComment {
     body: "Fix this.",
     type: "comment",
     created_at: 1700000000,
-    parent_id: null,
     author: "human",
-    resolved: false,
-    resolved_at: null,
-    resolution_memo: null,
     ...overrides,
   };
 }
@@ -32,67 +28,125 @@ function makeDocComment(overrides: Partial<DocComment> = {}): DocComment {
     author: "human",
     resolved: false,
     resolved_at: null,
-    resolution_memo: null,
     ...overrides,
   };
 }
 
 beforeEach(() => {
   useReviewStore.setState({
-    comments: [],
+    threads: new Map(),
     docComments: [],
     verdict: null,
     gateStatus: "none",
   });
 });
 
-describe("useReviewStore - comments", () => {
-  it("addComment appends a comment", () => {
-    const comment = makeComment();
-    useReviewStore.getState().addComment(comment);
-    expect(useReviewStore.getState().comments).toHaveLength(1);
-    expect(useReviewStore.getState().comments[0].id).toBe("c1");
+describe("useReviewStore - threads", () => {
+  it("addThread creates a thread for the file", () => {
+    const root = makeComment();
+    useReviewStore.getState().addThread("src/App.tsx", root);
+    const threads = useReviewStore.getState().getFileThreads("src/App.tsx");
+    expect(threads).toHaveLength(1);
+    expect(threads[0].root.id).toBe("c1");
+    expect(threads[0].replies).toHaveLength(0);
+    expect(threads[0].resolved).toBe(false);
   });
 
-  it("removeComment removes a comment by id", () => {
-    useReviewStore.getState().addComment(makeComment({ id: "c1" }));
-    useReviewStore.getState().addComment(makeComment({ id: "c2" }));
-    useReviewStore.getState().removeComment("c1");
-    expect(useReviewStore.getState().comments).toHaveLength(1);
-    expect(useReviewStore.getState().comments[0].id).toBe("c2");
+  it("addThread groups threads by file path", () => {
+    useReviewStore.getState().addThread("src/App.tsx", makeComment({ id: "c1" }));
+    useReviewStore.getState().addThread("src/utils.ts", makeComment({ id: "c2", file_path: "src/utils.ts" }));
+    useReviewStore.getState().addThread("src/App.tsx", makeComment({ id: "c3" }));
+
+    expect(useReviewStore.getState().getFileThreads("src/App.tsx")).toHaveLength(2);
+    expect(useReviewStore.getState().getFileThreads("src/utils.ts")).toHaveLength(1);
   });
 
-  it("updateComment updates the body", () => {
-    useReviewStore.getState().addComment(makeComment({ id: "c1" }));
-    useReviewStore.getState().updateComment("c1", "Updated body");
-    expect(useReviewStore.getState().comments[0].body).toBe("Updated body");
+  it("getFileThreads returns empty array for unknown file", () => {
+    const threads = useReviewStore.getState().getFileThreads("nonexistent.ts");
+    expect(threads).toHaveLength(0);
   });
 
-  it("resolveComment sets resolved=true, resolved_at, and resolution_memo", () => {
-    useReviewStore.getState().addComment(makeComment({ id: "c1" }));
-    useReviewStore.getState().resolveComment("c1", "Fixed in latest commit");
-
-    const resolved = useReviewStore.getState().comments[0];
-    expect(resolved.resolved).toBe(true);
-    expect(resolved.resolved_at).toBeTypeOf("number");
-    expect(resolved.resolution_memo).toBe("Fixed in latest commit");
+  it("getAllThreads returns flat list of all threads", () => {
+    useReviewStore.getState().addThread("src/App.tsx", makeComment({ id: "c1" }));
+    useReviewStore.getState().addThread("src/utils.ts", makeComment({ id: "c2", file_path: "src/utils.ts" }));
+    const all = useReviewStore.getState().getAllThreads();
+    expect(all).toHaveLength(2);
   });
 
-  it("unresolveComment resets resolved to false", () => {
-    useReviewStore.getState().addComment(makeComment({ id: "c1" }));
-    useReviewStore.getState().resolveComment("c1", "Done");
-    useReviewStore.getState().unresolveComment("c1");
-
-    const comment = useReviewStore.getState().comments[0];
-    expect(comment.resolved).toBe(false);
-    expect(comment.resolved_at).toBeNull();
-    expect(comment.resolution_memo).toBeNull();
+  it("removeThread removes a thread by root id", () => {
+    useReviewStore.getState().addThread("src/App.tsx", makeComment({ id: "c1" }));
+    useReviewStore.getState().addThread("src/App.tsx", makeComment({ id: "c2" }));
+    useReviewStore.getState().removeThread("c1");
+    expect(useReviewStore.getState().getFileThreads("src/App.tsx")).toHaveLength(1);
+    expect(useReviewStore.getState().getFileThreads("src/App.tsx")[0].root.id).toBe("c2");
   });
 
-  it("setComments replaces the entire comments array", () => {
-    const comments = [makeComment({ id: "c1" }), makeComment({ id: "c2" })];
-    useReviewStore.getState().setComments(comments);
-    expect(useReviewStore.getState().comments).toHaveLength(2);
+  it("removeThread removes file key when last thread is removed", () => {
+    useReviewStore.getState().addThread("src/App.tsx", makeComment({ id: "c1" }));
+    useReviewStore.getState().removeThread("c1");
+    expect(useReviewStore.getState().threads.has("src/App.tsx")).toBe(false);
+  });
+
+  it("removeThread with non-existent id is a no-op", () => {
+    useReviewStore.getState().addThread("src/App.tsx", makeComment({ id: "c1" }));
+    useReviewStore.getState().removeThread("nonexistent");
+    expect(useReviewStore.getState().getFileThreads("src/App.tsx")).toHaveLength(1);
+  });
+
+  it("resolveThread sets resolved=true and resolved_at", () => {
+    useReviewStore.getState().addThread("src/App.tsx", makeComment({ id: "c1" }));
+    useReviewStore.getState().resolveThread("c1");
+
+    const thread = useReviewStore.getState().getFileThreads("src/App.tsx")[0];
+    expect(thread.resolved).toBe(true);
+    expect(thread.resolved_at).toBeTypeOf("number");
+  });
+
+  it("unresolveThread resets resolved to false", () => {
+    useReviewStore.getState().addThread("src/App.tsx", makeComment({ id: "c1" }));
+    useReviewStore.getState().resolveThread("c1");
+    useReviewStore.getState().unresolveThread("c1");
+
+    const thread = useReviewStore.getState().getFileThreads("src/App.tsx")[0];
+    expect(thread.resolved).toBe(false);
+    expect(thread.resolved_at).toBeNull();
+  });
+
+  it("addReply appends a reply to the thread", () => {
+    useReviewStore.getState().addThread("src/App.tsx", makeComment({ id: "c1" }));
+    useReviewStore.getState().addReply("c1", "Fixed it.");
+
+    const thread = useReviewStore.getState().getFileThreads("src/App.tsx")[0];
+    expect(thread.replies).toHaveLength(1);
+    expect(thread.replies[0].body).toBe("Fixed it.");
+    expect(thread.replies[0].author).toBe("human");
+  });
+
+  it("addReply with author parameter", () => {
+    useReviewStore.getState().addThread("src/App.tsx", makeComment({ id: "c1" }));
+    useReviewStore.getState().addReply("c1", "Auto-fixed.", "claude");
+
+    const reply = useReviewStore.getState().getFileThreads("src/App.tsx")[0].replies[0];
+    expect(reply.author).toBe("claude");
+  });
+
+  it("addReply to non-existent thread is a no-op", () => {
+    useReviewStore.getState().addThread("src/App.tsx", makeComment({ id: "c1" }));
+    useReviewStore.getState().addReply("nonexistent", "Hello");
+    const thread = useReviewStore.getState().getFileThreads("src/App.tsx")[0];
+    expect(thread.replies).toHaveLength(0);
+  });
+
+  it("setThreads replaces all threads from a flat array", () => {
+    const threads = [
+      { root: makeComment({ id: "c1" }), replies: [], resolved: false, resolved_at: null },
+      { root: makeComment({ id: "c2", file_path: "src/utils.ts" }), replies: [], resolved: true, resolved_at: 123 },
+    ];
+    useReviewStore.getState().setThreads(threads);
+
+    expect(useReviewStore.getState().getFileThreads("src/App.tsx")).toHaveLength(1);
+    expect(useReviewStore.getState().getFileThreads("src/utils.ts")).toHaveLength(1);
+    expect(useReviewStore.getState().getFileThreads("src/utils.ts")[0].resolved).toBe(true);
   });
 });
 
@@ -111,119 +165,29 @@ describe("useReviewStore - docComments", () => {
     expect(useReviewStore.getState().docComments[0].id).toBe("d2");
   });
 
-  it("resolveDocComment sets resolved=true, resolved_at, and resolution_memo", () => {
+  it("resolveDocComment sets resolved=true and resolved_at", () => {
     useReviewStore.getState().addDocComment(makeDocComment({ id: "d1" }));
-    useReviewStore.getState().resolveDocComment("d1", "Updated section");
+    useReviewStore.getState().resolveDocComment("d1");
 
     const resolved = useReviewStore.getState().docComments[0];
     expect(resolved.resolved).toBe(true);
     expect(resolved.resolved_at).toBeTypeOf("number");
-    expect(resolved.resolution_memo).toBe("Updated section");
   });
 
   it("unresolveDocComment resets resolved to false", () => {
     useReviewStore.getState().addDocComment(makeDocComment({ id: "d1" }));
-    useReviewStore.getState().resolveDocComment("d1", "Done");
+    useReviewStore.getState().resolveDocComment("d1");
     useReviewStore.getState().unresolveDocComment("d1");
 
     const comment = useReviewStore.getState().docComments[0];
     expect(comment.resolved).toBe(false);
     expect(comment.resolved_at).toBeNull();
-    expect(comment.resolution_memo).toBeNull();
   });
 
   it("setDocComments replaces the entire doc comments array", () => {
     const docComments = [makeDocComment({ id: "d1" }), makeDocComment({ id: "d2" })];
     useReviewStore.getState().setDocComments(docComments);
     expect(useReviewStore.getState().docComments).toHaveLength(2);
-  });
-});
-
-describe("useReviewStore - edge cases", () => {
-  it("updateComment with non-existent id leaves comments unchanged", () => {
-    useReviewStore.getState().addComment(makeComment({ id: "c1" }));
-    useReviewStore.getState().updateComment("nonexistent", "new body");
-    expect(useReviewStore.getState().comments[0].body).toBe("Fix this.");
-  });
-
-  it("updateComment to empty string is valid", () => {
-    useReviewStore.getState().addComment(makeComment({ id: "c1" }));
-    useReviewStore.getState().updateComment("c1", "");
-    expect(useReviewStore.getState().comments[0].body).toBe("");
-  });
-
-  it("resolveComment with null memo stores null", () => {
-    useReviewStore.getState().addComment(makeComment({ id: "c1" }));
-    useReviewStore.getState().resolveComment("c1", null);
-    const c = useReviewStore.getState().comments[0];
-    expect(c.resolved).toBe(true);
-    expect(c.resolution_memo).toBeNull();
-  });
-
-  it("resolveComment on already-resolved comment updates timestamp and memo", () => {
-    useReviewStore.getState().addComment(makeComment({ id: "c1" }));
-    useReviewStore.getState().resolveComment("c1", "first");
-    const first = useReviewStore.getState().comments[0];
-
-    useReviewStore.getState().resolveComment("c1", "second");
-    const second = useReviewStore.getState().comments[0];
-    expect(second.resolved).toBe(true);
-    expect(second.resolution_memo).toBe("second");
-    expect(second.resolved_at).toBeGreaterThanOrEqual(first.resolved_at!);
-  });
-
-  it("removeComment with non-existent id leaves comments unchanged", () => {
-    useReviewStore.getState().addComment(makeComment({ id: "c1" }));
-    useReviewStore.getState().removeComment("nonexistent");
-    expect(useReviewStore.getState().comments).toHaveLength(1);
-  });
-
-  it("removeComment from empty array produces no error", () => {
-    useReviewStore.getState().removeComment("c1");
-    expect(useReviewStore.getState().comments).toHaveLength(0);
-  });
-
-  it("unresolveComment on non-existent id leaves comments unchanged", () => {
-    useReviewStore.getState().addComment(makeComment({ id: "c1", resolved: true, resolved_at: 1, resolution_memo: "done" }));
-    useReviewStore.getState().unresolveComment("nonexistent");
-    expect(useReviewStore.getState().comments[0].resolved).toBe(true);
-  });
-
-  it("addComment preserves existing comments", () => {
-    useReviewStore.getState().addComment(makeComment({ id: "c1" }));
-    useReviewStore.getState().addComment(makeComment({ id: "c2" }));
-    useReviewStore.getState().addComment(makeComment({ id: "c3" }));
-    expect(useReviewStore.getState().comments).toHaveLength(3);
-    expect(useReviewStore.getState().comments.map((c) => c.id)).toEqual(["c1", "c2", "c3"]);
-  });
-
-  it("setComments replaces entirely, does not merge", () => {
-    useReviewStore.getState().addComment(makeComment({ id: "c1" }));
-    useReviewStore.getState().setComments([makeComment({ id: "c99" })]);
-    expect(useReviewStore.getState().comments).toHaveLength(1);
-    expect(useReviewStore.getState().comments[0].id).toBe("c99");
-  });
-});
-
-describe("useReviewStore - docComment edge cases", () => {
-  it("removeDocComment with non-existent id is a no-op", () => {
-    useReviewStore.getState().addDocComment(makeDocComment({ id: "d1" }));
-    useReviewStore.getState().removeDocComment("nonexistent");
-    expect(useReviewStore.getState().docComments).toHaveLength(1);
-  });
-
-  it("resolveDocComment with null memo", () => {
-    useReviewStore.getState().addDocComment(makeDocComment({ id: "d1" }));
-    useReviewStore.getState().resolveDocComment("d1", null);
-    const d = useReviewStore.getState().docComments[0];
-    expect(d.resolved).toBe(true);
-    expect(d.resolution_memo).toBeNull();
-  });
-
-  it("unresolveDocComment on non-existent id is a no-op", () => {
-    useReviewStore.getState().addDocComment(makeDocComment({ id: "d1", resolved: true, resolved_at: 1, resolution_memo: "x" }));
-    useReviewStore.getState().unresolveDocComment("nonexistent");
-    expect(useReviewStore.getState().docComments[0].resolved).toBe(true);
   });
 });
 
