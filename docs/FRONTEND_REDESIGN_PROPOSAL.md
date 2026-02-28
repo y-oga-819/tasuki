@@ -697,16 +697,53 @@ xs=11  sm=12  base=13  md=14  lg=16    (px)
   △1     △1      △1     △2
 ```
 
-**提案: 4段階、明確なコントラスト**
+**提案: 5トークン (4段階 + prose)**
 
 ```
-sm=12  base=14  lg=16  xl=20    (px)
-  △2      △2     △4
+UIスケール:  sm=12  base=14  lg=16  xl=20    (px)
+               △2      △2     △4
+散文:                         prose=16
 
 sm     = 0.75rem   (12px)  メタデータ, バッジ, タイムスタンプ
-base   = 0.875rem  (14px)  本文, ボタン, 入力フォーム, ツリー
+base   = 0.875rem  (14px)  UI テキスト, diff, コード, ボタン, ツリー
+prose  = 1rem      (16px)  Markdown 本文 (日本語の可読性確保)
 lg     = 1rem      (16px)  セクション見出し, ファイル名ヘッダー
 xl     = 1.25rem   (20px)  ページタイトル (使用頻度: 低)
+```
+
+`prose` と `lg` は同じ 1rem (16px) だが意味が異なる:
+- `prose` = 散文本文の標準サイズ (MarkdownViewer の本文)
+- `lg` = UI 要素の見出しサイズ (ツールバー, サイドバーヘッダー)
+同じ値でもセマンティックトークンを分けることで、将来一方だけ変更する自由度を残す。
+
+**コード vs 散文で文字サイズを分ける根拠**:
+
+日本語の漢字はラテン文字より画数が多く、14px ではストロークが潰れやすい。
+業界の標準もコードと散文でサイズを分けている:
+
+| サービス | コード | Markdown 本文 |
+|---------|--------|--------------|
+| GitHub | 14px mono | **16px** proportional |
+| VS Code | 13px mono | **14-16px** preview |
+| Notion | — | **16px** |
+| Zenn | 14px mono | **16-17px** |
+
+統一感より **コンテキスト最適化** が正解。コードはスキャン (パターン認識)、
+文章はリーディング (連続読み) で読み方が根本的に異なるため、
+異なるサイズは不整合ではなく適切な使い分け。
+
+```css
+/* MarkdownViewer に適用 */
+.markdown-content {
+  font-size: var(--font-size-prose);      /* 16px */
+  line-height: var(--line-height-loose);  /* 1.75 — 日本語長文向け */
+}
+
+/* Markdown 内のコードブロックは code サイズに戻す */
+.markdown-content pre code {
+  font-size: var(--font-size-base);       /* 14px */
+  line-height: var(--line-height-base);   /* 1.5 */
+}
 ```
 
 **設計根拠**:
@@ -870,10 +907,11 @@ button, [role="button"], a, input, select, textarea {
   --font-mono: "SF Mono", "Fira Code", "Fira Mono", "Roboto Mono", Menlo,
     Consolas, monospace;
 
-  --font-size-sm:   0.75rem;   /* 12px — メタデータ, 補助テキスト */
-  --font-size-base: 0.875rem;  /* 14px — 本文, UI コントロール */
-  --font-size-lg:   1rem;      /* 16px — セクション見出し */
-  --font-size-xl:   1.25rem;   /* 20px — ページタイトル */
+  --font-size-sm:    0.75rem;   /* 12px — メタデータ, 補助テキスト */
+  --font-size-base:  0.875rem;  /* 14px — UI テキスト, diff, コード */
+  --font-size-prose: 1rem;      /* 16px — Markdown 本文 (日本語可読性) */
+  --font-size-lg:    1rem;      /* 16px — セクション見出し */
+  --font-size-xl:    1.25rem;   /* 20px — ページタイトル */
 
   --line-height-tight: 1.25;   /* ボタン, バッジ */
   --line-height-base:  1.5;    /* 本文 */
@@ -935,6 +973,7 @@ button, [role="button"], a, input, select, textarea {
 --font-size-base: 13px    0.875rem (14px)          ← 1px 大きくなる (3箇所のみ)
 --font-size-md: 14px      廃止 (base に統合)       4箇所を base に変更
 --font-size-lg: 16px      1rem (16px)              値は同じ、単位だけ変更
+(なし)                    --font-size-prose: 1rem  新規追加 (Markdown 本文用, 日本語可読性)
 (なし)                    --font-size-xl: 1.25rem  新規追加 (20px, 24px の統一先)
 ハードコード 10px ×4      sm (0.75rem) に統一      可読性向上
 ハードコード 12px ×3      sm (0.75rem) に統一      トークン使用
