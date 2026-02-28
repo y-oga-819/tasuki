@@ -85,6 +85,67 @@ ReactDOM.createRoot(#root)
                                           └─ それ以外  → parkingRef (非表示退避)
 ```
 
+---
+
+## 1b. React コンポーネントツリー
+
+DOMツリー(§1)はブラウザに実際にレンダリングされる要素の構造だが、
+React のコンポーネント階層はそれとは異なる。以下は React DevTools で見える論理的なツリー。
+
+```
+<App>
+ ├─ hooks: useDiff(), useFileWatcher(), useReviewPersistence()
+ │
+ └─ <WorkerPoolContextProvider>
+      └─ <ErrorBoundary>
+           ├─ <Toolbar />
+           │    └─ <TabButton /> × 3
+           │
+           └─ <FileSidebar style={width} />
+           │
+           └─ <MainContent>
+                │
+                ├── [isViewer]
+                │    <ResizablePane>
+                │      left  = <MarkdownViewer />
+                │      right = <div ref={viewerTermSlotRef} />  (空スロット)
+                │    </ResizablePane>
+                │
+                ├── [!isViewer]
+                │    <DiffContentWithSearch>           ← MainContent 内のローカルコンポーネント
+                │      ├─ <DiffSearchBar />            [searchVisible 時のみ]
+                │      └─ <AllFileDiffs>               ← MainContent 内のローカルコンポーネント
+                │           └─ <ErrorBoundary> × N
+                │                └─ <DiffViewer fileDiff={fd}>
+                │                     ├─ renderAnnotation (callback → React要素を返す)
+                │                     │    ├─ <CommentDisplay />    ← DiffViewer 内のローカルコンポーネント
+                │                     │    └─ <CommentFormInline /> ← DiffViewer 内のローカルコンポーネント
+                │                     └─ renderHoverUtility (callback → button要素を返す)
+                │
+                │    <MarkdownViewer />                 [split-right, docs タブ]
+                │      └─ <MermaidZoomModal />          [zoomSvg 時のみ]
+                │    <ReviewPanel />                    [split-right, review タブ]
+                │      ├─ <CodeCommentItem /> × N
+                │      │    └─ <ResolveMemoForm />
+                │      └─ <DocCommentItem /> × N
+                │           └─ <ResolveMemoForm />
+                │
+                └── Terminal シングルトン (常にマウント)
+                     <TerminalPanel ref={terminalRef} visible={...} />
+```
+
+### DOM ツリーとの主な違い
+
+| 観点 | React コンポーネントツリー | ブラウザ DOM |
+|------|--------------------------|-------------|
+| `TerminalPanel` の位置 | `MainContent` 直下の `parkingRef` 内に常にマウント | `useEffect` で `viewerTermSlotRef` / `splitTermSlotRef` に DOM reparenting される。React ツリー上の親とブラウザ上の親が異なる |
+| `AllFileDiffs`, `DiffContentWithSearch` | `MainContent.tsx` 内で定義されたローカルコンポーネント。export されていない | DOM上は `div.diff-content-search-wrapper` > `div.diff-scroll-container` として現れる |
+| `CommentDisplay`, `CommentFormInline` | `DiffViewer.tsx` 内で定義されたローカルコンポーネント。renderAnnotation callback 経由で描画 | `@pierre/diffs` の Shadow DOM 内に annotation として注入される |
+| `split-right` 内の3ペイン | React 上は常にマウント（MarkdownViewer, ReviewPanel） | `display: none` で非表示時もDOMに存在 |
+| `ResizablePane` | viewer モード時のみレンダリング | 内部的に `div.resizable-pane` > left + handle + right |
+
+---
+
 ### 前回のツリーからの修正点
 
 | 項目 | 前回の記述 | 実際のコード |
@@ -213,12 +274,12 @@ sequenceDiagram
     UD->>API: getDiff()
     API-->>DS: setDiffResult(newResult)
 
-    alt gateStatus が "approved" or "rejected"
+    alt gateStatus が approved or rejected
         FW->>API: clearCommitGate()
         FW->>RS: setGateStatus("invalidated")
     end
 
-    DS-->>Note: 全Diff系コンポーネント再描画
+    Note over DS: diffResult 更新により<br/>全Diff系コンポーネント再描画
 ```
 
 ---
@@ -330,6 +391,45 @@ else                                   → parkingRef (非表示)
 ```
 
 これにより、モード切替時もターミナルのセッション状態（xterm.js + PTY）が保持されます。
+
+### Terminal シングルトンのライフサイクル
+
+Terminal には **React コンポーネントのマウント** と **xterm.js インスタンスの生成** の2段階がある。
+
+```
+アプリ起動
+  │
+  ├─ MainContent マウント
+  │    └─ <TerminalPanel ref={terminalRef} visible={false} />  ← React 要素は常にマウント
+  │         parkingRef (display:none) 内に配置
+  │         この時点では xterm.js は未生成 (termRef.current === null)
+  │
+  ├─ ユーザーが viewer モード or split + Terminal タブ を選択
+  │    └─ visible prop が true に変化
+  │         └─ useEffect (Terminal.tsx:296-300) が発火:
+  │              if (visible && !termRef.current) { initTerminal(); }
+  │
+  └─ initTerminal() 実行 (1回のみ)
+       ├─ new XTerm({...}) → containerRef に open
+       ├─ FitAddon, SearchAddon, WebLinksAddon, WebglAddon, Unicode11Addon ロード
+       ├─ Tauri 環境: listen("pty-data"), listen("pty-exit") 登録
+       ├─ term.onData() → api.writeTerminal() 接続
+       ├─ document.fonts.ready 待機
+       └─ fitAddon.fit() → api.spawnTerminal(cols, rows) → PTY プロセス起動
+```
+
+**結論**: React コンポーネント (`TerminalPanel`) はアプリ起動時に常にマウントされるが、
+xterm.js インスタンスと PTY プロセスは **初めて `visible=true` になったとき** に遅延生成される。
+一度生成されると、以降はモード切替で `visible` が false になっても破棄されず、
+DOM reparenting + `terminal-hidden` CSS クラスで非表示にされるだけ。
+
+| タイミング | React コンポーネント | xterm.js | PTY プロセス |
+|---|---|---|---|
+| アプリ起動 (diff モード) | マウント済み | 未生成 | 未起動 |
+| 初めて Terminal 表示 | マウント済み | **生成** | **起動** |
+| Terminal 非表示に戻す | マウント済み | 生存 | 生存 |
+| 再び Terminal 表示 | マウント済み | 生存 (fit 再実行) | 生存 |
+| アプリ終了 | アンマウント | dispose() | killTerminal() |
 
 ---
 
