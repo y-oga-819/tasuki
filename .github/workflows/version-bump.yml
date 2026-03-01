@@ -54,6 +54,11 @@ jobs:
             exit 1
           fi
 
+          if [ "$NEXT" = "$CURRENT" ]; then
+            echo "::error::Next version ($NEXT) is the same as current version. Nothing to bump."
+            exit 1
+          fi
+
           echo "next=$NEXT" >> "$GITHUB_OUTPUT"
           echo "Bumping $CURRENT → $NEXT (${{ inputs.bump }})"
 
