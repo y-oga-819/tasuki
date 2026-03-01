@@ -1,10 +1,11 @@
-use git2::{Delta, DiffFindOptions, DiffFormat, DiffOptions, Repository, Sort};
+use git2::{Delta, DiffFindOptions, DiffFormat, DiffOptions, Repository};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::path::Path;
 
 use crate::error::TasukiError;
+use super::repo::{open_repo, read_working_file};
 
 /// A single changed file in a diff
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -62,60 +63,6 @@ pub struct DiffStats {
     pub deletions: usize,
 }
 
-/// Commit info for log display
-#[derive(Debug, Clone, Serialize)]
-pub struct CommitInfo {
-    pub id: String,
-    pub short_id: String,
-    pub message: String,
-    pub author: String,
-    pub time: i64,
-}
-
-/// Repository information (branch, worktree status)
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RepoInfo {
-    pub repo_name: String,
-    pub branch_name: Option<String>,
-    pub is_worktree: bool,
-}
-
-/// Resolve the repository name. For worktrees, trace back through commondir()
-/// to find the original repository name.
-fn resolve_repo_name(repo: &Repository) -> String {
-    if repo.is_worktree() {
-        let commondir = repo.commondir();
-        commondir
-            .ancestors()
-            .find(|p| p.file_name().map_or(false, |n| n == ".git"))
-            .and_then(|git_dir| git_dir.parent())
-            .and_then(|p| p.file_name())
-            .map(|n| n.to_string_lossy().to_string())
-            .unwrap_or_else(|| "unknown".to_string())
-    } else {
-        repo.workdir()
-            .and_then(|p| p.file_name())
-            .map(|n| n.to_string_lossy().to_string())
-            .unwrap_or_else(|| "unknown".to_string())
-    }
-}
-
-/// Get repository info (name, branch, worktree status)
-pub fn get_repo_info(repo_path: &str) -> Result<RepoInfo, TasukiError> {
-    let repo = open_repo(repo_path)?;
-    let repo_name = resolve_repo_name(&repo);
-    let branch_name = repo
-        .head()
-        .ok()
-        .and_then(|h| h.shorthand().map(|s| s.to_string()));
-    let is_worktree = repo.is_worktree();
-    Ok(RepoInfo {
-        repo_name,
-        branch_name,
-        is_worktree,
-    })
-}
-
 /// Known generated file patterns
 const GENERATED_PATTERNS: &[&str] = &[
     "package-lock.json",
@@ -149,11 +96,6 @@ fn delta_to_status(delta: Delta) -> &'static str {
         Delta::Typechange => "typechange",
         _ => "unknown",
     }
-}
-
-/// Open a git repository at the given path
-pub fn open_repo(repo_path: &str) -> Result<Repository, TasukiError> {
-    Ok(Repository::discover(repo_path)?)
 }
 
 /// Get the diff between working tree and index (unstaged changes)
@@ -234,6 +176,145 @@ pub fn get_commit_diff(repo_path: &str, commit_ref: &str) -> Result<DiffResult, 
     parse_diff(&repo, &mut diff)
 }
 
+/// Compute a SHA-256 hash of a DiffResult for change detection
+pub fn compute_diff_hash(diff_result: &DiffResult) -> String {
+    let json = serde_json::to_string(diff_result).unwrap_or_default();
+    let hash = Sha256::digest(json.as_bytes());
+    format!("{:x}", hash)
+}
+
+// ---------------------------------------------------------------------------
+// DiffParser: encapsulates mutable state for diff.print() callback
+// ---------------------------------------------------------------------------
+
+struct DiffParser {
+    files: Vec<FileDiff>,
+    path_to_idx: HashMap<String, usize>,
+    current_file_idx: Option<usize>,
+    current_hunk_header: String,
+    current_hunk_old_start: u32,
+    current_hunk_old_lines: u32,
+    current_hunk_new_start: u32,
+    current_hunk_new_lines: u32,
+    current_lines: Vec<DiffLine>,
+    additions_count: Vec<usize>,
+    deletions_count: Vec<usize>,
+}
+
+impl DiffParser {
+    fn new(files: Vec<FileDiff>) -> Self {
+        let path_to_idx: HashMap<String, usize> = files
+            .iter()
+            .enumerate()
+            .map(|(i, f)| (f.file.path.clone(), i))
+            .collect();
+        let len = files.len();
+        Self {
+            files,
+            path_to_idx,
+            current_file_idx: None,
+            current_hunk_header: String::new(),
+            current_hunk_old_start: 0,
+            current_hunk_old_lines: 0,
+            current_hunk_new_start: 0,
+            current_hunk_new_lines: 0,
+            current_lines: Vec::new(),
+            additions_count: vec![0; len],
+            deletions_count: vec![0; len],
+        }
+    }
+
+    fn flush_hunk(&mut self) {
+        if let Some(idx) = self.current_file_idx {
+            if !self.current_lines.is_empty() {
+                self.files[idx].hunks.push(DiffHunk {
+                    header: self.current_hunk_header.clone(),
+                    old_start: self.current_hunk_old_start,
+                    old_lines: self.current_hunk_old_lines,
+                    new_start: self.current_hunk_new_start,
+                    new_lines: self.current_hunk_new_lines,
+                    lines: std::mem::take(&mut self.current_lines),
+                });
+            }
+        }
+    }
+
+    fn handle_line(
+        &mut self,
+        delta: git2::DiffDelta<'_>,
+        hunk: Option<git2::DiffHunk<'_>>,
+        line: git2::DiffLine<'_>,
+    ) -> bool {
+        let file_path = delta
+            .new_file()
+            .path()
+            .map(|p| p.to_string_lossy().to_string())
+            .unwrap_or_default();
+
+        let Some(&file_idx) = self.path_to_idx.get(&file_path) else {
+            eprintln!("Skipping diff line for unmatched path: {}", file_path);
+            return true;
+        };
+
+        if self.current_file_idx != Some(file_idx) {
+            self.flush_hunk();
+            self.current_file_idx = Some(file_idx);
+            self.current_hunk_header.clear();
+        }
+
+        if let Some(h) = hunk {
+            self.flush_hunk();
+            self.current_hunk_header = String::from_utf8_lossy(h.header()).trim().to_string();
+            self.current_hunk_old_start = h.old_start();
+            self.current_hunk_old_lines = h.old_lines();
+            self.current_hunk_new_start = h.new_start();
+            self.current_hunk_new_lines = h.new_lines();
+        }
+
+        let origin = line.origin();
+        let content = String::from_utf8_lossy(line.content()).to_string();
+
+        match origin {
+            '+' | '>' => {
+                self.additions_count[file_idx] += 1;
+            }
+            '-' | '<' => {
+                self.deletions_count[file_idx] += 1;
+            }
+            _ => {}
+        }
+
+        if matches!(origin, '+' | '-' | ' ') {
+            self.current_lines.push(DiffLine {
+                origin,
+                old_lineno: line.old_lineno(),
+                new_lineno: line.new_lineno(),
+                content,
+            });
+        }
+
+        true
+    }
+
+    fn finish(mut self, stats: git2::DiffStats) -> DiffResult {
+        self.flush_hunk();
+
+        for (i, file) in self.files.iter_mut().enumerate() {
+            file.file.additions = self.additions_count[i];
+            file.file.deletions = self.deletions_count[i];
+        }
+
+        DiffResult {
+            stats: DiffStats {
+                files_changed: stats.files_changed(),
+                additions: stats.insertions(),
+                deletions: stats.deletions(),
+            },
+            files: self.files,
+        }
+    }
+}
+
 /// Parse a git2::Diff into our DiffResult structure
 fn parse_diff(repo: &Repository, diff: &mut git2::Diff) -> Result<DiffResult, TasukiError> {
     // Enable rename/copy detection (including untracked files as rename targets)
@@ -288,123 +369,19 @@ fn parse_diff(repo: &Repository, diff: &mut git2::Diff) -> Result<DiffResult, Ta
             new_content: None,
         });
     }
-    let path_to_idx: HashMap<String, usize> = files
-        .iter()
-        .enumerate()
-        .map(|(i, f)| (f.file.path.clone(), i))
-        .collect();
 
-    // Parse hunks and lines using the print callback
-    let mut current_file_idx: Option<usize> = None;
-    let mut current_hunk_header = String::new();
-    let mut current_hunk_old_start = 0u32;
-    let mut current_hunk_old_lines = 0u32;
-    let mut current_hunk_new_start = 0u32;
-    let mut current_hunk_new_lines = 0u32;
-    let mut current_lines: Vec<DiffLine> = Vec::new();
-    let mut additions_count: Vec<usize> = vec![0; files.len()];
-    let mut deletions_count: Vec<usize> = vec![0; files.len()];
+    // Parse hunks and lines using DiffParser
+    let mut parser = DiffParser::new(files);
 
     diff.print(DiffFormat::Patch, |delta, hunk, line| {
-        let file_path = delta
-            .new_file()
-            .path()
-            .map(|p| p.to_string_lossy().to_string())
-            .unwrap_or_default();
-
-        // Find the matching file index
-        let Some(&file_idx) = path_to_idx.get(&file_path) else {
-            eprintln!("Skipping diff line for unmatched path: {}", file_path);
-            return true;
-        };
-
-        if current_file_idx != Some(file_idx) {
-            // Flush previous hunk if any
-            if let Some(prev_idx) = current_file_idx {
-                if !current_lines.is_empty() {
-                    files[prev_idx].hunks.push(DiffHunk {
-                        header: current_hunk_header.clone(),
-                        old_start: current_hunk_old_start,
-                        old_lines: current_hunk_old_lines,
-                        new_start: current_hunk_new_start,
-                        new_lines: current_hunk_new_lines,
-                        lines: std::mem::take(&mut current_lines),
-                    });
-                }
-            }
-            current_file_idx = Some(file_idx);
-            current_hunk_header.clear();
-        }
-
-        if let Some(h) = hunk {
-            // If we have accumulated lines for a previous hunk, flush them
-            if !current_lines.is_empty() {
-                if let Some(idx) = current_file_idx {
-                    files[idx].hunks.push(DiffHunk {
-                        header: current_hunk_header.clone(),
-                        old_start: current_hunk_old_start,
-                        old_lines: current_hunk_old_lines,
-                        new_start: current_hunk_new_start,
-                        new_lines: current_hunk_new_lines,
-                        lines: std::mem::take(&mut current_lines),
-                    });
-                }
-            }
-            current_hunk_header = String::from_utf8_lossy(h.header()).trim().to_string();
-            current_hunk_old_start = h.old_start();
-            current_hunk_old_lines = h.old_lines();
-            current_hunk_new_start = h.new_start();
-            current_hunk_new_lines = h.new_lines();
-        }
-
-        let origin = line.origin();
-        let content = String::from_utf8_lossy(line.content()).to_string();
-
-        match origin {
-            '+' | '>' => {
-                additions_count[file_idx] += 1;
-            }
-            '-' | '<' => {
-                deletions_count[file_idx] += 1;
-            }
-            _ => {}
-        }
-
-        if matches!(origin, '+' | '-' | ' ') {
-            current_lines.push(DiffLine {
-                origin,
-                old_lineno: line.old_lineno(),
-                new_lineno: line.new_lineno(),
-                content,
-            });
-        }
-
-        true
+        parser.handle_line(delta, hunk, line)
     })?;
 
-    // Flush the last hunk
-    if let Some(idx) = current_file_idx {
-        if !current_lines.is_empty() {
-            files[idx].hunks.push(DiffHunk {
-                header: current_hunk_header,
-                old_start: current_hunk_old_start,
-                old_lines: current_hunk_old_lines,
-                new_start: current_hunk_new_start,
-                new_lines: current_hunk_new_lines,
-                lines: current_lines,
-            });
-        }
-    }
-
-    // Update file stats
-    for (i, file) in files.iter_mut().enumerate() {
-        file.file.additions = additions_count[i];
-        file.file.deletions = deletions_count[i];
-    }
+    let mut result = parser.finish(stats);
 
     // Get old/new content for render-friendly files only.
     // Large or generated files still render via patch hunks without inline fulltext.
-    for file_diff in files.iter_mut() {
+    for file_diff in result.files.iter_mut() {
         if should_load_inline_contents(repo, &file_diff.file) {
             if file_diff.file.status != "added" {
                 file_diff.old_content =
@@ -416,14 +393,7 @@ fn parse_diff(repo: &Repository, diff: &mut git2::Diff) -> Result<DiffResult, Ta
         }
     }
 
-    Ok(DiffResult {
-        stats: DiffStats {
-            files_changed: stats.files_changed(),
-            additions: stats.insertions(),
-            deletions: stats.deletions(),
-        },
-        files,
-    })
+    Ok(result)
 }
 
 fn should_load_inline_contents(repo: &Repository, file: &DiffFile) -> bool {
@@ -467,122 +437,18 @@ fn get_file_content_at_ref(
     Ok(String::from_utf8_lossy(blob.content()).to_string())
 }
 
-/// Read a file from the working directory
-fn read_working_file(repo: &Repository, file_path: &str) -> Result<String, TasukiError> {
-    let workdir = repo
-        .workdir()
-        .ok_or_else(|| TasukiError::Git("Bare repository".to_string()))?;
-    let full_path = workdir.join(file_path);
-    std::fs::read_to_string(full_path)
-        .map_err(|e| TasukiError::Io(format!("Cannot read {}: {}", file_path, e)))
-}
-
-/// Get recent commit log
-pub fn get_log(repo_path: &str, max_count: usize) -> Result<Vec<CommitInfo>, TasukiError> {
-    let repo = open_repo(repo_path)?;
-    let mut revwalk = repo.revwalk()?;
-    revwalk.push_head()?;
-    revwalk.set_sorting(Sort::TIME)?;
-
-    let mut commits = Vec::new();
-    for (i, oid) in revwalk.enumerate() {
-        if i >= max_count {
-            break;
-        }
-        let oid = oid?;
-        let commit = repo.find_commit(oid)?;
-
-        let short_id = commit
-            .as_object()
-            .short_id()
-            .map(|b| b.as_str().unwrap_or("").to_string())
-            .unwrap_or_else(|_| oid.to_string()[..7].to_string());
-
-        commits.push(CommitInfo {
-            id: oid.to_string(),
-            short_id,
-            message: commit.message().unwrap_or("").to_string(),
-            author: commit.author().name().unwrap_or("").to_string(),
-            time: commit.time().seconds(),
-        });
-    }
-
-    Ok(commits)
-}
-
-/// List markdown doc files in a directory
-pub fn list_doc_files(repo_path: &str) -> Result<Vec<String>, TasukiError> {
-    let repo = open_repo(repo_path)?;
-    let workdir = repo
-        .workdir()
-        .ok_or_else(|| TasukiError::Git("Bare repository".to_string()))?;
-
-    let mut doc_files = Vec::new();
-
-    // Search for .md files in common doc directories
-    let search_dirs = ["docs", "doc", "design", "."];
-    for dir in &search_dirs {
-        let search_path = workdir.join(dir);
-        if search_path.is_dir() {
-            let pattern = format!("{}/**/*.md", search_path.display());
-            if let Ok(entries) = glob::glob(&pattern) {
-                for entry in entries.flatten() {
-                    if let Ok(relative) = entry.strip_prefix(workdir) {
-                        let path_str = relative.to_string_lossy().to_string();
-                        if !path_str.starts_with("node_modules/")
-                            && !path_str.starts_with("target/")
-                            && !path_str.starts_with(".git/")
-                            && !path_str.starts_with(".worktrees/")
-                            && !doc_files.contains(&path_str)
-                        {
-                            doc_files.push(path_str);
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    doc_files.sort();
-    Ok(doc_files)
-}
-
-/// Read a file's content from the working directory
-pub fn read_file(repo_path: &str, file_path: &str) -> Result<String, TasukiError> {
-    let repo = open_repo(repo_path)?;
-    read_working_file(&repo, file_path)
-}
-
-/// Get the HEAD commit SHA
-pub fn get_head_sha(repo_path: &str) -> Result<String, TasukiError> {
-    let repo = open_repo(repo_path)?;
-    let head = repo.head()?;
-    let commit = head.peel_to_commit()?;
-    Ok(commit.id().to_string())
-}
-
-/// Compute a SHA-256 hash of a DiffResult for change detection
-pub fn compute_diff_hash(diff_result: &DiffResult) -> String {
-    let json = serde_json::to_string(diff_result).unwrap_or_default();
-    let hash = Sha256::digest(json.as_bytes());
-    format!("{:x}", hash)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use git2::Repository as Git2Repo;
     use std::fs;
     use tempfile::TempDir;
 
-    /// Helper: create a temp git repo with an initial commit
     fn setup_repo() -> (TempDir, String) {
         let dir = TempDir::new().unwrap();
-        let repo = Repository::init(dir.path()).unwrap();
-
-        // Create initial file and commit
+        let repo = Git2Repo::init(dir.path()).unwrap();
         let file_path = dir.path().join("hello.txt");
         fs::write(&file_path, "hello world\n").unwrap();
-
         let mut index = repo.index().unwrap();
         index.add_path(Path::new("hello.txt")).unwrap();
         index.write().unwrap();
@@ -591,7 +457,6 @@ mod tests {
         let sig = git2::Signature::now("Test", "test@test.com").unwrap();
         repo.commit(Some("HEAD"), &sig, &sig, "initial", &tree, &[])
             .unwrap();
-
         let path = dir.path().to_string_lossy().to_string();
         (dir, path)
     }
@@ -605,23 +470,6 @@ mod tests {
         let new_file = result.files.iter().find(|f| f.file.path == "new_file.txt");
         assert!(new_file.is_some(), "Untracked file should appear in diff");
         assert_eq!(new_file.unwrap().file.status, "added");
-    }
-
-    #[test]
-    fn test_get_repo_info_branch_name() {
-        let (_dir, repo_path) = setup_repo();
-        let info = get_repo_info(&repo_path).unwrap();
-        // Default branch after init is typically "master" or "main"
-        assert!(info.branch_name.is_some());
-        assert!(!info.is_worktree);
-        assert!(!info.repo_name.is_empty());
-    }
-
-    #[test]
-    fn test_get_repo_info_not_worktree() {
-        let (_dir, repo_path) = setup_repo();
-        let info = get_repo_info(&repo_path).unwrap();
-        assert!(!info.is_worktree);
     }
 
     #[test]
@@ -669,27 +517,5 @@ mod tests {
         let hash2 = compute_diff_hash(&result);
         assert_eq!(hash1, hash2, "Same input should produce same hash");
         assert!(!hash1.is_empty());
-    }
-
-    #[test]
-    fn test_list_doc_files_finds_markdown() {
-        let (dir, repo_path) = setup_repo();
-
-        // Create docs directory with markdown files
-        fs::create_dir_all(dir.path().join("docs")).unwrap();
-        fs::write(dir.path().join("docs/guide.md"), "# Guide\n").unwrap();
-        fs::write(dir.path().join("docs/api.md"), "# API\n").unwrap();
-
-        let docs = list_doc_files(&repo_path).unwrap();
-        assert!(docs.contains(&"docs/guide.md".to_string()));
-        assert!(docs.contains(&"docs/api.md".to_string()));
-    }
-
-    #[test]
-    fn test_read_file_returns_content() {
-        let (_dir, repo_path) = setup_repo();
-
-        let result = read_file(&repo_path, "hello.txt").unwrap();
-        assert_eq!(result, "hello world\n");
     }
 }

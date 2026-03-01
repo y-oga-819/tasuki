@@ -149,6 +149,12 @@ export interface CommitGateData {
   }>;
 }
 
+/** Lightweight change status from check_changes command */
+export interface ChangeStatus {
+  head_sha: string;
+  has_changes: boolean;
+}
+
 /** Diff source specification */
 export type DiffSource =
   | { type: "uncommitted" }

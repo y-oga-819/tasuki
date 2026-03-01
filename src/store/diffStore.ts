@@ -23,6 +23,10 @@ interface DiffState {
   error: string | null;
   setError: (error: string | null) => void;
 
+  // Staleness (file watcher detected changes but diff not yet refreshed)
+  isStale: boolean;
+  setIsStale: (stale: boolean) => void;
+
   // Repo info
   repoPath: string;
   setRepoPath: (path: string) => void;
@@ -57,6 +61,10 @@ export const useDiffStore = create<DiffState>((set) => ({
   setIsLoading: (loading) => set({ isLoading: loading }),
   error: null,
   setError: (error) => set({ error }),
+
+  // Staleness
+  isStale: false,
+  setIsStale: (stale) => set({ isStale: stale }),
 
   // Repo info
   repoPath: "",

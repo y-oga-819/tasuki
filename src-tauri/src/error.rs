@@ -14,6 +14,9 @@ pub enum TasukiError {
 
     #[error("Invalid argument: {0}")]
     InvalidArgument(String),
+
+    #[error("PTY error: {0}")]
+    Pty(String),
 }
 
 // Tauri requires errors to be serializable

@@ -1,4 +1,4 @@
-import type { DiffResult, CommitInfo, ReviewSession, RepoInfo, CommitGateData } from "../types";
+import type { DiffResult, CommitInfo, ReviewSession, RepoInfo, CommitGateData, ChangeStatus } from "../types";
 import { mockDiffResult, emptyDiffResult } from "../__fixtures__/mock-diff-data";
 import { mockDocPaths, mockDesignDocNames, mockDocContents } from "../__fixtures__/mock-doc-data";
 import { mockRepoInfo, mockCommitLog, mockHeadSha, mockDiffHash } from "../__fixtures__/mock-repo-data";
@@ -88,6 +88,10 @@ function mockInvoke<T>(cmd: string, args?: Record<string, unknown>): T {
       console.log("[mock] openInZed", args);
       return undefined as T;
 
+    // Change detection
+    case "check_changes":
+      return { head_sha: mockHeadSha, has_changes: true } as T;
+
     // File watcher (no-op)
     case "start_watching":
       return undefined as T;
@@ -152,6 +156,10 @@ export async function getRepoPath(): Promise<string> {
 
 export async function getHeadSha(): Promise<string> {
   return invoke<string>("get_head_sha");
+}
+
+export async function checkChanges(): Promise<ChangeStatus> {
+  return invoke<ChangeStatus>("check_changes");
 }
 
 export async function getDiffHash(diffResult: DiffResult): Promise<string> {
