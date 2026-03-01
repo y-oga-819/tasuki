@@ -141,6 +141,16 @@ a:hover {
   text-decoration: underline;
 }
 
+/* --- Interactive element minimum size (WCAG 2.5.8) --- */
+button,
+[role="button"],
+input,
+select,
+textarea {
+  min-height: var(--interactive-min);
+  min-width: var(--interactive-min);
+}
+
 /* --- App Layout --- */
 .app {
   display: flex;
