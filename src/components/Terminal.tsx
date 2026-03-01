@@ -82,29 +82,33 @@ export const TerminalPanel: React.FC<{ visible: boolean }> = ({ visible }) => {
   const initTerminal = useCallback(async () => {
     if (!containerRef.current || termRef.current) return;
 
+    // Read terminal colors from CSS custom properties
+    const cs = getComputedStyle(document.documentElement);
+    const v = (name: string) => cs.getPropertyValue(name).trim();
+
     const term = new XTerm({
       theme: {
-        background: "#0d1117",
-        foreground: "#e6edf3",
-        cursor: "#58a6ff",
-        cursorAccent: "#0d1117",
-        selectionBackground: "rgba(88, 166, 255, 0.3)",
-        black: "#484f58",
-        red: "#ff7b72",
-        green: "#3fb950",
-        yellow: "#d29922",
-        blue: "#58a6ff",
-        magenta: "#bc8cff",
-        cyan: "#39c5cf",
-        white: "#b1bac4",
-        brightBlack: "#6e7681",
-        brightRed: "#ffa198",
-        brightGreen: "#56d364",
-        brightYellow: "#e3b341",
-        brightBlue: "#79c0ff",
-        brightMagenta: "#d2a8ff",
-        brightCyan: "#56d4dd",
-        brightWhite: "#f0f6fc",
+        background: v("--term-bg") || "#0d1117",
+        foreground: v("--term-fg") || "#e6edf3",
+        cursor: v("--term-cursor") || "#58a6ff",
+        cursorAccent: v("--term-cursor-accent") || "#0d1117",
+        selectionBackground: v("--term-selection") || "rgba(88, 166, 255, 0.3)",
+        black: v("--term-black") || "#484f58",
+        red: v("--term-red") || "#ff7b72",
+        green: v("--term-green") || "#3fb950",
+        yellow: v("--term-yellow") || "#d29922",
+        blue: v("--term-blue") || "#58a6ff",
+        magenta: v("--term-magenta") || "#bc8cff",
+        cyan: v("--term-cyan") || "#39c5cf",
+        white: v("--term-white") || "#b1bac4",
+        brightBlack: v("--term-bright-black") || "#6e7681",
+        brightRed: v("--term-bright-red") || "#ffa198",
+        brightGreen: v("--term-bright-green") || "#56d364",
+        brightYellow: v("--term-bright-yellow") || "#e3b341",
+        brightBlue: v("--term-bright-blue") || "#79c0ff",
+        brightMagenta: v("--term-bright-magenta") || "#d2a8ff",
+        brightCyan: v("--term-bright-cyan") || "#56d4dd",
+        brightWhite: v("--term-bright-white") || "#f0f6fc",
       },
       fontFamily:
         "SF Mono, Fira Code, Fira Mono, Roboto Mono, Menlo, Consolas, monospace",
