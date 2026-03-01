@@ -261,7 +261,7 @@ const MermaidBlock: React.FC<{ code: string }> = ({ code }) => {
         onClick={() => setZoomOpen(true)}
         title="Zoom diagram"
       >
-        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
           <path d="M1.5 1h4a.5.5 0 0 1 0 1H2.707l3.147 3.146a.5.5 0 1 1-.708.708L2 2.707V5.5a.5.5 0 0 1-1 0v-4a.5.5 0 0 1 .5-.5zm13 0a.5.5 0 0 1 .5.5v4a.5.5 0 0 1-1 0V2.707l-3.146 3.147a.5.5 0 1 1-.708-.708L13.293 2H10.5a.5.5 0 0 1 0-1h4zM1.5 15a.5.5 0 0 1-.5-.5v-4a.5.5 0 0 1 1 0v2.793l3.146-3.147a.5.5 0 1 1 .708.708L2.707 14H5.5a.5.5 0 0 1 0 1h-4zm13 0h-4a.5.5 0 0 1 0-1h2.793l-3.147-3.146a.5.5 0 0 1 .708-.708L14 13.293V10.5a.5.5 0 0 1 1 0v4a.5.5 0 0 1-.5.5z" />
         </svg>
       </button>
