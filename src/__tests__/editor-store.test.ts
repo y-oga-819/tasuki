@@ -4,8 +4,7 @@ import type { CommentFormTarget } from "../store/editorStore";
 
 beforeEach(() => {
   useEditorStore.setState({
-    selectedLineRange: null,
-    selectedLineFile: null,
+    lineSelection: null,
     commentFormTarget: null,
   });
 });
@@ -13,30 +12,27 @@ beforeEach(() => {
 describe("useEditorStore", () => {
   it("has correct initial state", () => {
     const s = useEditorStore.getState();
-    expect(s.selectedLineRange).toBeNull();
-    expect(s.selectedLineFile).toBeNull();
+    expect(s.lineSelection).toBeNull();
     expect(s.commentFormTarget).toBeNull();
   });
 
-  it("setSelectedLineRange sets range and file", () => {
+  it("setLineSelection sets unified selection object", () => {
     const range = { start: 10, end: 15 };
-    useEditorStore.getState().setSelectedLineRange(range, "src/foo.ts");
+    useEditorStore.getState().setLineSelection(range, "src/foo.ts");
     const s = useEditorStore.getState();
-    expect(s.selectedLineRange).toEqual(range);
-    expect(s.selectedLineFile).toBe("src/foo.ts");
+    expect(s.lineSelection).toEqual({ file: "src/foo.ts", range });
   });
 
-  it("setSelectedLineRange defaults file to null", () => {
-    useEditorStore.getState().setSelectedLineRange({ start: 1, end: 1 });
-    expect(useEditorStore.getState().selectedLineFile).toBeNull();
+  it("setLineSelection returns null when file is not provided", () => {
+    useEditorStore.getState().setLineSelection({ start: 1, end: 1 });
+    expect(useEditorStore.getState().lineSelection).toBeNull();
   });
 
-  it("setSelectedLineRange clears range with null", () => {
-    useEditorStore.getState().setSelectedLineRange({ start: 5, end: 10 }, "src/foo.ts");
-    useEditorStore.getState().setSelectedLineRange(null);
+  it("setLineSelection clears selection with null", () => {
+    useEditorStore.getState().setLineSelection({ start: 5, end: 10 }, "src/foo.ts");
+    useEditorStore.getState().setLineSelection(null);
     const s = useEditorStore.getState();
-    expect(s.selectedLineRange).toBeNull();
-    expect(s.selectedLineFile).toBeNull();
+    expect(s.lineSelection).toBeNull();
   });
 
   it("setCommentFormTarget sets and clears target", () => {

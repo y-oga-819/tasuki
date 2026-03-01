@@ -68,9 +68,8 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({ fileDiff }) => {
   const { diffLayout, diffOverflow, expandUnchanged } = useUiStore();
   const { collapsedFiles, toggleFileCollapse } = useDiffStore();
   const {
-    selectedLineRange,
-    selectedLineFile,
-    setSelectedLineRange,
+    lineSelection,
+    setLineSelection,
     commentFormTarget,
     setCommentFormTarget,
   } = useEditorStore();
@@ -148,9 +147,9 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({ fileDiff }) => {
   // --- Line selection handling ---
   const handleLineSelected = useCallback(
     (range: SelectedLineRange | null) => {
-      setSelectedLineRange(range, range ? filePath : null);
+      setLineSelection(range, range ? filePath : null);
     },
-    [setSelectedLineRange, filePath],
+    [setLineSelection, filePath],
   );
 
   // --- Hover utility: floating "+" button ---
@@ -172,13 +171,13 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({ fileDiff }) => {
             const line = getHoveredLine();
             if (!line) return;
 
-            if (selectedLineRange && selectedLineFile === filePath && selectedLineRange.start !== selectedLineRange.end) {
-              const start = Math.min(selectedLineRange.start, selectedLineRange.end);
-              const end = Math.max(selectedLineRange.start, selectedLineRange.end);
+            if (lineSelection && lineSelection.file === filePath && lineSelection.range.start !== lineSelection.range.end) {
+              const start = Math.min(lineSelection.range.start, lineSelection.range.end);
+              const end = Math.max(lineSelection.range.start, lineSelection.range.end);
               setCommentFormTarget({
                 filePath,
                 lineNumber: end,
-                side: selectedLineRange.side ?? line.side,
+                side: lineSelection.range.side ?? line.side,
                 selectionStart: start,
                 selectionEnd: end,
               });
@@ -191,14 +190,14 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({ fileDiff }) => {
                 selectionEnd: line.lineNumber,
               });
             }
-            setSelectedLineRange(null);
+            setLineSelection(null);
           }}
         >
           +
         </button>
       );
     },
-    [commentFormTarget, selectedLineRange, selectedLineFile, filePath, setCommentFormTarget, setSelectedLineRange],
+    [commentFormTarget, lineSelection, filePath, setCommentFormTarget, setLineSelection],
   );
 
   // --- Render annotations ---
@@ -230,7 +229,7 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({ fileDiff }) => {
                 author: "human",
               });
               setCommentFormTarget(null);
-              setSelectedLineRange(null);
+              setLineSelection(null);
             }}
             onCancel={() => setCommentFormTarget(null)}
           />
@@ -239,7 +238,7 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({ fileDiff }) => {
 
       return null;
     },
-    [fileDiff, filePath, addThread, setCommentFormTarget, setSelectedLineRange],
+    [fileDiff, filePath, addThread, setCommentFormTarget, setLineSelection],
   );
 
   // --- selectedLines prop ---
@@ -251,11 +250,11 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({ fileDiff }) => {
         side: commentFormTarget.side,
       } satisfies SelectedLineRange;
     }
-    if (selectedLineFile === filePath) {
-      return selectedLineRange;
+    if (lineSelection?.file === filePath) {
+      return lineSelection.range;
     }
     return null;
-  }, [selectedLineRange, selectedLineFile, commentFormTarget, filePath]);
+  }, [lineSelection, commentFormTarget, filePath]);
 
   // --- Shared Pierre options ---
   const options = useMemo<FileDiffOptions<AnnotationMeta>>(

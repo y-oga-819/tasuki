@@ -10,11 +10,16 @@ export interface CommentFormTarget {
   selectionEnd: number;
 }
 
+/** Unified line selection (file + range as single object) */
+export interface LineSelection {
+  file: string;
+  range: SelectedLineRange;
+}
+
 interface EditorState {
-  // Line selection
-  selectedLineRange: SelectedLineRange | null;
-  selectedLineFile: string | null;
-  setSelectedLineRange: (range: SelectedLineRange | null, filePath?: string | null) => void;
+  // Line selection (unified)
+  lineSelection: LineSelection | null;
+  setLineSelection: (range: SelectedLineRange | null, filePath?: string | null) => void;
 
   // Comment form
   commentFormTarget: CommentFormTarget | null;
@@ -22,10 +27,12 @@ interface EditorState {
 }
 
 export const useEditorStore = create<EditorState>((set) => ({
-  selectedLineRange: null,
-  selectedLineFile: null,
-  setSelectedLineRange: (range, filePath) =>
-    set({ selectedLineRange: range, selectedLineFile: filePath ?? null }),
+  lineSelection: null,
+  setLineSelection: (range, filePath) =>
+    set({
+      lineSelection:
+        range && filePath ? { file: filePath, range } : null,
+    }),
   commentFormTarget: null,
   setCommentFormTarget: (target) => set({ commentFormTarget: target }),
 }));
