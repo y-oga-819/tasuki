@@ -499,12 +499,8 @@ tasuki/
 ├── docs/                          # ドキュメント
 │   ├── ARCHITECTURE.md            # 本ドキュメント
 │   ├── USAGE_EXAMPLES.md          # ユースケースサンプル集
-│   ├── PIERRE_AUDIT.md            # Pierre 機能監査
-│   ├── BEAUTIFUL_MERMAID_AUDIT.md # beautiful-mermaid 機能監査
-│   ├── COMMIT_GATE_REVIEW_DESIGN.md      # コミットゲート設計書 v1
-│   ├── COMMIT_GATE_REVIEW_DESIGN_V2.md   # コミットゲート設計書 v2
-│   ├── REVIEW_PERSISTENCE_DESIGN.md      # レビュー永続化設計書
-│   └── AI_WORKFLOW_OPTIMIZATION_DESIGN.md # AI 協業ワークフロー設計書
+│   ├── FRONTEND_RENDERING_FLOW.md # フロントエンド描画フロー詳細
+│   └── REVIEW_PERSISTENCE_DESIGN.md      # レビュー永続化設計書
 │
 ├── src/                           # フロントエンド（React + TypeScript）
 │   ├── main.tsx                   # React エントリーポイント
