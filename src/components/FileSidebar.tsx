@@ -174,6 +174,7 @@ export const FileSidebar: React.FC<FileSidebarProps> = ({ style }) => {
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(
     new Set(),
   );
+  const [fileFilter, setFileFilter] = useState("");
 
   const toggleSection = useCallback((sectionId: string) => {
     setCollapsedSections((prev) => {
@@ -207,9 +208,18 @@ export const FileSidebar: React.FC<FileSidebarProps> = ({ style }) => {
   const commentCount = (path: string) =>
     (threads.get(path) ?? []).length;
 
+  const filteredFiles = useMemo(() => {
+    if (!diffResult) return [];
+    if (!fileFilter) return diffResult.files;
+    const q = fileFilter.toLowerCase();
+    return diffResult.files.filter((f) =>
+      f.file.path.toLowerCase().includes(q),
+    );
+  }, [diffResult, fileFilter]);
+
   const fileTree = useMemo(
-    () => (diffResult ? buildFileTree(diffResult.files) : []),
-    [diffResult],
+    () => buildFileTree(filteredFiles),
+    [filteredFiles],
   );
 
   const docTree = useMemo(() => buildPathTree(docFiles), [docFiles]);
@@ -619,12 +629,36 @@ export const FileSidebar: React.FC<FileSidebarProps> = ({ style }) => {
           >
             <span className="section-chevron">▼</span>
             Changed Files
-            <span className="badge">{diffResult.stats.files_changed}</span>
+            <span className="badge">
+              {fileFilter
+                ? `${filteredFiles.length}/${diffResult.stats.files_changed}`
+                : diffResult.stats.files_changed}
+            </span>
           </h3>
           <div
             className={`section-collapse ${collapsedSections.has("changed-files") ? "collapsed" : ""}`}
           >
             <div className="section-collapse-inner">
+              <div className="sidebar-filter">
+                <input
+                  type="text"
+                  className="sidebar-filter-input"
+                  placeholder="Filter files\u2026"
+                  value={fileFilter}
+                  onChange={(e) => setFileFilter(e.target.value)}
+                  onClick={(e) => e.stopPropagation()}
+                  aria-label="Filter changed files"
+                />
+                {fileFilter && (
+                  <button
+                    className="sidebar-filter-clear"
+                    onClick={() => setFileFilter("")}
+                    aria-label="Clear filter"
+                  >
+                    &#x2715;
+                  </button>
+                )}
+              </div>
               <div className="sidebar-stats">
                 <span className="stat-added">
                   +{diffResult.stats.additions}
