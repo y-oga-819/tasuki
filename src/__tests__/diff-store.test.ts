@@ -1,23 +1,13 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { useDiffStore } from "../store/diffStore";
-import type { DiffResult, CommentFormTarget } from "../store/diffStore";
+import type { DiffResult } from "../store/diffStore";
 
 beforeEach(() => {
   useDiffStore.setState({
     diffResult: null,
     diffSource: { type: "uncommitted" },
     selectedFile: null,
-    docFiles: [],
-    selectedDoc: null,
-    docContent: null,
     collapsedFiles: new Set<string>(),
-    designDocs: [],
-    docSource: "repo",
-    externalFolders: [],
-    externalDocs: {},
-    selectedLineRange: null,
-    selectedLineFile: null,
-    commentFormTarget: null,
     isLoading: false,
     error: null,
     repoPath: "",
@@ -74,73 +64,6 @@ describe("useDiffStore", () => {
     expect(before).not.toBe(after);
   });
 
-  it("setDocFiles and setDesignDocs set file lists", () => {
-    useDiffStore.getState().setDocFiles(["a.md", "b.md"]);
-    expect(useDiffStore.getState().docFiles).toEqual(["a.md", "b.md"]);
-
-    useDiffStore.getState().setDesignDocs(["design.md"]);
-    expect(useDiffStore.getState().designDocs).toEqual(["design.md"]);
-  });
-
-  it("setDocSource switches between repo, design, and external", () => {
-    useDiffStore.getState().setDocSource("design");
-    expect(useDiffStore.getState().docSource).toBe("design");
-    useDiffStore.getState().setDocSource("external");
-    expect(useDiffStore.getState().docSource).toBe("external");
-  });
-
-  it("addExternalFolder adds a folder without duplicates", () => {
-    useDiffStore.getState().addExternalFolder("/home/docs");
-    expect(useDiffStore.getState().externalFolders).toEqual(["/home/docs"]);
-
-    useDiffStore.getState().addExternalFolder("/home/docs");
-    expect(useDiffStore.getState().externalFolders).toEqual(["/home/docs"]);
-
-    useDiffStore.getState().addExternalFolder("/other");
-    expect(useDiffStore.getState().externalFolders).toEqual(["/home/docs", "/other"]);
-  });
-
-  it("removeExternalFolder removes folder and its docs", () => {
-    useDiffStore.getState().addExternalFolder("/home/docs");
-    useDiffStore.getState().setExternalDocs("/home/docs", ["a.md"]);
-    useDiffStore.getState().removeExternalFolder("/home/docs");
-    expect(useDiffStore.getState().externalFolders).toEqual([]);
-    expect(useDiffStore.getState().externalDocs).toEqual({});
-  });
-
-  it("setExternalDocs sets files for a folder", () => {
-    useDiffStore.getState().setExternalDocs("/docs", ["a.md", "b.md"]);
-    expect(useDiffStore.getState().externalDocs).toEqual({ "/docs": ["a.md", "b.md"] });
-  });
-
-  it("setSelectedLineRange sets range and file", () => {
-    const range = { start: 10, end: 15 };
-    useDiffStore.getState().setSelectedLineRange(range, "src/foo.ts");
-    const s = useDiffStore.getState();
-    expect(s.selectedLineRange).toEqual(range);
-    expect(s.selectedLineFile).toBe("src/foo.ts");
-  });
-
-  it("setSelectedLineRange defaults file to null", () => {
-    useDiffStore.getState().setSelectedLineRange({ start: 1, end: 1 });
-    expect(useDiffStore.getState().selectedLineFile).toBeNull();
-  });
-
-  it("setCommentFormTarget sets and clears target", () => {
-    const target: CommentFormTarget = {
-      filePath: "src/App.tsx",
-      lineNumber: 10,
-      side: "additions",
-      selectionStart: 10,
-      selectionEnd: 15,
-    };
-    useDiffStore.getState().setCommentFormTarget(target);
-    expect(useDiffStore.getState().commentFormTarget).toEqual(target);
-
-    useDiffStore.getState().setCommentFormTarget(null);
-    expect(useDiffStore.getState().commentFormTarget).toBeNull();
-  });
-
   it("setIsLoading and setError manage loading state", () => {
     useDiffStore.getState().setIsLoading(true);
     expect(useDiffStore.getState().isLoading).toBe(true);
@@ -156,34 +79,6 @@ describe("useDiffStore", () => {
     const info = { repo_name: "test", branch_name: "main", is_worktree: false };
     useDiffStore.getState().setRepoInfo(info);
     expect(useDiffStore.getState().repoInfo).toEqual(info);
-  });
-
-  // --- Missing coverage: setSelectedDoc, setDocContent ----------------------
-
-  it("setSelectedDoc sets and clears selected doc", () => {
-    useDiffStore.getState().setSelectedDoc("architecture.md");
-    expect(useDiffStore.getState().selectedDoc).toBe("architecture.md");
-
-    useDiffStore.getState().setSelectedDoc(null);
-    expect(useDiffStore.getState().selectedDoc).toBeNull();
-  });
-
-  it("setDocContent sets and clears doc content", () => {
-    useDiffStore.getState().setDocContent("# Architecture\nSome content");
-    expect(useDiffStore.getState().docContent).toBe("# Architecture\nSome content");
-
-    useDiffStore.getState().setDocContent(null);
-    expect(useDiffStore.getState().docContent).toBeNull();
-  });
-
-  // --- Edge cases -----------------------------------------------------------
-
-  it("setSelectedLineRange clears range with null", () => {
-    useDiffStore.getState().setSelectedLineRange({ start: 5, end: 10 }, "src/foo.ts");
-    useDiffStore.getState().setSelectedLineRange(null);
-    const s = useDiffStore.getState();
-    expect(s.selectedLineRange).toBeNull();
-    expect(s.selectedLineFile).toBeNull();
   });
 
   it("setDiffResult to null clears previous result", () => {
