@@ -1,342 +1,80 @@
-import React, { useEffect, useRef, useCallback, useState } from "react";
-import { Terminal as XTerm } from "@xterm/xterm";
-import { FitAddon } from "@xterm/addon-fit";
-import { WebLinksAddon } from "@xterm/addon-web-links";
-import { SearchAddon } from "@xterm/addon-search";
-import { WebglAddon } from "@xterm/addon-webgl";
-import { Unicode11Addon } from "@xterm/addon-unicode11";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import "@xterm/xterm/css/xterm.css";
-import * as api from "../utils/tauri-api";
-
-const isTauri = typeof window !== "undefined" && "__TAURI__" in window;
-const isMac =
-  typeof navigator !== "undefined" && navigator.platform.includes("Mac");
-
-const DEFAULT_FONT_SIZE = 13;
-const MIN_FONT_SIZE = 8;
-const MAX_FONT_SIZE = 28;
+import { useTerminalManager } from "./TerminalManagerContext";
 
 export const TerminalPanel: React.FC<{ visible: boolean }> = ({ visible }) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const termRef = useRef<XTerm | null>(null);
-  const fitAddonRef = useRef<FitAddon | null>(null);
-  const searchAddonRef = useRef<SearchAddon | null>(null);
-  const spawnedRef = useRef(false);
-  const unlistenDataRef = useRef<(() => void) | null>(null);
-  const unlistenExitRef = useRef<(() => void) | null>(null);
+  const manager = useTerminalManager();
 
-  // Batch writing buffer: accumulate PTY data and flush once per animation frame
-  const writeBufferRef = useRef<string[]>([]);
-  const rafIdRef = useRef<number | null>(null);
-
-  // Search bar state
+  // Search bar state (React-managed UI)
   const [searchVisible, setSearchVisible] = useState(false);
-  const searchVisibleRef = useRef(false);
-  searchVisibleRef.current = searchVisible;
   const [searchQuery, setSearchQuery] = useState("");
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  const flushWriteBuffer = useCallback(() => {
-    rafIdRef.current = null;
-    const term = termRef.current;
-    const chunks = writeBufferRef.current;
-    if (!term || chunks.length === 0) return;
-
-    // Join all buffered chunks and write once
-    const combined = chunks.join("");
-    writeBufferRef.current = [];
-    term.write(combined);
-  }, []);
-
-  const enqueueWrite = useCallback(
-    (data: string) => {
-      writeBufferRef.current.push(data);
-      if (rafIdRef.current === null) {
-        rafIdRef.current = requestAnimationFrame(flushWriteBuffer);
-      }
-    },
-    [flushWriteBuffer],
-  );
-
-  // Search helpers
-  const doSearch = useCallback(
-    (query: string, direction: "next" | "prev" = "next") => {
-      const addon = searchAddonRef.current;
-      if (!addon || !query) return;
-      if (direction === "next") {
-        addon.findNext(query, { regex: false, incremental: true });
-      } else {
-        addon.findPrevious(query, { regex: false, incremental: true });
-      }
-    },
-    [],
-  );
-
-  const closeSearch = useCallback(() => {
-    setSearchVisible(false);
-    setSearchQuery("");
-    searchAddonRef.current?.clearDecorations();
-    termRef.current?.focus();
-  }, []);
-
-  const initTerminal = useCallback(async () => {
-    if (!containerRef.current || termRef.current) return;
-
-    // Read terminal colors from CSS custom properties
-    const cs = getComputedStyle(document.documentElement);
-    const v = (name: string) => cs.getPropertyValue(name).trim();
-
-    const term = new XTerm({
-      theme: {
-        background: v("--term-bg") || "#0d1117",
-        foreground: v("--term-fg") || "#e6edf3",
-        cursor: v("--term-cursor") || "#58a6ff",
-        cursorAccent: v("--term-cursor-accent") || "#0d1117",
-        selectionBackground: v("--term-selection") || "rgba(88, 166, 255, 0.3)",
-        black: v("--term-black") || "#484f58",
-        red: v("--term-red") || "#ff7b72",
-        green: v("--term-green") || "#3fb950",
-        yellow: v("--term-yellow") || "#d29922",
-        blue: v("--term-blue") || "#58a6ff",
-        magenta: v("--term-magenta") || "#bc8cff",
-        cyan: v("--term-cyan") || "#39c5cf",
-        white: v("--term-white") || "#b1bac4",
-        brightBlack: v("--term-bright-black") || "#6e7681",
-        brightRed: v("--term-bright-red") || "#ffa198",
-        brightGreen: v("--term-bright-green") || "#56d364",
-        brightYellow: v("--term-bright-yellow") || "#e3b341",
-        brightBlue: v("--term-bright-blue") || "#79c0ff",
-        brightMagenta: v("--term-bright-magenta") || "#d2a8ff",
-        brightCyan: v("--term-bright-cyan") || "#56d4dd",
-        brightWhite: v("--term-bright-white") || "#f0f6fc",
-      },
-      fontFamily:
-        "SF Mono, Fira Code, Fira Mono, Roboto Mono, Menlo, Consolas, monospace",
-      fontSize: DEFAULT_FONT_SIZE,
-      lineHeight: 1.4,
-      cursorBlink: true,
-      allowProposedApi: true,
-      scrollback: 10000,
-      // Developer-friendly word separators: keeps -_./:\~@#= etc. as word chars
-      // so double-click selects file paths, URLs, and snake_case/kebab-case names
-      wordSeparator: " ()[]{}'\",;|&><`",
-    });
-
-    const fitAddon = new FitAddon();
-    term.loadAddon(fitAddon);
-
-    // Unicode 11 addon — proper width calculation for box-drawing & wide chars
-    const unicode11Addon = new Unicode11Addon();
-    term.loadAddon(unicode11Addon);
-    term.unicode.activeVersion = "11";
-
-    // Search addon
-    const searchAddon = new SearchAddon();
-    term.loadAddon(searchAddon);
-    searchAddonRef.current = searchAddon;
-
-    // URL click support — open in default browser via Tauri shell plugin
-    const webLinksAddon = new WebLinksAddon(async (_event, url) => {
-      try {
-        if (isTauri) {
-          const { open } = await import("@tauri-apps/plugin-shell");
-          await open(url);
-        } else {
-          window.open(url, "_blank");
-        }
-      } catch {
-        // Fallback: silently ignore if shell open fails
-      }
-    });
-    term.loadAddon(webLinksAddon);
-
-    term.open(containerRef.current);
-
-    // WebGL GPU-accelerated renderer (auto-fallback to canvas on context loss)
-    try {
-      const webglAddon = new WebglAddon();
-      webglAddon.onContextLoss(() => {
-        webglAddon.dispose();
-      });
-      term.loadAddon(webglAddon);
-    } catch {
-      // WebGL not available — continue with default canvas renderer
-    }
-
-    termRef.current = term;
-    fitAddonRef.current = fitAddon;
-
-    // Key bindings
-    term.attachCustomKeyEventHandler((e: KeyboardEvent) => {
-      if (e.type !== "keydown") return true;
-
-      // Copy: Cmd+C (Mac) or Ctrl+Shift+C (Linux/Win)
-      const isCopy = isMac
-        ? e.metaKey && e.key === "c"
-        : e.ctrlKey && e.shiftKey && e.key.toLowerCase() === "c";
-      if (isCopy) {
-        const selection = term.getSelection();
-        if (selection) {
-          api.copyToClipboard(selection).catch(() => {});
-        }
-        return false;
-      }
-
-      // Paste: Cmd+V (Mac) or Ctrl+Shift+V (Linux/Win)
-      const isPaste = isMac
-        ? e.metaKey && e.key === "v"
-        : e.ctrlKey && e.shiftKey && e.key.toLowerCase() === "v";
-      if (isPaste) {
-        e.preventDefault();
-        api
-          .readFromClipboard()
-          .then((text) => {
-            if (text) api.writeTerminal(text).catch(() => {});
-          })
-          .catch(() => {});
-        return false;
-      }
-
-      // Search: Cmd+F (Mac) or Ctrl+Shift+F (Linux/Win)
-      const isSearch = isMac
-        ? e.metaKey && e.key === "f"
-        : e.ctrlKey && e.shiftKey && e.key.toLowerCase() === "f";
-      if (isSearch) {
-        setSearchVisible(true);
-        requestAnimationFrame(() => searchInputRef.current?.focus());
-        return false;
-      }
-
-      // Close search: Escape
-      if (e.key === "Escape" && searchVisibleRef.current) {
-        closeSearch();
-        return false;
-      }
-
-      // Clear terminal: Cmd+K (Mac) or Ctrl+Shift+K (Linux/Win)
-      const isClear = isMac
-        ? e.metaKey && e.key === "k"
-        : e.ctrlKey && e.shiftKey && e.key.toLowerCase() === "k";
-      if (isClear) {
-        term.clear();
-        return false;
-      }
-
-      // Font size increase: Cmd+= (Mac) or Ctrl+= (Linux/Win)
-      if ((isMac ? e.metaKey : e.ctrlKey) && (e.key === "=" || e.key === "+")) {
-        const next = Math.min(term.options.fontSize! + 1, MAX_FONT_SIZE);
-        term.options.fontSize = next;
-        fitAddonRef.current?.fit();
-        return false;
-      }
-
-      // Font size decrease: Cmd+- (Mac) or Ctrl+- (Linux/Win)
-      if ((isMac ? e.metaKey : e.ctrlKey) && e.key === "-") {
-        const next = Math.max(term.options.fontSize! - 1, MIN_FONT_SIZE);
-        term.options.fontSize = next;
-        fitAddonRef.current?.fit();
-        return false;
-      }
-
-      // Font size reset: Cmd+0 (Mac) or Ctrl+0 (Linux/Win)
-      if ((isMac ? e.metaKey : e.ctrlKey) && e.key === "0") {
-        term.options.fontSize = DEFAULT_FONT_SIZE;
-        fitAddonRef.current?.fit();
-        return false;
-      }
-
-      return true;
-    });
-
-    // Send user input to PTY backend
-    term.onData((data) => {
-      api.writeTerminal(data).catch(() => {});
-    });
-
-    // Listen for PTY output with batched writing
-    if (isTauri) {
-      const { listen } = await import("@tauri-apps/api/event");
-
-      const unData = await listen<string>("pty-data", (event) => {
-        enqueueWrite(event.payload);
-      });
-      unlistenDataRef.current = unData;
-
-      const unExit = await listen("pty-exit", () => {
-        term.writeln("\r\n\x1b[90m[Process exited]\x1b[0m");
-        spawnedRef.current = false;
-        api.killTerminal().catch(() => {});
-      });
-      unlistenExitRef.current = unExit;
-    }
-
-    // Handle resize — register before fit/spawn so no resize events are lost
-    term.onResize(({ cols, rows }) => {
-      if (spawnedRef.current) {
-        api.resizeTerminal(cols, rows).catch(() => {});
-      }
-    });
-
-    // Wait for fonts to load so cell metrics are accurate, then fit & spawn.
-    await document.fonts.ready;
-    requestAnimationFrame(async () => {
-      fitAddon.fit();
-
-      if (!spawnedRef.current) {
-        try {
-          await api.spawnTerminal(term.cols, term.rows);
-          spawnedRef.current = true;
-        } catch (err) {
-          term.writeln(
-            `\x1b[31mFailed to spawn terminal: ${err}\x1b[0m`,
-          );
-        }
-      }
-    });
-  }, [enqueueWrite, closeSearch]);
-
-  // Initialize terminal when first made visible
+  // Wire up the manager's search toggle callback
   useEffect(() => {
-    if (visible && !termRef.current) {
-      initTerminal();
-    }
-  }, [visible, initTerminal]);
+    manager.setOnSearchToggle((v) => {
+      setSearchVisible(v);
+      if (v) requestAnimationFrame(() => searchInputRef.current?.focus());
+      if (!v) setSearchQuery("");
+    });
+    return () => {
+      manager.setOnSearchToggle(null);
+    };
+  }, [manager]);
 
-  // Re-fit when visibility changes
+  // Keep manager's search visible ref in sync
   useEffect(() => {
-    if (visible && fitAddonRef.current && termRef.current) {
+    manager.setSearchVisible(searchVisible);
+  }, [manager, searchVisible]);
+
+  // Initialize / re-attach terminal when visible
+  useEffect(() => {
+    if (visible && containerRef.current) {
+      manager.init(containerRef.current);
+    }
+    return () => {
+      manager.detach();
+    };
+  }, [visible, manager]);
+
+  // Re-fit on visibility change
+  useEffect(() => {
+    if (visible && manager.isInitialized) {
       requestAnimationFrame(() => {
-        fitAddonRef.current?.fit();
+        manager.fit();
+        manager.focus();
       });
-      termRef.current.focus();
     }
-  }, [visible]);
+  }, [visible, manager]);
 
-  // ResizeObserver to handle container size changes
+  // ResizeObserver for container size changes
   useEffect(() => {
     if (!containerRef.current) return;
-
     const observer = new ResizeObserver(() => {
-      if (visible && fitAddonRef.current) {
-        fitAddonRef.current.fit();
-      }
+      if (visible) manager.fit();
     });
     observer.observe(containerRef.current);
-
     return () => observer.disconnect();
-  }, [visible]);
+  }, [visible, manager]);
 
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (rafIdRef.current !== null) {
-        cancelAnimationFrame(rafIdRef.current);
+  const closeSearch = useCallback(() => {
+    manager.closeSearch();
+    setSearchVisible(false);
+    setSearchQuery("");
+  }, [manager]);
+
+  const doSearch = useCallback(
+    (query: string, direction: "next" | "prev" = "next") => {
+      if (!query) return;
+      if (direction === "next") {
+        manager.findNext(query);
+      } else {
+        manager.findPrev(query);
       }
-      unlistenDataRef.current?.();
-      unlistenExitRef.current?.();
-      termRef.current?.dispose();
-    };
-  }, []);
+    },
+    [manager],
+  );
 
   return (
     <div

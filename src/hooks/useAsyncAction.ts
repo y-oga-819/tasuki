@@ -47,7 +47,6 @@ export function useAsyncAction<T>(
     } finally {
       setLoading(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [action, options?.timeout]);
 
   return { execute, isLoading, error, reset: () => setError(null) };

@@ -10,6 +10,7 @@ import { useReviewStore } from "./store/reviewStore";
 import { useDiff } from "./hooks/useDiff";
 import { useFileWatcher } from "./hooks/useFileWatcher";
 import { useReviewPersistence } from "./hooks/useReviewPersistence";
+import { TerminalManagerProvider } from "./components/TerminalManagerContext";
 import * as api from "./utils/tauri-api";
 
 const isTauri = typeof window !== "undefined" && "__TAURI__" in window;
@@ -169,6 +170,7 @@ const App: React.FC = () => {
         theme: { dark: "github-dark", light: "github-light" },
       }}
     >
+      <TerminalManagerProvider>
       <ErrorBoundary>
         <div className="app">
           <Toolbar />
@@ -192,6 +194,7 @@ const App: React.FC = () => {
           </div>
         </div>
       </ErrorBoundary>
+      </TerminalManagerProvider>
     </WorkerPoolContextProvider>
   );
 };
