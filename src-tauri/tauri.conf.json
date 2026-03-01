@@ -1,7 +1,7 @@
 {
   "$schema": "https://raw.githubusercontent.com/nicedoc/spec/master/schema/tauri-conf.schema.json",
   "productName": "Tasuki",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "identifier": "dev.tasuki.app",
   "build": {
     "frontendDist": "../dist",
