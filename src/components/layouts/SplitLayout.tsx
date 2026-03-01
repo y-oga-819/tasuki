@@ -60,6 +60,30 @@ export const SplitLayout: React.FC = () => {
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
+  const adjustRatio = useCallback(
+    (delta: number) => {
+      setSplitRatio((prev) => {
+        if (!mainRef.current) return prev;
+        const width = mainRef.current.getBoundingClientRect().width;
+        return clampSplitRatio(prev + delta, width);
+      });
+    },
+    [],
+  );
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        adjustRatio(-0.05);
+      } else if (e.key === "ArrowRight") {
+        e.preventDefault();
+        adjustRatio(0.05);
+      }
+    },
+    [adjustRatio],
+  );
+
   useEffect(() => {
     return () => cancelAnimationFrame(rafIdRef.current);
   }, []);
@@ -80,9 +104,14 @@ export const SplitLayout: React.FC = () => {
         role="separator"
         aria-orientation="vertical"
         aria-label="Resize pane"
+        aria-valuenow={Math.round(splitRatio * 100)}
+        aria-valuemin={20}
+        aria-valuemax={80}
+        tabIndex={0}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
+        onKeyDown={handleKeyDown}
       />
 
       {/* Right pane — tabs */}

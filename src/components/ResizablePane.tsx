@@ -77,6 +77,32 @@ export const ResizablePane: React.FC<ResizablePaneProps> = ({
     return () => cancelAnimationFrame(rafIdRef.current);
   }, []);
 
+  const adjustRatio = useCallback(
+    (delta: number) => {
+      setRatio((prev) => {
+        const effectiveMinRatio =
+          maxRightWidth != null && containerRef.current
+            ? Math.max(minRatio, 1 - maxRightWidth / containerRef.current.getBoundingClientRect().width)
+            : minRatio;
+        return Math.max(effectiveMinRatio, Math.min(maxRatio, prev + delta));
+      });
+    },
+    [minRatio, maxRatio, maxRightWidth],
+  );
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        adjustRatio(-0.05);
+      } else if (e.key === "ArrowRight") {
+        e.preventDefault();
+        adjustRatio(0.05);
+      }
+    },
+    [adjustRatio],
+  );
+
   const leftBasis = `${ratio * 100}%`;
   const rightBasis = `${(1 - ratio) * 100}%`;
 
@@ -90,9 +116,14 @@ export const ResizablePane: React.FC<ResizablePaneProps> = ({
         role="separator"
         aria-orientation="vertical"
         aria-label="Resize pane"
+        aria-valuenow={Math.round(ratio * 100)}
+        aria-valuemin={Math.round(minRatio * 100)}
+        aria-valuemax={Math.round(maxRatio * 100)}
+        tabIndex={0}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
+        onKeyDown={handleKeyDown}
       />
       <div className="resizable-right" style={{ flexBasis: rightBasis }}>
         {right}

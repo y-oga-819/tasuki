@@ -53,6 +53,17 @@ const App: React.FC = () => {
     cancelAnimationFrame(rafIdRef.current);
   }, []);
 
+  const handleSidebarKeyDown = useCallback((e: React.KeyboardEvent) => {
+    const step = 20; // px per key press
+    if (e.key === "ArrowLeft") {
+      e.preventDefault();
+      setSidebarWidth((prev) => Math.max(MIN_SIDEBAR_WIDTH, prev - step));
+    } else if (e.key === "ArrowRight") {
+      e.preventDefault();
+      setSidebarWidth((prev) => Math.min(MAX_SIDEBAR_WIDTH, prev + step));
+    }
+  }, []);
+
   useEffect(() => {
     return () => cancelAnimationFrame(rafIdRef.current);
   }, []);
@@ -168,9 +179,14 @@ const App: React.FC = () => {
               role="separator"
               aria-orientation="vertical"
               aria-label="Resize sidebar"
+              aria-valuenow={Math.round(sidebarWidth)}
+              aria-valuemin={MIN_SIDEBAR_WIDTH}
+              aria-valuemax={MAX_SIDEBAR_WIDTH}
+              tabIndex={0}
               onPointerDown={handleSidebarPointerDown}
               onPointerMove={handleSidebarPointerMove}
               onPointerUp={handleSidebarPointerUp}
+              onKeyDown={handleSidebarKeyDown}
             />
             <MainContent />
           </div>
