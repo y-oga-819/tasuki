@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useReviewStore } from "../store/reviewStore";
 import { useDiffStore } from "../store/diffStore";
 import { formatReviewPrompt, formatSingleComment } from "../utils/format-review";
@@ -15,6 +15,19 @@ const ThreadCard: React.FC<{
   const { addReply, resolveThread, removeThread } = useReviewStore();
   const [replyText, setReplyText] = useState("");
   const [showMenu, setShowMenu] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Close menu on click outside
+  useEffect(() => {
+    if (!showMenu) return;
+    const handler = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setShowMenu(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [showMenu]);
 
   const c = thread.root;
 
@@ -47,7 +60,7 @@ const ThreadCard: React.FC<{
           >
             {"\u{1F4CB}"}
           </button>
-          <div className="thread-menu-container">
+          <div className="thread-menu-container" ref={menuRef}>
             <button
               className="btn-icon"
               onClick={() => setShowMenu(!showMenu)}
@@ -56,7 +69,7 @@ const ThreadCard: React.FC<{
               {"\u2026"}
             </button>
             {showMenu && (
-              <div className="thread-menu" onMouseLeave={() => setShowMenu(false)}>
+              <div className="thread-menu">
                 <button
                   className="thread-menu-item thread-menu-item--danger"
                   onClick={() => {
