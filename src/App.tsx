@@ -4,9 +4,9 @@ import { Toolbar } from "./components/Toolbar";
 import { FileSidebar } from "./components/FileSidebar";
 import { MainContent } from "./components/MainContent";
 import { ErrorBoundary } from "./components/ErrorBoundary";
+import { StaleBanner } from "./components/StaleBanner";
 import { useDiffStore } from "./store/diffStore";
 import { useDocStore } from "./store/docStore";
-import { useReviewStore } from "./store/reviewStore";
 import { useDiff } from "./hooks/useDiff";
 import { useFileWatcher } from "./hooks/useFileWatcher";
 import { useReviewPersistence } from "./hooks/useReviewPersistence";
@@ -22,7 +22,6 @@ const MAX_SIDEBAR_WIDTH = 500;
 const App: React.FC = () => {
   const { setRepoPath, setRepoInfo } = useDiffStore();
   const { setDocFiles, setDesignDocs, setSelectedDoc } = useDocStore();
-  const { gateStatus, setGateStatus, setVerdict } = useReviewStore();
   const { refetch } = useDiff();
 
   // Sidebar resize
@@ -141,21 +140,8 @@ const App: React.FC = () => {
     return () => unlisten?.();
   }, []);
 
-  // Watch for file changes and refetch diff + invalidate gate
-  const handleFilesChanged = useCallback(async () => {
-    refetch();
-
-    // If gate was approved/rejected, invalidate it since files changed
-    if (gateStatus === "approved" || gateStatus === "rejected") {
-      try {
-        await api.clearCommitGate();
-      } catch { /* ignore */ }
-      setGateStatus("invalidated");
-      setVerdict(null);
-    }
-  }, [refetch, gateStatus, setGateStatus, setVerdict]);
-
-  useFileWatcher(handleFilesChanged);
+  // Watch for file changes (HEAD SHA detection + stale banner + focus auto-refresh)
+  useFileWatcher(refetch);
 
   return (
     <WorkerPoolContextProvider
@@ -174,6 +160,7 @@ const App: React.FC = () => {
       <ErrorBoundary>
         <div className="app">
           <Toolbar />
+          <StaleBanner onRefresh={refetch} />
           <div className="app-body">
             <FileSidebar style={{ width: sidebarWidth }} />
             <div
