@@ -10,7 +10,7 @@ import type {
   FileDiffOptions,
 } from "@pierre/diffs";
 import { getFiletypeFromFileName, cleanLastNewline } from "@pierre/diffs";
-import { useDisplayStore } from "../store/displayStore";
+import { useUiStore } from "../store/uiStore";
 import { useDiffStore } from "../store/diffStore";
 import { useEditorStore } from "../store/editorStore";
 import { useReviewStore } from "../store/reviewStore";
@@ -65,7 +65,7 @@ interface DiffViewerProps {
 }
 
 export const DiffViewer: React.FC<DiffViewerProps> = ({ fileDiff }) => {
-  const { diffLayout, diffOverflow, expandUnchanged } = useDisplayStore();
+  const { diffLayout, diffOverflow, expandUnchanged } = useUiStore();
   const { collapsedFiles, toggleFileCollapse } = useDiffStore();
   const {
     selectedLineRange,

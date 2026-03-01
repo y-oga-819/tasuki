@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState, lazy, Suspense } from "react";
-import { useDisplayStore } from "../../store/displayStore";
+import { useUiStore } from "../../store/uiStore";
 import { clampSplitRatio } from "../../utils/layout";
 import { DiffPane } from "../DiffPane";
 
@@ -16,7 +16,7 @@ const TerminalPanel = lazy(() =>
 const DEFAULT_SPLIT_RATIO = 0.65;
 
 export const SplitLayout: React.FC = () => {
-  const { rightPaneMode, setRightPaneMode } = useDisplayStore();
+  const { rightPaneMode, setRightPaneMode } = useUiStore();
 
   const [splitRatio, setSplitRatio] = useState(DEFAULT_SPLIT_RATIO);
   const mainRef = useRef<HTMLDivElement>(null);

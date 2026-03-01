@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { List, type RowComponentProps } from "react-window";
-import { useDisplayStore } from "../store/displayStore";
+import { useUiStore } from "../store/uiStore";
 import { useDiffStore } from "../store/diffStore";
 import { useDocStore } from "../store/docStore";
 import { useReviewStore } from "../store/reviewStore";
@@ -26,7 +26,7 @@ interface FileSidebarProps {
 }
 
 export const FileSidebar: React.FC<FileSidebarProps> = ({ style }) => {
-  const { displayMode } = useDisplayStore();
+  const { displayMode } = useUiStore();
   const {
     diffResult,
     selectedFile,

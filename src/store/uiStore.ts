@@ -4,7 +4,7 @@ import type { DisplayMode, RightPaneMode, DiffLayout } from "../types";
 /** Overflow mode for diff lines (Pierre-native) */
 export type DiffOverflow = "scroll" | "wrap";
 
-interface DisplayState {
+interface UiState {
   displayMode: DisplayMode;
   setDisplayMode: (mode: DisplayMode) => void;
   rightPaneMode: RightPaneMode;
@@ -21,7 +21,7 @@ interface DisplayState {
   setMarkdownViewMode: (mode: "preview" | "raw") => void;
 }
 
-export const useDisplayStore = create<DisplayState>((set) => ({
+export const useUiStore = create<UiState>((set) => ({
   displayMode: "split",
   setDisplayMode: (mode) => set({ displayMode: mode }),
   rightPaneMode: "docs",

@@ -1,12 +1,12 @@
 import React from "react";
-import { useDisplayStore } from "../../store/displayStore";
+import { useUiStore } from "../../store/uiStore";
 import { useDiffStore } from "../../store/diffStore";
 import { DiffOnlyLayout } from "./DiffOnlyLayout";
 import { SplitLayout } from "./SplitLayout";
 import { ViewerLayout } from "./ViewerLayout";
 
 export const LayoutSwitch: React.FC = () => {
-  const displayMode = useDisplayStore((s) => s.displayMode);
+  const displayMode = useUiStore((s) => s.displayMode);
   const isLoading = useDiffStore((s) => s.isLoading);
   const error = useDiffStore((s) => s.error);
 
