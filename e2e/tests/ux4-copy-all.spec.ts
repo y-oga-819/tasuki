@@ -37,7 +37,7 @@ test.describe("UX4: Copy All", () => {
     // Switch to Review tab in right pane
     await page.getByRole("tab", { name: "Review" }).click();
 
-    await page.getByText("First comment").waitFor();
+    await page.getByLabel("Side panel").getByText("First comment").waitFor();
 
     const copyAllBtn = page.getByRole("button", { name: "Copy All" });
     await expect(copyAllBtn).toBeEnabled();

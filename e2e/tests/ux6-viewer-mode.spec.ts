@@ -91,8 +91,8 @@ test.describe("UX6: Viewer Mode & Mermaid Zoom", () => {
       return;
     }
 
-    // Wait for SVG rendering
-    const svg = mermaidBlock.locator("svg");
+    // Wait for SVG rendering (use role="img" to target Mermaid SVG, not icon SVGs)
+    const svg = mermaidBlock.getByRole("img");
     await expect(svg).toBeVisible({ timeout: 10000 });
 
     // Hover block to reveal zoom button (opacity: 0 by default)
@@ -132,7 +132,7 @@ test.describe("UX6: Viewer Mode & Mermaid Zoom", () => {
       return;
     }
 
-    const svg = mermaidBlock.locator("svg");
+    const svg = mermaidBlock.getByRole("img");
     await expect(svg).toBeVisible({ timeout: 10000 });
 
     // Hover block to reveal zoom button (opacity: 0 by default), then open modal

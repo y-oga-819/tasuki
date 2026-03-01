@@ -39,7 +39,7 @@ test.describe("UX5: Docs Alongside", () => {
     const mermaidVisible = await mermaidBlock.isVisible().catch(() => false);
 
     if (mermaidVisible) {
-      const svg = mermaidBlock.locator("svg");
+      const svg = mermaidBlock.getByRole("img");
       await expect(svg).toBeVisible({ timeout: 10000 });
     }
     // If mermaid block doesn't appear, the markdown viewer is still verified as visible
