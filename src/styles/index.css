@@ -305,11 +305,18 @@ a:hover {
 }
 
 .sidebar-resize-handle {
-  width: 4px;
+  position: relative;
+  width: var(--resize-handle-width);
   flex-shrink: 0;
   background: var(--color-border-primary);
   cursor: col-resize;
   transition: background 0.15s ease;
+}
+
+.sidebar-resize-handle::before {
+  content: "";
+  position: absolute;
+  inset: 0 calc(-1 * (var(--resize-handle-hitarea) - var(--resize-handle-width)) / 2);
 }
 
 .sidebar-resize-handle:hover,
@@ -597,11 +604,18 @@ a:hover {
 }
 
 .split-handle {
-  width: 4px;
+  position: relative;
+  width: var(--resize-handle-width);
   flex-shrink: 0;
   background: var(--color-border-primary);
   cursor: col-resize;
   transition: background 0.15s ease;
+}
+
+.split-handle::before {
+  content: "";
+  position: absolute;
+  inset: 0 calc(-1 * (var(--resize-handle-hitarea) - var(--resize-handle-width)) / 2);
 }
 
 .split-handle:hover,
@@ -765,11 +779,18 @@ a:hover {
 }
 
 .resizable-handle {
-  width: 4px;
+  position: relative;
+  width: var(--resize-handle-width);
   flex-shrink: 0;
   background: var(--color-border-primary);
   cursor: col-resize;
   transition: background 0.15s ease;
+}
+
+.resizable-handle::before {
+  content: "";
+  position: absolute;
+  inset: 0 calc(-1 * (var(--resize-handle-hitarea) - var(--resize-handle-width)) / 2);
 }
 
 .resizable-handle:hover,

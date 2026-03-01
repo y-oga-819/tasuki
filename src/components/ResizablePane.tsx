@@ -87,6 +87,9 @@ export const ResizablePane: React.FC<ResizablePaneProps> = ({
       </div>
       <div
         className="resizable-handle"
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="Resize pane"
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}

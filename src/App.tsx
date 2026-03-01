@@ -165,6 +165,9 @@ const App: React.FC = () => {
             <FileSidebar style={{ width: sidebarWidth }} />
             <div
               className="sidebar-resize-handle"
+              role="separator"
+              aria-orientation="vertical"
+              aria-label="Resize sidebar"
               onPointerDown={handleSidebarPointerDown}
               onPointerMove={handleSidebarPointerMove}
               onPointerUp={handleSidebarPointerUp}

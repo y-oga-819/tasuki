@@ -77,6 +77,9 @@ export const SplitLayout: React.FC = () => {
       {/* Resize handle */}
       <div
         className="split-handle"
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="Resize pane"
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
