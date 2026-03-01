@@ -4,165 +4,19 @@ import { useDisplayStore } from "../store/displayStore";
 import { useDiffStore } from "../store/diffStore";
 import { useDocStore } from "../store/docStore";
 import { useReviewStore } from "../store/reviewStore";
-import type { FileDiff } from "../types";
 import { getStatusColor, getStatusLabel } from "../utils/diff-utils";
 import {
   getFileIcon,
   FolderOpenIcon,
   FolderClosedIcon,
 } from "../utils/file-icons";
+import {
+  buildFileTree,
+  buildPathTree,
+  flattenTree,
+  type FileTreeNode,
+} from "../utils/file-tree";
 import * as api from "../utils/tauri-api";
-
-interface FileTreeNode {
-  name: string;
-  path: string;
-  isDir: boolean;
-  children: FileTreeNode[];
-  fileDiff?: FileDiff;
-}
-
-/** Collapse single-child directories (e.g., src/components → src/components) */
-function collapseNode(node: FileTreeNode): FileTreeNode {
-  if (
-    node.isDir &&
-    node.children.length === 1 &&
-    node.children[0].isDir
-  ) {
-    const child = node.children[0];
-    return collapseNode({
-      ...child,
-      name: `${node.name}/${child.name}`,
-      path: child.path,
-    });
-  }
-  return {
-    ...node,
-    children: node.children.map(collapseNode),
-  };
-}
-
-/** Sort: directories first, then alphabetically */
-function sortTreeNodes(nodes: FileTreeNode[]): FileTreeNode[] {
-  return nodes
-    .map((n) => ({ ...n, children: sortTreeNodes(n.children) }))
-    .sort((a, b) => {
-      if (a.isDir !== b.isDir) return a.isDir ? -1 : 1;
-      return a.name.localeCompare(b.name);
-    });
-}
-
-/** Build a tree from flat file paths, collapsing single-child directories */
-function buildFileTree(files: FileDiff[]): FileTreeNode[] {
-  const root: FileTreeNode = {
-    name: "",
-    path: "",
-    isDir: true,
-    children: [],
-  };
-
-  for (const fd of files) {
-    const parts = fd.file.path.split("/");
-    let current = root;
-
-    for (let i = 0; i < parts.length; i++) {
-      const part = parts[i];
-      const isLast = i === parts.length - 1;
-
-      if (isLast) {
-        current.children.push({
-          name: part,
-          path: fd.file.path,
-          isDir: false,
-          children: [],
-          fileDiff: fd,
-        });
-      } else {
-        let dirNode = current.children.find(
-          (c) => c.isDir && c.name === part,
-        );
-        if (!dirNode) {
-          dirNode = {
-            name: part,
-            path: parts.slice(0, i + 1).join("/"),
-            isDir: true,
-            children: [],
-          };
-          current.children.push(dirNode);
-        }
-        current = dirNode;
-      }
-    }
-  }
-
-  return sortTreeNodes(root.children.map(collapseNode));
-}
-
-/** Build a tree from plain path strings (no FileDiff) */
-function buildPathTree(paths: string[]): FileTreeNode[] {
-  const root: FileTreeNode = {
-    name: "",
-    path: "",
-    isDir: true,
-    children: [],
-  };
-
-  for (const p of paths) {
-    const parts = p.split("/");
-    let current = root;
-
-    for (let i = 0; i < parts.length; i++) {
-      const part = parts[i];
-      const isLast = i === parts.length - 1;
-
-      if (isLast) {
-        current.children.push({
-          name: part,
-          path: p,
-          isDir: false,
-          children: [],
-        });
-      } else {
-        let dirNode = current.children.find(
-          (c) => c.isDir && c.name === part,
-        );
-        if (!dirNode) {
-          dirNode = {
-            name: part,
-            path: parts.slice(0, i + 1).join("/"),
-            isDir: true,
-            children: [],
-          };
-          current.children.push(dirNode);
-        }
-        current = dirNode;
-      }
-    }
-  }
-
-  return sortTreeNodes(root.children.map(collapseNode));
-}
-
-/** Flattened node for virtualized rendering */
-interface FlatNode {
-  node: FileTreeNode;
-  depth: number;
-}
-
-/** Flatten a tree into a linear array, skipping children of collapsed dirs */
-function flattenTree(
-  nodes: FileTreeNode[],
-  collapsedDirs: Set<string>,
-  depth = 0,
-): FlatNode[] {
-  const result: FlatNode[] = [];
-  for (const node of nodes) {
-    result.push({ node, depth });
-    if (node.isDir && !collapsedDirs.has(node.path)) {
-      result.push(...flattenTree(node.children, collapsedDirs, depth + 1));
-    }
-  }
-  return result;
-}
 
 const DIR_ROW_HEIGHT = 28;
 const FILE_ROW_HEIGHT = 32;
