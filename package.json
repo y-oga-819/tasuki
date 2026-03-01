@@ -1,8 +1,20 @@
 {
   "name": "tasuki",
-  "private": true,
   "version": "0.1.0",
-  "description": "Tasuki — レビュー補助ツール: Claude Code と人間が襷を渡し合いながらゴールに向かう",
+  "description": "Tasuki — A review assistant tool where Claude Code and humans pass the tasuki (sash) to reach the goal together",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/y-oga-819/tasuki.git"
+  },
+  "homepage": "https://github.com/y-oga-819/tasuki",
+  "keywords": [
+    "code-review",
+    "diff-viewer",
+    "claude-code",
+    "tauri",
+    "markdown-viewer"
+  ],
   "type": "module",
   "scripts": {
     "dev": "vite",
