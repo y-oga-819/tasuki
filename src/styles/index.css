@@ -46,40 +46,63 @@
   --color-request-changes: #d29922;
   --color-comment: #58a6ff;
 
-  /* Sizing */
-  --sidebar-width: 260px;
-  --toolbar-height: 48px;
-
-  /* Typography */
+  /* ── Typography ── */
   --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans",
     Helvetica, Arial, sans-serif;
   --font-mono: "SF Mono", "Fira Code", "Fira Mono", "Roboto Mono", Menlo,
     Consolas, monospace;
-  --font-size-xs: 11px;
-  --font-size-sm: 12px;
-  --font-size-base: 13px;
-  --font-size-md: 14px;
-  --font-size-lg: 16px;
 
-  /* Spacing */
-  --space-1: 4px;
-  --space-2: 8px;
-  --space-3: 12px;
-  --space-4: 16px;
-  --space-5: 24px;
-  --space-6: 32px;
+  --font-size-sm:    0.75rem;   /* 12px — メタデータ, 補助テキスト */
+  --font-size-base:  0.875rem;  /* 14px — UI テキスト, diff, コード */
+  --font-size-prose: 1rem;      /* 16px — Markdown 本文 (日本語可読性) */
+  --font-size-lg:    1rem;      /* 16px — セクション見出し */
+  --font-size-xl:    1.25rem;   /* 20px — ページタイトル */
 
-  /* Radius */
-  --radius-sm: 4px;
-  --radius-md: 6px;
-  --radius-lg: 8px;
+  --line-height-tight: 1.25;
+  --line-height-base:  1.5;
+  --line-height-loose: 1.75;
 
-  /* Pierre (@pierre/diffs) integration — sync with Tasuki design system */
+  --font-weight-normal:   400;
+  --font-weight-medium:   500;
+  --font-weight-semibold: 600;
+
+  /* ── Spacing (4px grid, rem) ── */
+  --space-1: 0.25rem;   /*  4px */
+  --space-2: 0.5rem;    /*  8px */
+  --space-3: 0.75rem;   /* 12px */
+  --space-4: 1rem;      /* 16px */
+  --space-5: 1.5rem;    /* 24px */
+  --space-6: 2rem;      /* 32px */
+  --space-8: 3rem;      /* 48px */
+
+  /* ── Border Radius (4px grid, rem) ── */
+  --radius-sm: 0.25rem;  /*  4px */
+  --radius-md: 0.5rem;   /*  8px */
+  --radius-lg: 0.75rem;  /* 12px */
+
+  /* ── Layout ── */
+  --sidebar-width: 260px;
+  --toolbar-height: 3rem;         /* 48px */
+  --interactive-min: 1.5rem;      /* 24px — WCAG 2.5.8 最小ターゲット */
+  --interactive-comfortable: 2rem; /* 32px — 推奨ターゲット */
+
+  /* ── Resize Handle ── */
+  --resize-handle-width: 4px;
+  --resize-handle-hitarea: 12px;
+
+  /* ── Z-Index Layers ── */
+  --z-base: 0;
+  --z-sticky: 10;
+  --z-dropdown: 100;
+  --z-overlay: 500;
+  --z-modal: 1000;
+
+  /* ── Pierre (@pierre/diffs) integration ── */
   --diffs-font-family: var(--font-mono);
   --diffs-font-fallback: Menlo, Consolas, monospace;
   --diffs-header-font-family: var(--font-sans);
   --diffs-font-size: var(--font-size-base);
-  --diffs-line-height: 20px;
+  --diffs-line-height: var(--line-height-base);
   --diffs-tab-size: 4;
   --diffs-gap-inline: var(--space-2);
 }
@@ -181,7 +204,7 @@ a:hover {
 }
 
 .toolbar-worktree-badge {
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-sm);
   color: var(--color-text-secondary);
   padding: 1px 6px;
   background: var(--color-bg-overlay);
@@ -250,7 +273,7 @@ a:hover {
   border: none;
   background: var(--color-bg-tertiary);
   color: var(--color-text-secondary);
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-sm);
   cursor: pointer;
 }
 
@@ -303,7 +326,7 @@ a:hover {
 }
 
 .sidebar-section-title {
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-sm);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -331,7 +354,7 @@ a:hover {
 .section-chevron {
   flex-shrink: 0;
   width: 14px;
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-sm);
   text-align: center;
   color: var(--color-text-tertiary);
   transition: transform 0.2s ease;
@@ -361,7 +384,7 @@ a:hover {
   display: flex;
   gap: var(--space-2);
   padding: var(--space-2) var(--space-3);
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-sm);
 }
 
 .file-list {
@@ -401,7 +424,7 @@ a:hover {
 
 .file-status {
   flex-shrink: 0;
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-sm);
   font-weight: 700;
   font-family: var(--font-mono);
   width: 14px;
@@ -419,7 +442,7 @@ a:hover {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-sm);
   color: var(--color-text-tertiary);
   margin-left: var(--space-1);
 }
@@ -428,7 +451,7 @@ a:hover {
   flex-shrink: 0;
   display: flex;
   gap: var(--space-1);
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-sm);
   font-family: var(--font-mono);
 }
 
@@ -445,7 +468,7 @@ a:hover {
 .tree-toggle {
   flex-shrink: 0;
   width: 14px;
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-sm);
   text-align: center;
   color: var(--color-text-tertiary);
 }
@@ -454,7 +477,7 @@ a:hover {
   flex-shrink: 0;
   background: var(--color-comment);
   color: #fff;
-  font-size: 10px;
+  font-size: var(--font-size-sm);
   padding: 0 5px;
   border-radius: 10px;
   font-weight: 600;
@@ -466,7 +489,7 @@ a:hover {
   border: none;
   color: var(--color-text-tertiary);
   cursor: pointer;
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-sm);
   padding: 0 2px;
   opacity: 0;
   transition: opacity 0.1s ease;
@@ -487,7 +510,7 @@ a:hover {
   border: none;
   color: var(--color-text-tertiary);
   cursor: pointer;
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-sm);
   padding: 0 2px;
 }
 
@@ -504,7 +527,7 @@ a:hover {
 .badge {
   background: var(--color-bg-overlay);
   color: var(--color-text-secondary);
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-sm);
   padding: 0 6px;
   border-radius: 10px;
   font-weight: 500;
@@ -526,7 +549,7 @@ a:hover {
 
 .loading-spinner {
   color: var(--color-text-secondary);
-  font-size: var(--font-size-md);
+  font-size: var(--font-size-base);
 }
 
 .error-message {
@@ -698,7 +721,7 @@ a:hover {
   background: transparent;
   color: var(--color-text-secondary);
   cursor: pointer;
-  font-size: 10px;
+  font-size: var(--font-size-sm);
 }
 
 .diff-search-btn:hover:not(:disabled) {
@@ -854,7 +877,7 @@ a:hover {
 }
 
 .dv-generated {
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-sm);
   color: var(--color-text-tertiary);
   background: var(--color-bg-overlay);
   padding: 1px 6px;
@@ -884,10 +907,10 @@ a:hover {
   border: none;
   background: var(--color-btn-primary);
   color: #fff;
-  font-size: var(--font-size-md);
+  font-size: var(--font-size-base);
   font-weight: 700;
   cursor: pointer;
-  line-height: 1;
+  line-height: var(--line-height-tight);
   transition: background 0.1s;
 }
 
@@ -915,12 +938,12 @@ a:hover {
 
 .dv-comment-location {
   font-family: var(--font-mono);
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-sm);
   color: var(--color-text-link);
 }
 
 .dv-comment-type {
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-sm);
   color: var(--color-text-tertiary);
   text-transform: capitalize;
 }
@@ -931,9 +954,9 @@ a:hover {
   border: none;
   color: var(--color-text-tertiary);
   cursor: pointer;
-  font-size: var(--font-size-md);
+  font-size: var(--font-size-base);
   padding: 0 2px;
-  line-height: 1;
+  line-height: var(--line-height-tight);
 }
 
 .dv-comment-delete:hover {
@@ -946,7 +969,7 @@ a:hover {
   border-radius: var(--radius-sm);
   padding: var(--space-1) var(--space-2);
   font-family: var(--font-mono);
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-sm);
   color: var(--color-text-secondary);
   margin-bottom: var(--space-1);
   overflow-x: auto;
@@ -983,7 +1006,7 @@ a:hover {
 
 .dv-reply-author {
   color: var(--color-text-tertiary);
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-sm);
   flex-shrink: 0;
 }
 
@@ -1010,7 +1033,7 @@ a:hover {
 
 .dv-form-header {
   font-family: var(--font-mono);
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-sm);
   color: var(--color-text-link);
   margin-bottom: var(--space-2);
 }
@@ -1097,7 +1120,7 @@ a:hover {
 
 kbd {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--font-size-sm);
   padding: 1px 4px;
   background: var(--color-bg-primary);
   border: 1px solid var(--color-border-primary);
@@ -1135,7 +1158,7 @@ kbd {
 }
 
 .copy-all-btn {
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-sm);
 }
 
 .review-empty {
@@ -1168,7 +1191,7 @@ kbd {
 
 .comment-location {
   font-family: var(--font-mono);
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-sm);
   color: var(--color-text-link);
 }
 
@@ -1183,7 +1206,7 @@ kbd {
   border-radius: var(--radius-sm);
   padding: var(--space-1) var(--space-2);
   font-family: var(--font-mono);
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-sm);
   color: var(--color-text-secondary);
   margin-bottom: var(--space-1);
   overflow-x: auto;
@@ -1297,7 +1320,7 @@ kbd {
 
 .thread-reply-author {
   color: var(--color-text-tertiary);
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-sm);
   flex-shrink: 0;
 }
 
@@ -1362,7 +1385,7 @@ kbd {
 
 .btn-xs {
   padding: 1px var(--space-2);
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-sm);
 }
 
 /* --- Review header actions --- */
@@ -1374,7 +1397,7 @@ kbd {
 
 /* --- Gate status badge --- */
 .gate-badge {
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-sm);
   padding: 1px 8px;
   border-radius: 10px;
   font-weight: 600;
@@ -1406,7 +1429,7 @@ kbd {
 }
 
 .verdict-info {
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-sm);
   white-space: nowrap;
 }
 
@@ -1682,7 +1705,7 @@ kbd {
   padding: var(--space-1) var(--space-3);
   background: var(--color-bg-overlay);
   color: var(--color-text-secondary);
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-sm);
   font-weight: 600;
   border-bottom: 1px solid var(--color-border-primary);
 }
@@ -1834,7 +1857,7 @@ kbd {
   width: 24px;
   height: 24px;
   padding: 0;
-  font-size: 10px;
+  font-size: var(--font-size-sm);
   color: #8b949e;
   background: transparent;
   border: none;
@@ -1871,7 +1894,7 @@ kbd {
   background: var(--color-bg-primary);
   padding: var(--space-2);
   border-radius: var(--radius-sm);
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-sm);
   overflow-x: auto;
   white-space: pre-wrap;
   margin-bottom: var(--space-2);
@@ -1987,7 +2010,7 @@ kbd {
   border: 1px solid var(--color-border-secondary);
   border-radius: var(--radius-sm);
   color: var(--color-text-primary);
-  font-size: var(--font-size-md);
+  font-size: var(--font-size-base);
   font-weight: 600;
   cursor: pointer;
 }
@@ -2071,9 +2094,9 @@ kbd {
   background: none;
   border: none;
   color: var(--color-text-tertiary);
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-sm);
   cursor: pointer;
-  line-height: 1;
+  line-height: var(--line-height-tight);
 }
 
 .remove-folder-btn:hover {
@@ -2083,7 +2106,7 @@ kbd {
 .sidebar-empty-hint {
   padding: var(--space-2) var(--space-3);
   color: var(--color-text-tertiary);
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-sm);
   font-style: italic;
 }
 
