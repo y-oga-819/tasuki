@@ -1,0 +1,8 @@
+# Default: all changes require review from the maintainer
+* @y-oga-819
+
+# CI/CD and release pipelines
+.github/ @y-oga-819
+
+# Rust / Tauri backend
+src-tauri/ @y-oga-819

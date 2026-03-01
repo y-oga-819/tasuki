@@ -1,0 +1,102 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Gate: only maintainers (write access or above) can trigger a release
+  authorize:
+    name: Authorize
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check actor permission
+        uses: actions-cool/check-user-permission@v2
+        with:
+          require: write
+          username: ${{ github.actor }}
+
+  test:
+    name: Lint & Test
+    needs: authorize
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+
+  build-mac:
+    name: Build macOS (${{ matrix.arch }})
+    needs: test
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: arm64
+            target: aarch64-apple-darwin
+            runner: macos-latest
+          - arch: x64
+            target: x86_64-apple-darwin
+            runner: macos-13
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+
+      - run: npm install -g pnpm
+
+      - run: npm ci
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+          key: ${{ matrix.target }}
+
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Apple code signing (optional — skip to produce unsigned builds)
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          # Apple notarization (optional — skip to produce un-notarized builds)
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: "Tasuki ${{ github.ref_name }}"
+          releaseBody: |
+            ## What's Changed
+
+            See the full changelog: https://github.com/${{ github.repository }}/compare/.../${{ github.ref_name }}
+
+            ## Downloads
+
+            | Platform | Architecture | File |
+            |----------|-------------|------|
+            | macOS | Apple Silicon (arm64) | `.dmg` |
+            | macOS | Intel (x64) | `.dmg` |
+          releaseDraft: true
+          prerelease: false
+          args: --target ${{ matrix.target }}
