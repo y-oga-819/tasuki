@@ -6,6 +6,7 @@ import "./store"; // side-effect: exposes __zustandStore for E2E tests in DEV
 import "./styles/tokens.css";
 import "./styles/reset.css";
 import "./styles/global.css";
+import "./styles/responsive.css";
 
 // Patch: prevent LineSelectionManager.setSelection from throwing when
 // the selection cannot be mapped to the DOM after a re-render (e.g.
