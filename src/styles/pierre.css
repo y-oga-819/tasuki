@@ -1,0 +1,45 @@
+/* ============================================
+   Tasuki — Pierre (@pierre/diffs) Shadow DOM Styles
+   ============================================
+   Bridges Tasuki design tokens → Pierre CSS custom properties.
+   Pierre renders inside a Shadow DOM (<diffs-container>) and
+   inherits custom properties from :root.
+
+   Font/sizing tokens are in tokens.css (--diffs-font-*).
+   This file covers colour + layout overrides so the diff
+   viewer matches the rest of the Tasuki dark theme without
+   relying solely on Pierre's built-in github-dark palette.
+   ============================================ */
+
+:root {
+  /* ── Colour bridge ── */
+  --diffs-bg: var(--color-bg-primary);
+  --diffs-fg: var(--color-text-primary);
+
+  --diffs-deletion-color: var(--color-deleted);
+  --diffs-addition-color: var(--color-added);
+  --diffs-modified-color: var(--color-modified);
+
+  --diffs-bg-deletion: var(--color-deleted-bg);
+  --diffs-bg-addition: var(--color-added-bg);
+  --diffs-bg-deletion-emphasis: var(--color-deleted-line-bg);
+  --diffs-bg-addition-emphasis: var(--color-added-line-bg);
+
+  --diffs-bg-selection: var(--color-selected-bg);
+  --diffs-selection-base: var(--color-selected-border);
+
+  /* ── Layout bridge ── */
+  --diffs-gap-block: var(--space-1);
+  --diffs-annotation-min-height: var(--interactive-min);
+}
+
+/* ── Host element styling ──
+   <diffs-container> is the custom element rendered by Pierre.
+   These rules style the outer (light-DOM) side of the host. */
+diffs-container {
+  display: block;
+  width: 100%;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-base);
+  line-height: var(--line-height-base);
+}

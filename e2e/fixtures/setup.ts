@@ -19,7 +19,7 @@ export { expect };
 
 /** Wait for the app to finish loading (mock data rendered) */
 export async function waitForAppReady(page: Page): Promise<void> {
-  await page.locator("h1.toolbar-title").waitFor({ state: "visible" });
+  await page.getByRole("heading", { level: 1 }).waitFor({ state: "visible" });
   await page
     .locator(".loading-spinner")
     .waitFor({ state: "hidden" })
@@ -57,7 +57,7 @@ export async function openCommentForm(
 }
 
 /**
- * Add a review comment programmatically via the Zustand store.
+ * Add a review thread programmatically via the Zustand store.
  */
 export async function addCommentViaStore(
   page: Page,
@@ -74,7 +74,7 @@ export async function addCommentViaStore(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const store = (window as any).__zustandStore;
       if (!store) throw new Error("Zustand store not exposed on window");
-      store.getState().addComment({
+      store.getState().addThread(filePath, {
         id: crypto.randomUUID(),
         file_path: filePath,
         line_start: lineStart,
@@ -83,11 +83,7 @@ export async function addCommentViaStore(
         body,
         type: "comment",
         created_at: Date.now(),
-        parent_id: null,
         author: "human",
-        resolved: false,
-        resolved_at: null,
-        resolution_memo: null,
       });
     },
     opts,
@@ -107,13 +103,11 @@ export async function submitCommentForm(
   page: Page,
   body: string,
 ): Promise<void> {
-  const textarea = page.locator("textarea.dv-form-textarea");
+  const textarea = page.getByPlaceholder("Write a review comment...");
   await expect(textarea).toBeVisible();
   await textarea.fill(body);
 
-  const submitBtn = page.locator("button.btn-primary", {
-    hasText: "Add Comment",
-  });
+  const submitBtn = page.getByRole("button", { name: /Add Comment/ });
   await expect(submitBtn).toBeEnabled();
   await submitBtn.dispatchEvent("click");
 }

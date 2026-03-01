@@ -67,16 +67,16 @@ export interface ReviewComment {
   body: string;
   type: "comment" | "suggestion" | "question" | "approval";
   created_at: number;
-  /** null for root comments, ID of parent for replies */
-  parent_id: string | null;
   /** Who authored this comment */
   author: "human" | "claude";
-  /** Whether this comment has been resolved */
+}
+
+/** Thread = root comment + flat replies + resolution state */
+export interface ReviewThread {
+  root: ReviewComment;
+  replies: ReviewComment[];
   resolved: boolean;
-  /** Timestamp when resolved, null if unresolved */
   resolved_at: number | null;
-  /** Optional memo describing how the comment was resolved */
-  resolution_memo: string | null;
 }
 
 /** Review comment on a document section */
@@ -93,8 +93,6 @@ export interface DocComment {
   resolved: boolean;
   /** Timestamp when resolved, null if unresolved */
   resolved_at: number | null;
-  /** Optional memo describing how the comment was resolved */
-  resolution_memo: string | null;
 }
 
 /** Persisted review session */
@@ -105,7 +103,7 @@ export interface ReviewSession {
   created_at: number;
   updated_at: number;
   verdict: ReviewVerdict;
-  comments: ReviewComment[];
+  threads: ReviewThread[];
   doc_comments: DocComment[];
 }
 
@@ -116,7 +114,7 @@ export type ReviewVerdict = "approve" | "request_changes" | null;
 export type DisplayMode = "diff" | "split" | "viewer";
 
 /** Which content is shown in the right pane of split mode */
-export type LeftPaneMode = "docs" | "terminal" | "review";
+export type RightPaneMode = "docs" | "terminal" | "review";
 
 /** Diff view layout (matches Pierre's diffStyle naming) */
 export type DiffLayout = "split" | "unified";
@@ -139,17 +137,15 @@ export interface CommitGateData {
   repository: string;
   branch: string;
   diff_hash: string;
-  resolved_comments: Array<{
+  resolved_threads: Array<{
     file: string;
     line: number;
     body: string;
-    resolution_memo: string | null;
   }>;
   resolved_doc_comments: Array<{
     file: string;
     section: string;
     body: string;
-    resolution_memo: string | null;
   }>;
 }
 

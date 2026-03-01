@@ -1,0 +1,338 @@
+/* ReviewPanel — component-scoped styles */
+
+/* E2E test references .review-panel by class */
+:global(.review-panel) {
+  height: 100%;
+  background: var(--color-bg-secondary);
+  overflow-y: auto;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-2) var(--space-4);
+  border-bottom: 1px solid var(--color-border-secondary);
+  position: sticky;
+  top: 0;
+  background: var(--color-bg-secondary);
+  z-index: 1;
+}
+
+.title {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.copyAllBtn {
+  font-size: var(--font-size-sm);
+}
+
+.empty {
+  padding: var(--space-3) var(--space-4);
+  color: var(--color-text-tertiary);
+  font-size: var(--font-size-sm);
+  text-align: center;
+}
+
+/* Comment list */
+.commentList {
+  list-style: none;
+}
+
+.commentItem {
+  padding: var(--space-2) var(--space-4);
+  border-bottom: 1px solid var(--color-border-secondary);
+}
+
+.commentItem:hover {
+  background: var(--color-bg-tertiary);
+}
+
+.commentItemHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-1);
+}
+
+.commentLocation {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-link);
+}
+
+.commentActions {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.commentSnippet {
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border-secondary);
+  border-radius: var(--radius-sm);
+  padding: var(--space-1) var(--space-2);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-1);
+  overflow-x: auto;
+  white-space: pre;
+}
+
+.commentBody {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+  white-space: pre-wrap;
+}
+
+/* Comment Resolution */
+.resolved {
+  opacity: 0.6;
+}
+
+.resolved .commentBody {
+  text-decoration: line-through;
+  text-decoration-color: var(--color-text-tertiary);
+}
+
+.resolveCheck {
+  color: var(--color-approve);
+  font-weight: 700;
+}
+
+/* Thread cards */
+.threadCard {
+  padding: var(--space-2) var(--space-4);
+  border-bottom: 1px solid var(--color-border-secondary);
+}
+
+.threadCard:hover {
+  background: var(--color-bg-tertiary);
+}
+
+.threadHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-1);
+}
+
+.threadHeaderActions {
+  display: flex;
+  gap: var(--space-1);
+  align-items: center;
+}
+
+.menuContainer {
+  position: relative;
+}
+
+.menu {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  z-index: 20;
+  min-width: 8.75rem;
+  padding: var(--space-1) 0;
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border-primary);
+  border-radius: var(--radius-md);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.menuItem {
+  display: block;
+  width: 100%;
+  padding: var(--space-1) var(--space-3);
+  background: none;
+  border: none;
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  text-align: left;
+}
+
+.menuItem:hover {
+  background: var(--color-bg-tertiary);
+}
+
+.menuItemDanger {
+  composes: menuItem;
+  color: var(--color-btn-danger);
+}
+
+.menuItemDanger:hover {
+  background: rgba(248, 81, 73, 0.1);
+}
+
+/* Thread replies */
+.threadReply {
+  display: flex;
+  gap: var(--space-1);
+  padding: var(--space-1) 0;
+  padding-left: var(--space-3);
+  font-size: var(--font-size-sm);
+}
+
+.threadReplyArrow {
+  color: var(--color-text-tertiary);
+  flex-shrink: 0;
+}
+
+.threadReplyBody {
+  color: var(--color-text-primary);
+  white-space: pre-wrap;
+  flex: 1;
+}
+
+.threadReplyAuthor {
+  color: var(--color-text-tertiary);
+  font-size: var(--font-size-sm);
+  flex-shrink: 0;
+}
+
+/* Thread footer (reply input + actions) */
+.threadFooter {
+  margin-top: var(--space-2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.threadReplyInput {
+  width: 100%;
+  padding: var(--space-1) var(--space-2);
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border-primary);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+  font-family: var(--font-sans);
+  resize: none;
+}
+
+.threadReplyInput:focus {
+  outline: none;
+  border-color: var(--color-text-link);
+}
+
+.threadActions {
+  display: flex;
+  gap: var(--space-1);
+  justify-content: flex-end;
+}
+
+/* Resolved thread variant */
+.threadResolved {
+  opacity: 0.6;
+}
+
+.threadResolved .commentBody {
+  text-decoration: line-through;
+  text-decoration-color: var(--color-text-tertiary);
+}
+
+/* Resolved section (collapsible <details>) */
+.resolvedSection {
+  border-top: 1px solid var(--color-border-secondary);
+}
+
+.resolvedHeader {
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  user-select: none;
+}
+
+.resolvedHeader:hover {
+  color: var(--color-text-primary);
+  background: var(--color-bg-tertiary);
+}
+
+/* Review header actions */
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* Gate status badge */
+.gateBadge {
+  font-size: var(--font-size-sm);
+  padding: var(--space-1) var(--space-2);
+  border-radius: 0.625rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.gateApproved {
+  composes: gateBadge;
+  background: rgba(63, 185, 80, 0.2);
+  color: var(--color-approve);
+}
+
+.gateRejected {
+  composes: gateBadge;
+  background: rgba(248, 81, 73, 0.2);
+  color: var(--color-deleted);
+}
+
+.gateInvalidated {
+  composes: gateBadge;
+  background: rgba(210, 153, 34, 0.2);
+  color: var(--color-request-changes);
+}
+
+/* Verdict area */
+.verdict {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+}
+
+.verdictInfo {
+  font-size: var(--font-size-sm);
+  white-space: nowrap;
+}
+
+.unresolvedCount {
+  color: var(--color-request-changes);
+  font-weight: 600;
+}
+
+.allResolved {
+  color: var(--color-approve);
+  font-weight: 600;
+}
+
+.verdictButtons {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.verdictBtn {
+  flex: 1;
+  justify-content: center;
+  padding: var(--space-2);
+  font-weight: 600;
+}
+
+.verdictBtnActive {
+  border-color: var(--color-approve);
+  background: rgba(63, 185, 80, 0.15);
+  color: var(--color-approve);
+}
+
+.verdictBtnRejectActive {
+  border-color: var(--color-request-changes);
+  background: rgba(210, 153, 34, 0.15);
+  color: var(--color-request-changes);
+}

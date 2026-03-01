@@ -1,4 +1,5 @@
 import React from "react";
+import s from "./ErrorBoundary.module.css";
 
 interface ErrorBoundaryProps {
   fallback?: React.ReactNode;
@@ -27,7 +28,7 @@ export class ErrorBoundary extends React.Component<
     if (this.state.error) {
       if (this.props.fallback) return this.props.fallback;
       return (
-        <div className="error-boundary-fallback">
+        <div className={s.fallback}>
           <h3>Something went wrong</h3>
           <pre>{this.state.error.message}</pre>
           <button onClick={() => this.setState({ error: null })}>

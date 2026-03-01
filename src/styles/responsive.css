@@ -1,0 +1,69 @@
+/* ============================================
+   Tasuki — Responsive Media Queries [M1]
+   ============================================
+   Desktop-first breakpoints for a code review tool.
+   Tasuki is primarily a desktop app (Tauri), so these
+   handle smaller displays and large external monitors.
+   ============================================ */
+
+/* ── Narrow desktop / large laptop (≤ 1200px) ── */
+@media (max-width: 1200px) {
+  :root {
+    --sidebar-width: 220px;
+  }
+
+  /* Reduce right pane max-width constraint on narrow screens */
+  [aria-label="Side panel"] {
+    max-width: none;
+  }
+}
+
+/* ── Small laptop (≤ 1024px) ── */
+@media (max-width: 1024px) {
+  :root {
+    --sidebar-width: 200px;
+  }
+
+  /* Compact toolbar spacing */
+  .app > header {
+    padding-inline: var(--space-2);
+  }
+
+  /* Stack layout buttons more tightly */
+  .layout-toggle {
+    gap: 0;
+  }
+}
+
+/* ── Tablet / small window (≤ 768px) ── */
+@media (max-width: 768px) {
+  :root {
+    --sidebar-width: 180px;
+  }
+
+  /* Toolbar: hide repo info labels, keep compact */
+  .tab-group {
+    gap: 0;
+  }
+
+  .tab-btn {
+    padding: var(--space-1) var(--space-2);
+  }
+
+  /* Buttons: slightly smaller padding */
+  .btn {
+    padding: var(--space-1) var(--space-2);
+  }
+
+  /* Skeleton loading: tighter on small screens */
+  .skeleton-container {
+    padding: var(--space-2);
+  }
+}
+
+/* ── Very wide monitor (≥ 2000px) ── */
+@media (min-width: 2000px) {
+  :root {
+    --sidebar-width: 320px;
+  }
+}

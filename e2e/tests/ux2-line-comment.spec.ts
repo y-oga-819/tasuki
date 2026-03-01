@@ -25,7 +25,7 @@ test.describe("UX2: Line Comment", () => {
     // via Playwright's hover(). Instead, open the form programmatically.
     await openCommentForm(page, "src/components/DiffViewer.tsx", 12);
 
-    const textarea = page.locator("textarea.dv-form-textarea");
+    const textarea = page.getByPlaceholder("Write a review comment...");
     await expect(textarea).toBeVisible();
   });
 
@@ -34,13 +34,9 @@ test.describe("UX2: Line Comment", () => {
     await submitCommentForm(page, "This is a test comment");
 
     // Switch to Review tab in right pane to verify the comment
-    const reviewTab = page.locator("button.right-pane-tab").filter({ hasText: "Review" });
-    await reviewTab.click();
+    await page.getByRole("tab", { name: "Review" }).click();
 
-    const commentBody = page
-      .locator(".comment-body")
-      .filter({ hasText: "This is a test comment" });
-    await expect(commentBody).toBeVisible();
+    await expect(page.getByText("This is a test comment")).toBeVisible();
   });
 
   test("comment added via store appears in ReviewPanel", async ({ page }) => {
@@ -53,10 +49,10 @@ test.describe("UX2: Line Comment", () => {
     });
 
     // Switch to Review tab in right pane
-    const reviewTab = page.locator("button.right-pane-tab").filter({ hasText: "Review" });
-    await reviewTab.click();
+    await page.getByRole("tab", { name: "Review" }).click();
 
-    const reviewPanel = page.locator("div.review-panel");
-    await expect(reviewPanel).toBeVisible();
+    await expect(
+      page.getByRole("complementary", { name: "Review" }),
+    ).toBeVisible();
   });
 });

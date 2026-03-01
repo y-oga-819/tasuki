@@ -10,43 +10,45 @@ import type {
   FileDiffOptions,
 } from "@pierre/diffs";
 import { getFiletypeFromFileName, cleanLastNewline } from "@pierre/diffs";
-import { useDisplayStore } from "../store/displayStore";
+import { useUiStore } from "../store/uiStore";
 import { useDiffStore } from "../store/diffStore";
+import { useEditorStore } from "../store/editorStore";
 import { useReviewStore } from "../store/reviewStore";
-import type { CommentFormTarget } from "../store/diffStore";
+import type { CommentFormTarget } from "../store/editorStore";
+import s from "./DiffViewer.module.css";
 
 const isMac =
   typeof navigator !== "undefined" && navigator.platform.includes("Mac");
-import type { FileDiff, ReviewComment } from "../types";
+import type { FileDiff, ReviewThread } from "../types";
 import { generateGitPatch, getCodeSnippet } from "../utils/diff-utils";
 
 // --- Change type icon SVGs (from @pierre/diffs sprite) ---
 
 const changeTypeIcons: Record<string, React.ReactNode> = {
   modified: (
-    <svg viewBox="0 0 16 16" className="dv-change-icon dv-change-icon--modified">
+    <svg viewBox="0 0 16 16" className={s.changeIconModified}>
       <path d="M1.5 8c0 1.613.088 2.806.288 3.704.196.88.478 1.381.802 1.706s.826.607 1.706.802c.898.2 2.091.288 3.704.288s2.806-.088 3.704-.288c.88-.195 1.381-.478 1.706-.802s.607-.826.802-1.706c.2-.898.288-2.091.288-3.704s-.088-2.806-.288-3.704c-.195-.88-.478-1.381-.802-1.706s-.826-.606-1.706-.802C10.806 1.588 9.613 1.5 8 1.5s-2.806.088-3.704.288c-.88.196-1.381.478-1.706.802s-.606.826-.802 1.706C1.588 5.194 1.5 6.387 1.5 8M0 8c0-6.588 1.412-8 8-8s8 1.412 8 8-1.412 8-8 8-8-1.412-8-8m8 3a3 3 0 1 0 0-6 3 3 0 0 0 0 6" fill="currentColor"/>
     </svg>
   ),
   added: (
-    <svg viewBox="0 0 16 16" className="dv-change-icon dv-change-icon--added">
+    <svg viewBox="0 0 16 16" className={s.changeIconAdded}>
       <path d="M8 4a.75.75 0 0 1 .75.75v2.5h2.5a.75.75 0 0 1 0 1.5h-2.5v2.5a.75.75 0 0 1-1.5 0v-2.5h-2.5a.75.75 0 0 1 0-1.5h2.5v-2.5A.75.75 0 0 1 8 4" fill="currentColor"/><path d="M1.788 4.296c.196-.88.478-1.381.802-1.706s.826-.606 1.706-.802C5.194 1.588 6.387 1.5 8 1.5s2.806.088 3.704.288c.88.196 1.381.478 1.706.802s.607.826.802 1.706c.2.898.288 2.091.288 3.704s-.088 2.806-.288 3.704c-.195.88-.478 1.381-.802 1.706s-.826.607-1.706.802c-.898.2-2.091.288-3.704.288s-2.806-.088-3.704-.288c-.88-.195-1.381-.478-1.706-.802s-.606-.826-.802-1.706C1.588 10.806 1.5 9.613 1.5 8s.088-2.806.288-3.704M8 0C1.412 0 0 1.412 0 8s1.412 8 8 8 8-1.412 8-8-1.412-8-8-8" fill="currentColor"/>
     </svg>
   ),
   deleted: (
-    <svg viewBox="0 0 16 16" className="dv-change-icon dv-change-icon--deleted">
+    <svg viewBox="0 0 16 16" className={s.changeIconDeleted}>
       <path d="M4 8a.75.75 0 0 1 .75-.75h6.5a.75.75 0 0 1 0 1.5h-6.5A.75.75 0 0 1 4 8" fill="currentColor"/><path d="M1.788 4.296c.196-.88.478-1.381.802-1.706s.826-.606 1.706-.802C5.194 1.588 6.387 1.5 8 1.5s2.806.088 3.704.288c.88.196 1.381.478 1.706.802s.607.826.802 1.706c.2.898.288 2.091.288 3.704s-.088 2.806-.288 3.704c-.195.88-.478 1.381-.802 1.706s-.826.607-1.706.802c-.898.2-2.091.288-3.704.288s-2.806-.088-3.704-.288c-.88-.195-1.381-.478-1.706-.802s-.606-.826-.802-1.706C1.588 10.806 1.5 9.613 1.5 8s.088-2.806.288-3.704M8 0C1.412 0 0 1.412 0 8s1.412 8 8 8 8-1.412 8-8-1.412-8-8-8" fill="currentColor"/>
     </svg>
   ),
   renamed: (
-    <svg viewBox="0 0 16 16" className="dv-change-icon dv-change-icon--renamed">
+    <svg viewBox="0 0 16 16" className={s.changeIconRenamed}>
       <path d="M1.788 4.296c.196-.88.478-1.381.802-1.706s.826-.606 1.706-.802C5.194 1.588 6.387 1.5 8 1.5s2.806.088 3.704.288c.88.196 1.381.478 1.706.802s.607.826.802 1.706c.2.898.288 2.091.288 3.704s-.088 2.806-.288 3.704c-.195.88-.478 1.381-.802 1.706s-.826.607-1.706.802c-.898.2-2.091.288-3.704.288s-2.806-.088-3.704-.288c-.88-.195-1.381-.478-1.706-.802s-.606-.826-.802-1.706C1.588 10.806 1.5 9.613 1.5 8s.088-2.806.288-3.704M8 0C1.412 0 0 1.412 0 8s1.412 8 8 8 8-1.412 8-8-1.412-8-8-8" fill="currentColor"/><path d="M8.495 4.695a.75.75 0 0 0-.05 1.06L10.486 8l-2.041 2.246a.75.75 0 0 0 1.11 1.008l2.5-2.75a.75.75 0 0 0 0-1.008l-2.5-2.75a.75.75 0 0 0-1.06-.051m-4 0a.75.75 0 0 0-.05 1.06l2.044 2.248-1.796 1.995a.75.75 0 0 0 1.114 1.004l2.25-2.5a.75.75 0 0 0-.002-1.007l-2.5-2.75a.75.75 0 0 0-1.06-.05" fill="currentColor"/>
     </svg>
   ),
 };
 
 const arrowRightIcon = (
-  <svg viewBox="0 0 16 16" className="dv-rename-arrow">
+  <svg viewBox="0 0 16 16" className={s.renameArrow}>
     <path d="M8.47 4.22a.75.75 0 0 0 0 1.06l1.97 1.97H3.75a.75.75 0 0 0 0 1.5h6.69l-1.97 1.97a.75.75 0 1 0 1.06 1.06l3.25-3.25a.75.75 0 0 0 0-1.06L9.53 4.22a.75.75 0 0 0-1.06 0" fill="currentColor"/>
   </svg>
 );
@@ -54,7 +56,7 @@ const arrowRightIcon = (
 // --- Annotation metadata types ---
 
 type AnnotationMeta =
-  | { kind: "comment"; comment: ReviewComment }
+  | { kind: "comment"; thread: ReviewThread }
   | { kind: "form"; target: CommentFormTarget };
 
 // --- Main component ---
@@ -63,24 +65,24 @@ interface DiffViewerProps {
   fileDiff: FileDiff;
 }
 
-export const DiffViewer: React.FC<DiffViewerProps> = ({ fileDiff }) => {
-  const { diffLayout, diffOverflow, expandUnchanged } = useDisplayStore();
+export const DiffViewer = React.memo<DiffViewerProps>(function DiffViewer({ fileDiff }) {
+  const { collapsedFiles, toggleFileCollapse } = useDiffStore();
   const {
-    collapsedFiles,
-    toggleFileCollapse,
-    selectedLineRange,
-    selectedLineFile,
-    setSelectedLineRange,
+    lineSelection,
+    setLineSelection,
     commentFormTarget,
     setCommentFormTarget,
-  } = useDiffStore();
-  const { comments, addComment } = useReviewStore();
+  } = useEditorStore();
 
   const filePath = fileDiff.file.path;
-  const isCollapsed = collapsedFiles.has(filePath);
 
-  // DiffLayout now uses Pierre-native naming directly
-  const diffStyle = diffLayout;
+  // File-scoped thread subscription (only re-renders when THIS file's threads change)
+  const fileThreads = useReviewStore(
+    useCallback((s) => s.threads.get(filePath) ?? EMPTY_THREADS, [filePath]),
+  );
+  const addThread = useReviewStore((s) => s.addThread);
+
+  const isCollapsed = collapsedFiles.has(filePath);
 
   // Detect language via Pierre's built-in detection
   const lang = useMemo(
@@ -116,49 +118,18 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({ fileDiff }) => {
     [hasFileContents, fileDiff],
   );
 
-  // --- Comments for this file ---
-  const fileComments = useMemo(
-    () => comments.filter((c) => c.file_path === filePath),
-    [comments, filePath],
+  // --- Build annotations: saved threads + active form ---
+  const lineAnnotations = useMemo(
+    () => buildAnnotations(fileThreads, commentFormTarget, filePath),
+    [fileThreads, commentFormTarget, filePath],
   );
 
-  // --- Build annotations: saved comments + active form ---
-  const lineAnnotations = useMemo(() => {
-    const annotations: DiffLineAnnotation<AnnotationMeta>[] = [];
-
-    for (const comment of fileComments) {
-      annotations.push({
-        side: "additions",
-        lineNumber: comment.line_end,
-        metadata: { kind: "comment", comment },
-      });
-    }
-
-    if (commentFormTarget && commentFormTarget.filePath === filePath) {
-      annotations.push({
-        side: commentFormTarget.side,
-        lineNumber: commentFormTarget.lineNumber,
-        metadata: { kind: "form", target: commentFormTarget },
-      });
-    }
-
-    return annotations;
-  }, [fileComments, commentFormTarget, filePath]);
-
   // --- Line selection handling ---
-  // NOTE: Avoid capturing commentFormTarget in the closure to keep
-  // handleLineSelected (and thus `options`) referentially stable.
-  // Changing `options` triggers a full DOM rebuild in @pierre/diffs.
   const handleLineSelected = useCallback(
     (range: SelectedLineRange | null) => {
-      setSelectedLineRange(range, range ? filePath : null);
-      // Do NOT close the comment form here. Pierre's LineSelectionManager
-      // fires onLineSelected during programmatic setSelectedLines calls
-      // (triggered by the selectedLines prop update when commentFormTarget
-      // changes), creating a feedback loop that immediately clears the form.
-      // The form is closed explicitly via Cancel, Escape, or Submit actions.
+      setLineSelection(range, range ? filePath : null);
     },
-    [setSelectedLineRange, filePath],
+    [setLineSelection, filePath],
   );
 
   // --- Hover utility: floating "+" button ---
@@ -174,20 +145,19 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({ fileDiff }) => {
 
       return (
         <button
-          className="dv-hover-comment-btn"
+          className={s.hoverBtn}
           onPointerDown={(e) => {
             e.stopPropagation();
             const line = getHoveredLine();
             if (!line) return;
 
-            // Use the active line selection range if available (and it belongs to this file)
-            if (selectedLineRange && selectedLineFile === filePath && selectedLineRange.start !== selectedLineRange.end) {
-              const start = Math.min(selectedLineRange.start, selectedLineRange.end);
-              const end = Math.max(selectedLineRange.start, selectedLineRange.end);
+            if (lineSelection && lineSelection.file === filePath && lineSelection.range.start !== lineSelection.range.end) {
+              const start = Math.min(lineSelection.range.start, lineSelection.range.end);
+              const end = Math.max(lineSelection.range.start, lineSelection.range.end);
               setCommentFormTarget({
                 filePath,
                 lineNumber: end,
-                side: selectedLineRange.side ?? line.side,
+                side: lineSelection.range.side ?? line.side,
                 selectionStart: start,
                 selectionEnd: end,
               });
@@ -200,21 +170,21 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({ fileDiff }) => {
                 selectionEnd: line.lineNumber,
               });
             }
-            setSelectedLineRange(null);
+            setLineSelection(null);
           }}
         >
           +
         </button>
       );
     },
-    [commentFormTarget, selectedLineRange, selectedLineFile, filePath, setCommentFormTarget, setSelectedLineRange],
+    [commentFormTarget, lineSelection, filePath, setCommentFormTarget, setLineSelection],
   );
 
   // --- Render annotations ---
   const renderAnnotation = useCallback(
     (annotation: DiffLineAnnotation<AnnotationMeta>) => {
       if (annotation.metadata.kind === "comment") {
-        return <CommentDisplay comment={annotation.metadata.comment} />;
+        return <ThreadDisplay thread={annotation.metadata.thread} />;
       }
 
       if (annotation.metadata.kind === "form") {
@@ -227,7 +197,7 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({ fileDiff }) => {
               const start = Math.min(t.target.selectionStart, t.target.selectionEnd);
               const end = Math.max(t.target.selectionStart, t.target.selectionEnd);
               const snippet = getCodeSnippet(fileDiff, start, end);
-              addComment({
+              addThread(filePath, {
                 id: crypto.randomUUID(),
                 file_path: filePath,
                 line_start: start,
@@ -236,14 +206,10 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({ fileDiff }) => {
                 body,
                 type: "comment",
                 created_at: Date.now(),
-                parent_id: null,
                 author: "human",
-                resolved: false,
-                resolved_at: null,
-                resolution_memo: null,
               });
               setCommentFormTarget(null);
-              setSelectedLineRange(null);
+              setLineSelection(null);
             }}
             onCancel={() => setCommentFormTarget(null)}
           />
@@ -252,7 +218,7 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({ fileDiff }) => {
 
       return null;
     },
-    [fileDiff, filePath, addComment, setCommentFormTarget, setSelectedLineRange],
+    [fileDiff, filePath, addThread, setCommentFormTarget, setLineSelection],
   );
 
   // --- selectedLines prop ---
@@ -264,31 +230,14 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({ fileDiff }) => {
         side: commentFormTarget.side,
       } satisfies SelectedLineRange;
     }
-    // Only apply selection to the file that owns it
-    if (selectedLineFile === filePath) {
-      return selectedLineRange;
+    if (lineSelection?.file === filePath) {
+      return lineSelection.range;
     }
     return null;
-  }, [selectedLineRange, selectedLineFile, commentFormTarget, filePath]);
+  }, [lineSelection, commentFormTarget, filePath]);
 
-  // --- Shared Pierre options ---
-  const options = useMemo<FileDiffOptions<AnnotationMeta>>(
-    () => ({
-      diffStyle,
-      theme: { dark: "github-dark", light: "github-light" },
-      themeType: "dark",
-      disableFileHeader: true,
-      enableLineSelection: true,
-      onLineSelected: handleLineSelected,
-      enableHoverUtility: true,
-      expandUnchanged,
-      diffIndicators: "bars",
-      lineDiffType: "word-alt",
-      overflow: diffOverflow,
-      hunkSeparators: "metadata",
-    }),
-    [diffStyle, diffOverflow, expandUnchanged, handleLineSelected],
-  );
+  // --- Shared Pierre options (UI-only deps, stable across comment changes) ---
+  const options = usePierreOptions(handleLineSelected);
 
   // Shared render props
   const sharedProps = {
@@ -305,28 +254,28 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({ fileDiff }) => {
 
   const fileHeader = (
     <div className="dv-file-header" onClick={() => toggleFileCollapse(filePath)}>
-      <div className="dv-header-left">
-        <span className="dv-toggle">{isCollapsed ? "\u25B6" : "\u25BC"}</span>
+      <div className={s.headerLeft}>
+        <span className={s.toggle}>{isCollapsed ? "\u25B6" : "\u25BC"}</span>
         {changeIcon}
         {fileDiff.file.old_path && (
           <>
-            <span className="dv-file-path">{fileDiff.file.old_path}</span>
+            <span className={s.filePath}>{fileDiff.file.old_path}</span>
             {arrowRightIcon}
           </>
         )}
-        <span className="dv-file-path">{filePath}</span>
+        <span className={s.filePath}>{filePath}</span>
       </div>
-      <div className="dv-header-right">
-        <span className="dv-stats">
+      <div className={s.headerRight}>
+        <span className={s.stats}>
           {fileDiff.file.additions > 0 && (
-            <span className="dv-stat-add">+{fileDiff.file.additions}</span>
+            <span className={s.statAdd}>+{fileDiff.file.additions}</span>
           )}
           {fileDiff.file.deletions > 0 && (
-            <span className="dv-stat-del">-{fileDiff.file.deletions}</span>
+            <span className={s.statDel}>-{fileDiff.file.deletions}</span>
           )}
         </span>
         {fileDiff.file.is_generated && (
-          <span className="dv-generated">Generated</span>
+          <span className={s.generated}>Generated</span>
         )}
       </div>
     </div>
@@ -335,10 +284,10 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({ fileDiff }) => {
   // --- Binary ---
   if (fileDiff.file.is_binary) {
     return (
-      <div className="dv-binary">
+      <div className={s.binary}>
         {fileHeader}
         {!isCollapsed && (
-          <div className="dv-binary-body">Binary file changed</div>
+          <div className={s.binaryBody}>Binary file changed</div>
         )}
       </div>
     );
@@ -356,7 +305,7 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({ fileDiff }) => {
               theme: { dark: "github-dark", light: "github-light" },
               themeType: "dark",
               disableFileHeader: true,
-              overflow: diffOverflow,
+              overflow: options.overflow,
             }}
             selectedLines={selectedLines}
           />
@@ -392,33 +341,95 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({ fileDiff }) => {
       )}
     </div>
   );
-};
+});
+
+// --- Empty array singleton ---
+const EMPTY_THREADS: ReviewThread[] = [];
+
+// --- Pure function: build annotations from threads + active form ---
+function buildAnnotations(
+  fileThreads: ReviewThread[],
+  commentFormTarget: CommentFormTarget | null,
+  filePath: string,
+): DiffLineAnnotation<AnnotationMeta>[] {
+  const annotations: DiffLineAnnotation<AnnotationMeta>[] = [];
+
+  for (const thread of fileThreads) {
+    annotations.push({
+      side: "additions",
+      lineNumber: thread.root.line_end,
+      metadata: { kind: "comment", thread },
+    });
+  }
+
+  if (commentFormTarget && commentFormTarget.filePath === filePath) {
+    annotations.push({
+      side: commentFormTarget.side,
+      lineNumber: commentFormTarget.lineNumber,
+      metadata: { kind: "form", target: commentFormTarget },
+    });
+  }
+
+  return annotations;
+}
+
+// --- Hook: Pierre options with UI-only dependencies ---
+function usePierreOptions(
+  onLineSelected: (range: SelectedLineRange | null) => void,
+): FileDiffOptions<AnnotationMeta> {
+  const diffStyle = useUiStore((s) => s.diffLayout);
+  const overflow = useUiStore((s) => s.diffOverflow);
+  const expandUnchanged = useUiStore((s) => s.expandUnchanged);
+
+  return useMemo(() => ({
+    diffStyle,
+    theme: { dark: "github-dark", light: "github-light" },
+    themeType: "dark",
+    disableFileHeader: true,
+    enableLineSelection: true,
+    onLineSelected,
+    enableHoverUtility: true,
+    expandUnchanged,
+    diffIndicators: "bars",
+    lineDiffType: "word-alt",
+    overflow,
+    hunkSeparators: "metadata",
+  }), [diffStyle, overflow, expandUnchanged, onLineSelected]);
+}
 
 // --- Sub-components ---
 
-const CommentDisplay: React.FC<{ comment: ReviewComment }> = ({ comment }) => {
-  const { removeComment } = useReviewStore();
+const ThreadDisplay: React.FC<{ thread: ReviewThread }> = ({ thread }) => {
+  const { removeThread } = useReviewStore();
+  const comment = thread.root;
 
   return (
-    <div className="dv-comment">
-      <div className="dv-comment-header">
-        <span className="dv-comment-location">
+    <div className={`${s.comment} ${thread.resolved ? s.resolved : ""}`}>
+      <div className={s.commentHeader}>
+        <span className={s.commentLocation}>
           L{comment.line_start}
           {comment.line_start !== comment.line_end && `-L${comment.line_end}`}
         </span>
-        <span className="dv-comment-type">{comment.type}</span>
+        <span className={s.commentType}>{comment.type}</span>
         <button
-          className="dv-comment-delete"
-          onClick={() => removeComment(comment.id)}
+          className={s.commentDelete}
+          onClick={() => removeThread(comment.id)}
           title="Remove comment"
         >
           {"\u00D7"}
         </button>
       </div>
-      {comment.code_snippet && (
-        <pre className="dv-comment-snippet">{comment.code_snippet}</pre>
+      {comment.code_snippet && !thread.resolved && (
+        <pre className={s.commentSnippet}>{comment.code_snippet}</pre>
       )}
-      <div className="dv-comment-body">{comment.body}</div>
+      <div className={s.commentBody}>{comment.body}</div>
+      {thread.replies.map((reply) => (
+        <div key={reply.id} className={s.commentReply}>
+          <span className={s.replyArrow}>{"\u21B3"}</span>
+          <span className={s.replyBody}>{reply.body}</span>
+          <span className={s.replyAuthor}>{reply.author}</span>
+        </div>
+      ))}
     </div>
   );
 };
@@ -432,14 +443,14 @@ const CommentFormInline: React.FC<{
   const [text, setText] = useState("");
 
   return (
-    <div className="dv-comment-form">
-      <div className="dv-form-header">
+    <div className={s.commentForm}>
+      <div className={s.formHeader}>
         L{Math.min(target.selectionStart, target.selectionEnd)}
         {target.selectionStart !== target.selectionEnd &&
           `-L${Math.max(target.selectionStart, target.selectionEnd)}`}
       </div>
       <textarea
-        className="dv-form-textarea"
+        className={s.formTextarea}
         autoFocus
         placeholder="Write a review comment..."
         value={text}
@@ -455,7 +466,7 @@ const CommentFormInline: React.FC<{
         }}
         rows={3}
       />
-      <div className="dv-form-actions">
+      <div className={s.formActions}>
         <button className="btn btn-secondary" onClick={onCancel}>
           Cancel
         </button>

@@ -1,0 +1,86 @@
+/* Terminal — component-scoped styles */
+
+/* Terminal slot (reparenting target) */
+.slot {
+  width: 100%;
+  height: 100%;
+}
+
+.container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  padding: var(--space-2);
+  background: var(--term-bg);
+}
+
+.hidden {
+  display: none;
+}
+
+/* Override xterm.js defaults to integrate with Tasuki */
+.container :global(.xterm) {
+  height: 100%;
+}
+
+.container :global(.xterm-viewport) {
+  overflow-y: auto;
+}
+
+/* Search bar */
+.searchBar {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-5);
+  z-index: var(--z-sticky);
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border-primary);
+  border-radius: var(--radius-md);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.searchInput {
+  width: 200px;
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--font-size-sm);
+  font-family: inherit;
+  color: var(--color-text-primary);
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border-primary);
+  border-radius: var(--radius-sm);
+  outline: none;
+}
+
+.searchInput:focus {
+  border-color: var(--color-text-link);
+}
+
+.searchBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--interactive-min);
+  height: var(--interactive-min);
+  padding: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.searchBtn:hover {
+  color: var(--color-text-primary);
+  background: var(--color-bg-overlay);
+}
+
+.closeBtn {
+  composes: searchBtn;
+  font-size: var(--font-size-sm);
+  margin-left: var(--space-1);
+}

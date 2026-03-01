@@ -209,15 +209,15 @@ export async function isTerminalAlive(): Promise<boolean> {
 export async function writeCommitGate(
   status: "approved" | "rejected",
   diffHash: string,
-  resolvedComments: Array<{ file: string; line: number; body: string; resolution_memo: string | null }>,
-  resolvedDocComments: Array<{ file: string; section: string; body: string; resolution_memo: string | null }>,
+  resolvedThreads: Array<{ file: string; line: number; body: string }>,
+  resolvedDocComments: Array<{ file: string; section: string; body: string }>,
 ): Promise<void> {
-  const resolvedCommentsJson = JSON.stringify(resolvedComments);
+  const resolvedThreadsJson = JSON.stringify(resolvedThreads);
   const resolvedDocCommentsJson = JSON.stringify(resolvedDocComments);
   return invoke<void>("write_commit_gate", {
     status,
     diffHash,
-    resolvedComments: resolvedCommentsJson,
+    resolvedThreads: resolvedThreadsJson,
     resolvedDocComments: resolvedDocCommentsJson,
   });
 }

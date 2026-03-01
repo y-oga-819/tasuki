@@ -5,14 +5,15 @@ import rehypeSlug from "rehype-slug";
 import rehypeRaw from "rehype-raw";
 import GithubSlugger from "github-slugger";
 import { renderMermaid, THEMES } from "beautiful-mermaid";
-import { useDisplayStore } from "../store/displayStore";
-import { useDiffStore } from "../store/diffStore";
+import { useUiStore } from "../store/uiStore";
+import { useDocStore } from "../store/docStore";
 import { MermaidZoomModal } from "./MermaidZoomModal";
 import * as api from "../utils/tauri-api";
+import s from "./MarkdownViewer.module.css";
 
 export const MarkdownViewer: React.FC = () => {
-  const { tocOpen, setTocOpen, markdownViewMode, setMarkdownViewMode } = useDisplayStore();
-  const { selectedDoc, docContent, setDocContent, docSource } = useDiffStore();
+  const { tocOpen, setTocOpen, markdownViewMode, setMarkdownViewMode } = useUiStore();
+  const { selectedDoc, docContent, setDocContent, docSource } = useDocStore();
   const [tocItems, setTocItems] = useState<
     { id: string; text: string; level: number }[]
   >([]);
@@ -81,7 +82,7 @@ export const MarkdownViewer: React.FC = () => {
 
   if (!selectedDoc) {
     return (
-      <div className="markdown-viewer empty">
+      <div className={`${s.viewer} ${s.empty}`} role="article" aria-label="Document">
         <p>Select a document from the sidebar to view.</p>
       </div>
     );
@@ -89,19 +90,19 @@ export const MarkdownViewer: React.FC = () => {
 
   if (!docContent) {
     return (
-      <div className="markdown-viewer loading">
+      <div className={`${s.viewer} ${s.loading}`} role="article" aria-label="Document">
         <p>Loading...</p>
       </div>
     );
   }
 
   return (
-    <div className="markdown-viewer">
-      <header className="markdown-toolbar">
+    <div className={s.viewer} role="article" aria-label="Document">
+      <header className={s.toolbar}>
         {tocItems.length > 3 && (
-          <div className="toc-container" ref={tocRef}>
+          <div className={s.tocContainer} ref={tocRef}>
             <button
-              className="toc-toggle-btn"
+              className={s.tocToggleBtn}
               onClick={() => setTocOpen(!tocOpen)}
               title="Table of Contents"
             >
@@ -110,28 +111,34 @@ export const MarkdownViewer: React.FC = () => {
               </svg>
             </button>
             {tocOpen && (
-              <nav className="toc-dropdown">
-                <h4 className="toc-title">Table of Contents</h4>
-                <ul className="toc-list">
-                  {tocItems.map((item, i) => (
-                    <li
-                      key={`${item.id}-${i}`}
-                      className={`toc-item toc-level-${item.level}`}
-                    >
-                      <a
-                        href={`#${item.id}`}
-                        onClick={(e) => handleTocClick(e, item.id)}
+              <nav className={s.tocDropdown}>
+                <h4 className={s.tocTitle}>Table of Contents</h4>
+                <ul className={s.tocList}>
+                  {tocItems.map((item, i) => {
+                    const levelClass = item.level >= 4 ? s.tocLevel4
+                      : item.level === 3 ? s.tocLevel3
+                      : item.level === 2 ? s.tocLevel2
+                      : s.tocItem;
+                    return (
+                      <li
+                        key={`${item.id}-${i}`}
+                        className={levelClass}
                       >
-                        {item.text}
-                      </a>
-                    </li>
-                  ))}
+                        <a
+                          href={`#${item.id}`}
+                          onClick={(e) => handleTocClick(e, item.id)}
+                        >
+                          {item.text}
+                        </a>
+                      </li>
+                    );
+                  })}
                 </ul>
               </nav>
             )}
           </div>
         )}
-        <div className="markdown-view-toggle">
+        <div className={s.viewToggle}>
           <button
             className={`layout-btn ${markdownViewMode === "preview" ? "active" : ""}`}
             onClick={() => setMarkdownViewMode("preview")}
@@ -146,11 +153,11 @@ export const MarkdownViewer: React.FC = () => {
           </button>
         </div>
       </header>
-      <div className="markdown-scroll">
+      <div className={s.scroll}>
       {markdownViewMode === "raw" ? (
-        <pre className="markdown-raw">{docContent}</pre>
+        <pre className={s.raw}>{docContent}</pre>
       ) : (
-      <article className="markdown-content">
+      <article className={s.content}>
         <ReactMarkdown
           remarkPlugins={[remarkGfm]}
           rehypePlugins={[rehypeSlug, rehypeRaw]}
@@ -171,7 +178,7 @@ export const MarkdownViewer: React.FC = () => {
               // Inline code
               if (!className) {
                 return (
-                  <code className="inline-code" {...props}>
+                  <code className={s.inlineCode} {...props}>
                     {children}
                   </code>
                 );
@@ -179,7 +186,7 @@ export const MarkdownViewer: React.FC = () => {
 
               // Code block with syntax highlighting
               return (
-                <pre className={`code-block ${className || ""}`}>
+                <pre className={`${s.codeBlock} ${className || ""}`}>
                   <code className={className} {...props}>
                     {children}
                   </code>
@@ -188,7 +195,7 @@ export const MarkdownViewer: React.FC = () => {
             },
             table({ children }) {
               return (
-                <div className="table-wrapper">
+                <div className={s.tableWrapper}>
                   <table>{children}</table>
                 </div>
               );
@@ -229,9 +236,9 @@ const MermaidBlock: React.FC<{ code: string }> = ({ code }) => {
 
   if (state.status === "error") {
     return (
-      <div className="mermaid-block mermaid-error">
-        <div className="mermaid-label">Mermaid Diagram (Error)</div>
-        <pre className="mermaid-source">
+      <div className={`${s.mermaidBlock} ${s.mermaidError}`} role="figure" aria-label="Mermaid diagram">
+        <div className={s.mermaidLabel}>Mermaid Diagram (Error)</div>
+        <pre className={s.mermaidSource}>
           <code>{code}</code>
         </pre>
       </div>
@@ -240,27 +247,27 @@ const MermaidBlock: React.FC<{ code: string }> = ({ code }) => {
 
   if (state.status === "loading") {
     return (
-      <div className="mermaid-block mermaid-loading">
-        <div className="mermaid-label">Mermaid Diagram</div>
-        <div className="mermaid-render-area">Loading...</div>
+      <div className={`${s.mermaidBlock} ${s.mermaidLoading}`} role="figure" aria-label="Mermaid diagram">
+        <div className={s.mermaidLabel}>Mermaid Diagram</div>
+        <div className={s.mermaidRenderArea}>Loading...</div>
       </div>
     );
   }
 
   return (
-    <div className="mermaid-block">
+    <div className={s.mermaidBlock} role="figure" aria-label="Mermaid diagram">
       <button
-        className="mermaid-zoom-btn"
+        className={s.zoomBtn}
         onClick={() => setZoomOpen(true)}
         title="Zoom diagram"
       >
-        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
           <path d="M1.5 1h4a.5.5 0 0 1 0 1H2.707l3.147 3.146a.5.5 0 1 1-.708.708L2 2.707V5.5a.5.5 0 0 1-1 0v-4a.5.5 0 0 1 .5-.5zm13 0a.5.5 0 0 1 .5.5v4a.5.5 0 0 1-1 0V2.707l-3.146 3.147a.5.5 0 1 1-.708-.708L13.293 2H10.5a.5.5 0 0 1 0-1h4zM1.5 15a.5.5 0 0 1-.5-.5v-4a.5.5 0 0 1 1 0v2.793l3.146-3.147a.5.5 0 1 1 .708.708L2.707 14H5.5a.5.5 0 0 1 0 1h-4zm13 0h-4a.5.5 0 0 1 0-1h2.793l-3.147-3.146a.5.5 0 0 1 .708-.708L14 13.293V10.5a.5.5 0 0 1 1 0v4a.5.5 0 0 1-.5.5z" />
         </svg>
       </button>
       <div
         ref={containerRef}
-        className="mermaid-render-area"
+        className={s.mermaidRenderArea}
         dangerouslySetInnerHTML={{ __html: state.svg }}
       />
       {zoomOpen && (

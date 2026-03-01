@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { formatSingleComment, formatReviewPrompt } from "../utils/format-review";
 import { formatLineRef, getStatusColor, getStatusLabel } from "../utils/diff-utils";
-import type { ReviewComment, DocComment } from "../types";
+import type { ReviewComment, ReviewThread, DocComment } from "../types";
 
 function makeComment(overrides: Partial<ReviewComment> = {}): ReviewComment {
   return {
@@ -13,11 +13,17 @@ function makeComment(overrides: Partial<ReviewComment> = {}): ReviewComment {
     body: "This should be a constant.",
     type: "comment",
     created_at: 1700000000,
-    parent_id: null,
     author: "human",
+    ...overrides,
+  };
+}
+
+function makeThread(overrides: Partial<ReviewThread> = {}, rootOverrides: Partial<ReviewComment> = {}): ReviewThread {
+  return {
+    root: makeComment(rootOverrides),
+    replies: [],
     resolved: false,
     resolved_at: null,
-    resolution_memo: null,
     ...overrides,
   };
 }
@@ -33,7 +39,6 @@ function makeDocComment(overrides: Partial<DocComment> = {}): DocComment {
     author: "human",
     resolved: false,
     resolved_at: null,
-    resolution_memo: null,
     ...overrides,
   };
 }
@@ -87,8 +92,8 @@ describe("formatSingleComment", () => {
 });
 
 describe("formatReviewPrompt", () => {
-  it("formats a single comment", () => {
-    const result = formatReviewPrompt([makeComment()], [], null);
+  it("formats a single thread", () => {
+    const result = formatReviewPrompt([makeThread()], [], null);
     expect(result).toContain("## Review Result: Comments");
     expect(result).toContain("### src/App.tsx");
     expect(result).toContain("- L10");
@@ -96,13 +101,13 @@ describe("formatReviewPrompt", () => {
     expect(result).toContain("  This should be a constant.");
   });
 
-  it("groups multiple comments by file", () => {
-    const comments = [
-      makeComment({ id: "c1", file_path: "src/App.tsx", body: "Comment 1" }),
-      makeComment({ id: "c2", file_path: "src/utils.ts", body: "Comment 2" }),
-      makeComment({ id: "c3", file_path: "src/App.tsx", body: "Comment 3" }),
+  it("groups multiple threads by file", () => {
+    const threads = [
+      makeThread({}, { id: "c1", file_path: "src/App.tsx", body: "Comment 1" }),
+      makeThread({}, { id: "c2", file_path: "src/utils.ts", body: "Comment 2" }),
+      makeThread({}, { id: "c3", file_path: "src/App.tsx", body: "Comment 3" }),
     ];
-    const result = formatReviewPrompt(comments, [], null);
+    const result = formatReviewPrompt(threads, [], null);
 
     const appIdx = result.indexOf("### src/App.tsx");
     const utilsIdx = result.indexOf("### src/utils.ts");
@@ -113,6 +118,22 @@ describe("formatReviewPrompt", () => {
     expect(result).toContain("Comment 3");
   });
 
+  it("includes thread replies", () => {
+    const thread = makeThread({
+      replies: [
+        makeComment({ id: "r1", body: "Fixed it.", author: "claude" }),
+      ],
+    });
+    const result = formatReviewPrompt([thread], [], null);
+    expect(result).toContain("↳ Fixed it. — claude");
+  });
+
+  it("marks resolved threads", () => {
+    const thread = makeThread({ resolved: true, resolved_at: 123 });
+    const result = formatReviewPrompt([thread], [], null);
+    expect(result).toContain("✓ Resolved");
+  });
+
   it("includes docComments", () => {
     const docComment = makeDocComment();
     const result = formatReviewPrompt([], [docComment], null);
@@ -121,21 +142,21 @@ describe("formatReviewPrompt", () => {
   });
 
   it("formats verdict=approve with Approve header and LGTM summary", () => {
-    const result = formatReviewPrompt([makeComment()], [], "approve");
+    const result = formatReviewPrompt([makeThread()], [], "approve");
     expect(result).toContain("## Review Result: Approve");
     expect(result).toContain("### Summary");
     expect(result).toContain("LGTM");
   });
 
   it("formats verdict=request_changes with Request Changes header", () => {
-    const result = formatReviewPrompt([makeComment()], [], "request_changes");
+    const result = formatReviewPrompt([makeThread()], [], "request_changes");
     expect(result).toContain("## Review Result: Request Changes");
     expect(result).toContain("### Summary");
     expect(result).toContain("Please address the above comments");
   });
 
   it("formats verdict=null with Comments header and no summary", () => {
-    const result = formatReviewPrompt([makeComment()], [], null);
+    const result = formatReviewPrompt([makeThread()], [], null);
     expect(result).toContain("## Review Result: Comments");
     expect(result).not.toContain("### Summary");
   });

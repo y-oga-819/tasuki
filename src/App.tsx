@@ -5,10 +5,12 @@ import { FileSidebar } from "./components/FileSidebar";
 import { MainContent } from "./components/MainContent";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { useDiffStore } from "./store/diffStore";
+import { useDocStore } from "./store/docStore";
 import { useReviewStore } from "./store/reviewStore";
 import { useDiff } from "./hooks/useDiff";
 import { useFileWatcher } from "./hooks/useFileWatcher";
 import { useReviewPersistence } from "./hooks/useReviewPersistence";
+import { TerminalManagerProvider } from "./components/TerminalManagerContext";
 import * as api from "./utils/tauri-api";
 
 const isTauri = typeof window !== "undefined" && "__TAURI__" in window;
@@ -18,7 +20,8 @@ const MIN_SIDEBAR_WIDTH = 160;
 const MAX_SIDEBAR_WIDTH = 500;
 
 const App: React.FC = () => {
-  const { setRepoPath, setRepoInfo, setDocFiles, setDesignDocs, setSelectedDoc } = useDiffStore();
+  const { setRepoPath, setRepoInfo } = useDiffStore();
+  const { setDocFiles, setDesignDocs, setSelectedDoc } = useDocStore();
   const { gateStatus, setGateStatus, setVerdict } = useReviewStore();
   const { refetch } = useDiff();
 
@@ -49,6 +52,17 @@ const App: React.FC = () => {
     draggingRef.current = false;
     document.body.style.userSelect = "";
     cancelAnimationFrame(rafIdRef.current);
+  }, []);
+
+  const handleSidebarKeyDown = useCallback((e: React.KeyboardEvent) => {
+    const step = 20; // px per key press
+    if (e.key === "ArrowLeft") {
+      e.preventDefault();
+      setSidebarWidth((prev) => Math.max(MIN_SIDEBAR_WIDTH, prev - step));
+    } else if (e.key === "ArrowRight") {
+      e.preventDefault();
+      setSidebarWidth((prev) => Math.min(MAX_SIDEBAR_WIDTH, prev + step));
+    }
   }, []);
 
   useEffect(() => {
@@ -156,6 +170,7 @@ const App: React.FC = () => {
         theme: { dark: "github-dark", light: "github-light" },
       }}
     >
+      <TerminalManagerProvider>
       <ErrorBoundary>
         <div className="app">
           <Toolbar />
@@ -163,14 +178,23 @@ const App: React.FC = () => {
             <FileSidebar style={{ width: sidebarWidth }} />
             <div
               className="sidebar-resize-handle"
+              role="separator"
+              aria-orientation="vertical"
+              aria-label="Resize sidebar"
+              aria-valuenow={Math.round(sidebarWidth)}
+              aria-valuemin={MIN_SIDEBAR_WIDTH}
+              aria-valuemax={MAX_SIDEBAR_WIDTH}
+              tabIndex={0}
               onPointerDown={handleSidebarPointerDown}
               onPointerMove={handleSidebarPointerMove}
               onPointerUp={handleSidebarPointerUp}
+              onKeyDown={handleSidebarKeyDown}
             />
             <MainContent />
           </div>
         </div>
       </ErrorBoundary>
+      </TerminalManagerProvider>
     </WorkerPoolContextProvider>
   );
 };

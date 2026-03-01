@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import s from "./DiffSearchBar.module.css";
 
 const highlightsSupported =
   typeof CSS !== "undefined" &&
@@ -88,7 +89,6 @@ export const DiffSearchBar: React.FC<DiffSearchBarProps> = ({
   const findMatches = useCallback(
     (q: string): Range[] => {
       if (!q || !scrollContainerRef.current) return [];
-      // Ensure shadow roots have highlight styles before searching
       ensureShadowHighlightStyles(scrollContainerRef.current);
       const textNodes = collectTextNodes(scrollContainerRef.current);
       const ranges: Range[] = [];
@@ -182,11 +182,11 @@ export const DiffSearchBar: React.FC<DiffSearchBarProps> = ({
   }, [clearHighlights]);
 
   return (
-    <div className="diff-search-bar">
+    <div className={s.bar}>
       <input
         ref={inputRef}
         type="text"
-        className="diff-search-input"
+        className={s.input}
         placeholder="Search in diff..."
         value={query}
         onChange={(e) => {
@@ -203,14 +203,14 @@ export const DiffSearchBar: React.FC<DiffSearchBarProps> = ({
         }}
       />
       {query && (
-        <span className="diff-search-count">
+        <span className={s.count}>
           {matchCount > 0
             ? `${currentIndex + 1}/${matchCount}`
             : "No results"}
         </span>
       )}
       <button
-        className="diff-search-btn"
+        className={s.btn}
         title="Previous (Shift+Enter)"
         onClick={() => navigate("prev")}
         disabled={matchCount === 0}
@@ -218,7 +218,7 @@ export const DiffSearchBar: React.FC<DiffSearchBarProps> = ({
         &#x25B2;
       </button>
       <button
-        className="diff-search-btn"
+        className={s.btn}
         title="Next (Enter)"
         onClick={() => navigate("next")}
         disabled={matchCount === 0}
@@ -226,7 +226,7 @@ export const DiffSearchBar: React.FC<DiffSearchBarProps> = ({
         &#x25BC;
       </button>
       <button
-        className="diff-search-btn diff-search-close"
+        className={s.closeBtn}
         title="Close (Escape)"
         onClick={handleClose}
       >

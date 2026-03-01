@@ -1,0 +1,332 @@
+/* MarkdownViewer — component-scoped styles */
+
+.viewer {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-4);
+}
+
+.empty,
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--color-text-secondary);
+}
+
+/* TOC */
+.tocContainer {
+  position: relative;
+}
+
+.tocToggleBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--interactive-comfortable);
+  height: var(--interactive-comfortable);
+  border: 1px solid var(--color-border-primary);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-secondary);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.tocToggleBtn:hover {
+  color: var(--color-text-primary);
+  background: var(--color-bg-tertiary);
+}
+
+.tocDropdown {
+  position: absolute;
+  top: calc(var(--interactive-comfortable) + var(--space-1));
+  left: 0;
+  z-index: 10;
+  width: 20rem;
+  max-height: 25rem;
+  overflow-y: auto;
+  padding: var(--space-3);
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border-primary);
+  border-radius: var(--radius-md);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.tocTitle {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-2);
+}
+
+.tocList {
+  list-style: none;
+}
+
+.tocItem {
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-loose);
+}
+
+.tocItem a {
+  color: var(--color-text-link);
+  cursor: pointer;
+}
+
+.tocItem a:hover {
+  color: var(--color-text-primary);
+}
+
+.tocLevel2 {
+  composes: tocItem;
+  padding-left: var(--space-4);
+}
+
+.tocLevel3 {
+  composes: tocItem;
+  padding-left: var(--space-6);
+}
+
+.tocLevel4 {
+  composes: tocItem;
+  padding-left: calc(var(--space-6) + var(--space-4));
+}
+
+/* Markdown toolbar (TOC + view toggle) — sticky header */
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-bg-primary);
+  border-bottom: 1px solid var(--color-border-secondary);
+  flex-shrink: 0;
+  z-index: 5;
+}
+
+.viewToggle {
+  display: flex;
+  gap: 1px;
+  background: var(--color-border-primary);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+/* Raw markdown display */
+.raw {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-base);
+  color: var(--color-text-primary);
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  line-height: var(--line-height-base);
+  margin-top: var(--space-4);
+}
+
+/* Markdown content styling */
+.content h1,
+.content h2,
+.content h3,
+.content h4,
+.content h5,
+.content h6 {
+  margin-top: var(--space-5);
+  margin-bottom: var(--space-3);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  border-bottom: 1px solid var(--color-border-secondary);
+  padding-bottom: var(--space-2);
+}
+
+.content h1 { font-size: 1.5rem; }
+.content h2 { font-size: var(--font-size-xl); }
+
+.content h3 {
+  font-size: var(--font-size-lg);
+  border-bottom: none;
+}
+
+.content h4,
+.content h5,
+.content h6 {
+  font-size: var(--font-size-base);
+  border-bottom: none;
+}
+
+.content p {
+  margin-bottom: var(--space-3);
+  color: var(--color-text-primary);
+}
+
+.content ul,
+.content ol {
+  margin-bottom: var(--space-3);
+  padding-left: var(--space-5);
+}
+
+.content li {
+  margin-bottom: var(--space-1);
+}
+
+.content blockquote {
+  margin: var(--space-3) 0;
+  padding: var(--space-2) var(--space-4);
+  border-left: var(--space-1) solid var(--color-border-primary);
+  color: var(--color-text-secondary);
+  background: var(--color-bg-secondary);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+
+.content hr {
+  border: none;
+  border-top: 1px solid var(--color-border-primary);
+  margin: var(--space-5) 0;
+}
+
+.content img {
+  max-width: 100%;
+  border-radius: var(--radius-md);
+}
+
+/* Code in markdown */
+.inlineCode {
+  background: var(--color-bg-overlay);
+  padding: var(--space-1);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+  color: var(--color-text-primary);
+}
+
+.codeBlock {
+  background: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border-primary);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  overflow-x: auto;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-base);
+  margin-bottom: var(--space-3);
+}
+
+.codeBlock code {
+  font-family: inherit;
+}
+
+/* Mermaid blocks */
+.mermaidBlock {
+  position: relative;
+  margin: var(--space-3) 0;
+  border: 1px solid var(--color-border-primary);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.mermaidLabel {
+  padding: var(--space-1) var(--space-3);
+  background: var(--color-bg-overlay);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  border-bottom: 1px solid var(--color-border-primary);
+}
+
+.mermaidSource {
+  padding: var(--space-3);
+  background: var(--color-bg-tertiary);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  overflow-x: auto;
+  margin: 0;
+}
+
+.mermaidRenderArea {
+  display: flex;
+  justify-content: center;
+  padding: var(--space-3);
+  background: var(--color-bg-secondary);
+  overflow-x: auto;
+}
+
+.mermaidRenderArea svg {
+  max-width: 100%;
+  height: auto;
+}
+
+.mermaidLoading .mermaidRenderArea {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  min-height: 5rem;
+  align-items: center;
+}
+
+.mermaidError .mermaidLabel {
+  color: var(--color-danger);
+}
+
+/* Tables in markdown */
+.tableWrapper {
+  overflow-x: auto;
+  margin-bottom: var(--space-3);
+}
+
+.content table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-sm);
+}
+
+.content th,
+.content td {
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border-primary);
+  text-align: left;
+}
+
+.content th {
+  background: var(--color-bg-tertiary);
+  font-weight: 600;
+}
+
+.content tr:nth-child(even) {
+  background: var(--color-bg-secondary);
+}
+
+/* Mermaid Zoom Button */
+.zoomBtn {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-2);
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  background: var(--color-bg-overlay);
+  border: 1px solid var(--color-border-primary);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.mermaidBlock:hover .zoomBtn {
+  opacity: 1;
+}
+
+.zoomBtn:hover {
+  background: var(--color-btn-secondary-hover);
+  color: var(--color-text-primary);
+}

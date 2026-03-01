@@ -1,15 +1,5 @@
 import { create } from "zustand";
-import type { SelectedLineRange } from "@pierre/diffs";
 import type { DiffResult, DiffSource, RepoInfo } from "../types";
-
-/** Target line where the comment form is being shown */
-export interface CommentFormTarget {
-  filePath: string;
-  lineNumber: number;
-  side: "deletions" | "additions";
-  selectionStart: number;
-  selectionEnd: number;
-}
 
 // Re-export types that consumers may need
 export type { DiffResult };
@@ -24,30 +14,8 @@ interface DiffState {
   // Files
   selectedFile: string | null;
   setSelectedFile: (path: string | null) => void;
-  docFiles: string[];
-  setDocFiles: (files: string[]) => void;
-  selectedDoc: string | null;
-  setSelectedDoc: (path: string | null) => void;
-  docContent: string | null;
-  setDocContent: (content: string | null) => void;
   collapsedFiles: Set<string>;
   toggleFileCollapse: (path: string) => void;
-  designDocs: string[];
-  setDesignDocs: (docs: string[]) => void;
-  docSource: "repo" | "design" | "external";
-  setDocSource: (source: "repo" | "design" | "external") => void;
-  externalFolders: string[];
-  addExternalFolder: (folder: string) => void;
-  removeExternalFolder: (folder: string) => void;
-  externalDocs: Record<string, string[]>;
-  setExternalDocs: (folder: string, files: string[]) => void;
-
-  // Pierre-native diff state
-  selectedLineRange: SelectedLineRange | null;
-  selectedLineFile: string | null;
-  setSelectedLineRange: (range: SelectedLineRange | null, filePath?: string | null) => void;
-  commentFormTarget: CommentFormTarget | null;
-  setCommentFormTarget: (target: CommentFormTarget | null) => void;
 
   // Loading
   isLoading: boolean;
@@ -72,12 +40,6 @@ export const useDiffStore = create<DiffState>((set) => ({
   // Files
   selectedFile: null,
   setSelectedFile: (path) => set({ selectedFile: path }),
-  docFiles: [],
-  setDocFiles: (files) => set({ docFiles: files }),
-  selectedDoc: null,
-  setSelectedDoc: (path) => set({ selectedDoc: path }),
-  docContent: null,
-  setDocContent: (content) => set({ docContent: content }),
   collapsedFiles: new Set<string>(),
   toggleFileCollapse: (path) =>
     set((state) => {
@@ -89,36 +51,6 @@ export const useDiffStore = create<DiffState>((set) => ({
       }
       return { collapsedFiles: next };
     }),
-  designDocs: [],
-  setDesignDocs: (docs) => set({ designDocs: docs }),
-  docSource: "repo",
-  setDocSource: (source) => set({ docSource: source }),
-  externalFolders: [],
-  addExternalFolder: (folder) =>
-    set((state) => {
-      if (state.externalFolders.includes(folder)) return state;
-      return { externalFolders: [...state.externalFolders, folder] };
-    }),
-  removeExternalFolder: (folder) =>
-    set((state) => ({
-      externalFolders: state.externalFolders.filter((f) => f !== folder),
-      externalDocs: Object.fromEntries(
-        Object.entries(state.externalDocs).filter(([k]) => k !== folder),
-      ),
-    })),
-  externalDocs: {},
-  setExternalDocs: (folder, files) =>
-    set((state) => ({
-      externalDocs: { ...state.externalDocs, [folder]: files },
-    })),
-
-  // Pierre-native diff state
-  selectedLineRange: null,
-  selectedLineFile: null,
-  setSelectedLineRange: (range, filePath) =>
-    set({ selectedLineRange: range, selectedLineFile: filePath ?? null }),
-  commentFormTarget: null,
-  setCommentFormTarget: (target) => set({ commentFormTarget: target }),
 
   // Loading
   isLoading: false,

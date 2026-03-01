@@ -1,131 +1,200 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useReviewStore } from "../store/reviewStore";
 import { useDiffStore } from "../store/diffStore";
 import { formatReviewPrompt, formatSingleComment } from "../utils/format-review";
 import { copyToClipboard } from "../utils/tauri-api";
 import * as api from "../utils/tauri-api";
-import type { ReviewComment, DocComment } from "../types";
+import type { ReviewThread, DocComment } from "../types";
+import s from "./ReviewPanel.module.css";
 
-/** Inline form for entering a resolution memo */
-const ResolveMemoForm: React.FC<{
-  onConfirm: (memo: string | null) => void;
-  onCancel: () => void;
-}> = ({ onConfirm, onCancel }) => {
-  const [memo, setMemo] = useState("");
-  return (
-    <div className="resolve-form">
-      <input
-        className="resolve-memo-input"
-        type="text"
-        placeholder="解決メモ（任意）"
-        value={memo}
-        onChange={(e) => setMemo(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") onConfirm(memo || null);
-          if (e.key === "Escape") onCancel();
-        }}
-        autoFocus
-      />
-      <div className="resolve-form-actions">
-        <button className="btn btn-primary btn-xs" onClick={() => onConfirm(memo || null)}>
-          確定
-        </button>
-        <button className="btn btn-xs" onClick={onCancel}>
-          取消
-        </button>
-      </div>
-    </div>
-  );
-};
+// --- Thread card for unresolved threads ---
 
-/** A single code comment item with resolve/unresolve support */
-const CodeCommentItem: React.FC<{
-  comment: ReviewComment;
-  onCopy: (id: string) => void;
-  onRemove: (id: string) => void;
-  onResolve: (id: string, memo: string | null) => void;
-  onUnresolve: (id: string) => void;
-}> = ({ comment, onCopy, onRemove, onResolve, onUnresolve }) => {
-  const c = comment;
+const ThreadCard: React.FC<{
+  thread: ReviewThread;
+  onCopy: (thread: ReviewThread) => void;
+}> = ({ thread, onCopy }) => {
+  const { addReply, resolveThread, removeThread } = useReviewStore();
+  const [replyText, setReplyText] = useState("");
+  const [showMenu, setShowMenu] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Close menu on click outside
+  useEffect(() => {
+    if (!showMenu) return;
+    const handler = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setShowMenu(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [showMenu]);
+
+  const c = thread.root;
+
+  const handleReply = () => {
+    if (!replyText.trim()) return;
+    addReply(c.id, replyText.trim());
+    setReplyText("");
+  };
+
+  const handleResolve = () => {
+    if (replyText.trim()) {
+      addReply(c.id, replyText.trim());
+    }
+    resolveThread(c.id);
+    setReplyText("");
+  };
+
   return (
-    <li className={`comment-item ${c.resolved ? "resolved" : ""}`}>
-      <div className="comment-item-header">
-        <span className="comment-location">
-          {c.resolved && <span className="resolve-check">&#10003; </span>}
+    <li className={s.threadCard}>
+      <div className={s.threadHeader}>
+        <span className={s.commentLocation}>
           {c.file_path}:L{c.line_start}
           {c.line_end !== c.line_start ? `-${c.line_end}` : ""}
         </span>
-        <div className="comment-item-actions">
-          {c.resolved && (
-            <button
-              className="btn-icon"
-              onClick={() => onUnresolve(c.id)}
-              title="解決を取り消し"
-            >
-              &#x21A9;
-            </button>
-          )}
-          {!c.resolved && (
-            <button
-              className="btn-icon"
-              onClick={() => onCopy(c.id)}
-              title="Copy this comment"
-            >
-              &#x1F4CB;
-            </button>
-          )}
+        <div className={s.threadHeaderActions}>
           <button
             className="btn-icon"
-            onClick={() => onRemove(c.id)}
-            title="Remove comment"
+            onClick={() => onCopy(thread)}
+            title="Copy this comment"
           >
-            &#x2715;
+            {"\u{1F4CB}"}
           </button>
+          <div className={s.menuContainer} ref={menuRef}>
+            <button
+              className="btn-icon"
+              onClick={() => setShowMenu(!showMenu)}
+              title="More actions"
+            >
+              {"\u2026"}
+            </button>
+            {showMenu && (
+              <div className={s.menu}>
+                <button
+                  className={s.menuItemDanger}
+                  onClick={() => {
+                    removeThread(c.id);
+                    setShowMenu(false);
+                  }}
+                >
+                  Delete thread
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
-      {c.code_snippet && !c.resolved && (
-        <pre className="comment-snippet">
+      {c.code_snippet && (
+        <pre className={s.commentSnippet}>
           <code>{c.code_snippet}</code>
         </pre>
       )}
-      <div className="comment-body">{c.body}</div>
-      {c.resolved && c.resolution_memo && (
-        <div className="resolution-memo">解決メモ: {c.resolution_memo}</div>
-      )}
-      {!c.resolved && (
-        <ResolveMemoForm
-          onConfirm={(memo) => onResolve(c.id, memo)}
-          onCancel={() => {}}
+      <div className={s.commentBody}>{c.body}</div>
+
+      {/* Replies */}
+      {thread.replies.map((reply) => (
+        <div key={reply.id} className={s.threadReply}>
+          <span className={s.threadReplyArrow}>{"\u21B3"}</span>
+          <span className={s.threadReplyBody}>{reply.body}</span>
+          <span className={s.threadReplyAuthor}>{reply.author}</span>
+        </div>
+      ))}
+
+      {/* Reply input + actions */}
+      <div className={s.threadFooter}>
+        <textarea
+          className={s.threadReplyInput}
+          placeholder="Write a reply..."
+          value={replyText}
+          onChange={(e) => setReplyText(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handleReply();
+          }}
+          rows={1}
         />
-      )}
+        <div className={s.threadActions}>
+          <button
+            className="btn btn-xs"
+            onClick={handleReply}
+            disabled={!replyText.trim()}
+          >
+            Reply
+          </button>
+          <button
+            className="btn btn-primary btn-xs"
+            onClick={handleResolve}
+          >
+            Resolve
+          </button>
+        </div>
+      </div>
     </li>
   );
 };
 
-/** A single doc comment item with resolve/unresolve support */
+// --- Compact resolved thread card ---
+
+const ResolvedThreadCard: React.FC<{
+  thread: ReviewThread;
+}> = ({ thread }) => {
+  const { unresolveThread } = useReviewStore();
+  const c = thread.root;
+
+  return (
+    <li className={`${s.threadCard} ${s.threadResolved}`}>
+      <div className={s.threadHeader}>
+        <span className={s.commentLocation}>
+          <span className={s.resolveCheck}>{"\u2713"} </span>
+          {c.file_path}:L{c.line_start}
+          {c.line_end !== c.line_start ? `-${c.line_end}` : ""}
+        </span>
+        <button
+          className="btn-icon"
+          onClick={() => unresolveThread(c.id)}
+          title="Reopen thread"
+        >
+          {"\u21A9"}
+        </button>
+      </div>
+      <div className={s.commentBody}>{c.body}</div>
+    </li>
+  );
+};
+
+// --- Doc comment item (kept simpler — no thread model) ---
+
 const DocCommentItem: React.FC<{
   comment: DocComment;
   onRemove: (id: string) => void;
-  onResolve: (id: string, memo: string | null) => void;
+  onResolve: (id: string) => void;
   onUnresolve: (id: string) => void;
 }> = ({ comment, onRemove, onResolve, onUnresolve }) => {
   const c = comment;
   return (
-    <li className={`comment-item doc-comment ${c.resolved ? "resolved" : ""}`}>
-      <div className="comment-item-header">
-        <span className="comment-location">
-          {c.resolved && <span className="resolve-check">&#10003; </span>}
+    <li className={`${s.commentItem} ${c.resolved ? s.resolved : ""}`}>
+      <div className={s.commentItemHeader}>
+        <span className={s.commentLocation}>
+          {c.resolved && <span className={s.resolveCheck}>{"\u2713"} </span>}
           {c.file_path}
-          {c.section ? ` — ${c.section}` : ""}
+          {c.section ? ` \u2014 ${c.section}` : ""}
         </span>
-        <div className="comment-item-actions">
-          {c.resolved && (
+        <div className={s.commentActions}>
+          {c.resolved ? (
             <button
               className="btn-icon"
               onClick={() => onUnresolve(c.id)}
-              title="解決を取り消し"
+              title="Reopen"
             >
-              &#x21A9;
+              {"\u21A9"}
+            </button>
+          ) : (
+            <button
+              className="btn-icon"
+              onClick={() => onResolve(c.id)}
+              title="Resolve"
+            >
+              {"\u2713"}
             </button>
           )}
           <button
@@ -133,74 +202,70 @@ const DocCommentItem: React.FC<{
             onClick={() => onRemove(c.id)}
             title="Remove comment"
           >
-            &#x2715;
+            {"\u2715"}
           </button>
         </div>
       </div>
-      <div className="comment-body">{c.body}</div>
-      {c.resolved && c.resolution_memo && (
-        <div className="resolution-memo">解決メモ: {c.resolution_memo}</div>
-      )}
-      {!c.resolved && (
-        <ResolveMemoForm
-          onConfirm={(memo) => onResolve(c.id, memo)}
-          onCancel={() => {}}
-        />
-      )}
+      <div className={s.commentBody}>{c.body}</div>
     </li>
   );
 };
 
+// --- Main ReviewPanel ---
+
 export const ReviewPanel: React.FC = () => {
   const {
-    comments,
     docComments,
     verdict,
     setVerdict,
-    removeComment,
     removeDocComment,
-    resolveComment,
-    unresolveComment,
     resolveDocComment,
     unresolveDocComment,
     gateStatus,
     setGateStatus,
+    getAllThreads,
+    threads,
   } = useReviewStore();
   const { diffResult } = useDiffStore();
 
-  const totalComments = comments.length + docComments.length;
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- threads triggers recomputation
+  const allThreads = useMemo(() => getAllThreads(), [threads, getAllThreads]);
+
+  const unresolvedThreads = useMemo(
+    () => allThreads.filter((t) => !t.resolved),
+    [allThreads],
+  );
+
+  const resolvedThreads = useMemo(
+    () => allThreads.filter((t) => t.resolved),
+    [allThreads],
+  );
+
+  const totalCount = allThreads.length + docComments.length;
 
   const unresolvedCount = useMemo(() => {
-    const unresolvedCode = comments.filter((c) => !c.resolved).length;
     const unresolvedDoc = docComments.filter((c) => !c.resolved).length;
-    return unresolvedCode + unresolvedDoc;
-  }, [comments, docComments]);
-
-  const resolvedComments = useMemo(() => comments.filter((c) => c.resolved), [comments]);
-  const resolvedDocComments = useMemo(() => docComments.filter((c) => c.resolved), [docComments]);
+    return unresolvedThreads.length + unresolvedDoc;
+  }, [unresolvedThreads, docComments]);
 
   const canApprove = unresolvedCount === 0;
 
   const handleCopyAll = useCallback(async () => {
-    const prompt = formatReviewPrompt(comments, docComments, verdict);
+    const prompt = formatReviewPrompt(allThreads, docComments, verdict);
     await copyToClipboard(prompt);
-  }, [comments, docComments, verdict]);
+  }, [allThreads, docComments, verdict]);
 
-  const handleCopySingle = useCallback(
-    async (commentId: string) => {
-      const comment = comments.find((c) => c.id === commentId);
-      if (comment) {
-        const prompt = formatSingleComment(comment);
-        await copyToClipboard(prompt);
-      }
+  const handleCopyThread = useCallback(
+    async (thread: ReviewThread) => {
+      const prompt = formatSingleComment(thread.root);
+      await copyToClipboard(prompt);
     },
-    [comments],
+    [],
   );
 
   const writeGate = useCallback(
     async (status: "approved" | "rejected") => {
       try {
-        // Get diff_hash from current diffResult
         let diffHash = "";
         if (diffResult) {
           diffHash = await api.getDiffHash(diffResult);
@@ -209,17 +274,15 @@ export const ReviewPanel: React.FC = () => {
         await api.writeCommitGate(
           status,
           diffHash,
-          resolvedComments.map((c) => ({
-            file: c.file_path,
-            line: c.line_start,
-            body: c.body,
-            resolution_memo: c.resolution_memo,
+          resolvedThreads.map((t) => ({
+            file: t.root.file_path,
+            line: t.root.line_start,
+            body: t.root.body,
           })),
-          resolvedDocComments.map((c) => ({
+          docComments.filter((c) => c.resolved).map((c) => ({
             file: c.file_path,
             section: c.section,
             body: c.body,
-            resolution_memo: c.resolution_memo,
           })),
         );
         setGateStatus(status);
@@ -227,12 +290,11 @@ export const ReviewPanel: React.FC = () => {
         console.error("Failed to write commit gate:", err);
       }
     },
-    [diffResult, resolvedComments, resolvedDocComments, setGateStatus],
+    [diffResult, resolvedThreads, docComments, setGateStatus],
   );
 
   const handleApprove = useCallback(async () => {
     if (verdict === "approve") {
-      // Toggle off
       setVerdict(null);
       try {
         await api.clearCommitGate();
@@ -246,7 +308,6 @@ export const ReviewPanel: React.FC = () => {
 
   const handleReject = useCallback(async () => {
     if (verdict === "request_changes") {
-      // Toggle off
       setVerdict(null);
       try {
         await api.clearCommitGate();
@@ -259,26 +320,30 @@ export const ReviewPanel: React.FC = () => {
   }, [verdict, setVerdict, writeGate, setGateStatus]);
 
   return (
-    <div className="review-panel">
-      <div className="review-panel-header">
-        <span className="review-title">
+    <div className="review-panel" role="complementary" aria-label="Review">
+      <div className={s.header}>
+        <span className={s.title}>
           Review Comments
-          {totalComments > 0 && (
-            <span className="badge">{totalComments}</span>
+          {totalCount > 0 && (
+            <span className="badge">{totalCount}</span>
           )}
         </span>
-        <div className="review-header-actions">
+        <div className={s.headerActions}>
           {gateStatus !== "none" && (
-            <span className={`gate-badge gate-${gateStatus}`}>
+            <span className={
+              gateStatus === "approved" ? s.gateApproved :
+              gateStatus === "rejected" ? s.gateRejected :
+              s.gateInvalidated
+            }>
               {gateStatus === "approved" && "Gate: Approved"}
               {gateStatus === "rejected" && "Gate: Rejected"}
               {gateStatus === "invalidated" && "Gate: Invalidated"}
             </span>
           )}
           <button
-            className="btn btn-primary copy-all-btn"
+            className={`btn btn-primary ${s.copyAllBtn}`}
             onClick={handleCopyAll}
-            disabled={totalComments === 0 && !verdict}
+            disabled={totalCount === 0 && !verdict}
             title="Copy all comments as structured review prompt"
           >
             Copy All
@@ -286,23 +351,20 @@ export const ReviewPanel: React.FC = () => {
         </div>
       </div>
 
-      {totalComments === 0 && (
-        <div className="review-empty">
+      {totalCount === 0 && (
+        <div className={s.empty}>
           <p>No comments yet. Click on line numbers in the diff to add comments.</p>
         </div>
       )}
 
-      {/* Code comments */}
-      {comments.length > 0 && (
-        <ul className="comment-list">
-          {comments.map((c) => (
-            <CodeCommentItem
-              key={c.id}
-              comment={c}
-              onCopy={handleCopySingle}
-              onRemove={removeComment}
-              onResolve={resolveComment}
-              onUnresolve={unresolveComment}
+      {/* Unresolved threads */}
+      {unresolvedThreads.length > 0 && (
+        <ul className={s.commentList}>
+          {unresolvedThreads.map((t) => (
+            <ThreadCard
+              key={t.root.id}
+              thread={t}
+              onCopy={handleCopyThread}
             />
           ))}
         </ul>
@@ -310,7 +372,7 @@ export const ReviewPanel: React.FC = () => {
 
       {/* Doc comments */}
       {docComments.length > 0 && (
-        <ul className="comment-list">
+        <ul className={s.commentList}>
           {docComments.map((c) => (
             <DocCommentItem
               key={c.id}
@@ -323,32 +385,46 @@ export const ReviewPanel: React.FC = () => {
         </ul>
       )}
 
-      {/* Unresolved count + Verdict buttons */}
-      <div className="review-verdict">
-        <div className="verdict-info">
-          {totalComments > 0 && (
+      {/* Resolved threads (collapsible) */}
+      {resolvedThreads.length > 0 && (
+        <details className={s.resolvedSection}>
+          <summary className={s.resolvedHeader}>
+            Resolved ({resolvedThreads.length})
+          </summary>
+          <ul className={s.commentList}>
+            {resolvedThreads.map((t) => (
+              <ResolvedThreadCard key={t.root.id} thread={t} />
+            ))}
+          </ul>
+        </details>
+      )}
+
+      {/* Verdict bar */}
+      <div className={s.verdict}>
+        <div className={s.verdictInfo}>
+          {totalCount > 0 && (
             unresolvedCount > 0 ? (
-              <span className="unresolved-count">
-                未解決: {unresolvedCount}件
+              <span className={s.unresolvedCount}>
+                Unresolved: {unresolvedCount} {unresolvedCount === 1 ? "thread" : "threads"}
               </span>
             ) : (
-              <span className="all-resolved">
-                全コメント解決済み
+              <span className={s.allResolved}>
+                All threads resolved
               </span>
             )
           )}
         </div>
-        <div className="verdict-buttons">
+        <div className={s.verdictButtons}>
           <button
-            className={`btn verdict-btn ${verdict === "approve" ? "active" : ""}`}
+            className={`btn ${s.verdictBtn} ${verdict === "approve" ? s.verdictBtnActive : ""}`}
             onClick={handleApprove}
             disabled={!canApprove}
-            title={!canApprove ? "全コメントを解決してからApproveしてください" : ""}
+            title={!canApprove ? "Resolve all threads before approving" : ""}
           >
             Approve
           </button>
           <button
-            className={`btn verdict-btn request-changes ${verdict === "request_changes" ? "active" : ""}`}
+            className={`btn ${s.verdictBtn} ${verdict === "request_changes" ? s.verdictBtnRejectActive : ""}`}
             onClick={handleReject}
           >
             Reject

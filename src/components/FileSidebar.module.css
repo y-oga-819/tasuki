@@ -1,0 +1,354 @@
+/* FileSidebar — component-scoped styles */
+
+.sidebar {
+  flex-shrink: 0;
+  background-color: var(--color-bg-secondary);
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.resizeHandle {
+  position: relative;
+  width: var(--resize-handle-width);
+  flex-shrink: 0;
+  background: var(--color-border-primary);
+  cursor: col-resize;
+  transition: background 0.15s ease;
+}
+
+.resizeHandle::before {
+  content: "";
+  position: absolute;
+  inset: 0 calc(-1 * (var(--resize-handle-hitarea) - var(--resize-handle-width)) / 2);
+}
+
+.resizeHandle:hover,
+.resizeHandle:active {
+  background: var(--color-text-link);
+}
+
+.section {
+  padding: 0;
+}
+
+.section + .section {
+  border-top: 1px solid var(--color-border-secondary);
+}
+
+.sectionTitle {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-secondary);
+  padding: var(--space-2) var(--space-3);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  background: var(--color-bg-tertiary);
+  border-bottom: 1px solid var(--color-border-secondary);
+}
+
+.sectionToggle {
+  cursor: pointer;
+  user-select: none;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.sectionToggle:hover {
+  color: var(--color-text-primary);
+  background: var(--color-bg-overlay);
+}
+
+.chevron {
+  flex-shrink: 0;
+  width: 0.875rem;
+  font-size: var(--font-size-sm);
+  text-align: center;
+  color: var(--color-text-tertiary);
+  transition: transform 0.2s ease;
+}
+
+.section.collapsed .chevron {
+  transform: rotate(-90deg);
+}
+
+/* Collapsible content animation using grid */
+.collapse {
+  display: grid;
+  grid-template-rows: 1fr;
+  transition: grid-template-rows 0.2s ease;
+}
+
+.collapse.collapsed {
+  grid-template-rows: 0fr;
+}
+
+.collapseInner {
+  overflow: hidden;
+  min-height: 0;
+}
+
+.filter {
+  position: relative;
+  padding: var(--space-1) var(--space-2);
+}
+
+.filterInput {
+  width: 100%;
+  padding: var(--space-1) var(--space-2);
+  padding-right: var(--space-5);
+  font-size: var(--font-size-sm);
+  font-family: var(--font-sans);
+  color: var(--color-text-primary);
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border-primary);
+  border-radius: var(--radius-sm);
+  outline: none;
+  box-sizing: border-box;
+}
+
+.filterInput:focus {
+  border-color: var(--color-text-link);
+}
+
+.filterInput::placeholder {
+  color: var(--color-text-tertiary);
+}
+
+.filterClear {
+  position: absolute;
+  right: var(--space-3);
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  padding: var(--space-1);
+  line-height: var(--line-height-tight);
+}
+
+.filterClear:hover {
+  color: var(--color-text-primary);
+}
+
+.sidebarStats {
+  display: flex;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--font-size-sm);
+}
+
+/* Changed Files section stretches to fill sidebar */
+.section:last-child {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.section:last-child > .collapse {
+  flex: 1;
+  min-height: 0;
+}
+
+.section:last-child > .collapse > .collapseInner {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.virtualContainer {
+  flex: 1;
+  min-height: 0;
+  outline: none;
+}
+
+.virtualContainer ul {
+  list-style: none;
+}
+
+.fileList {
+  list-style: none;
+}
+
+/* E2E tests reference .file-item and .tree-dir by class */
+:global(.file-item) {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-3);
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  transition: background 0.1s ease;
+  overflow: hidden;
+}
+
+:global(.file-item):hover {
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-primary);
+}
+
+:global(.file-item).selected {
+  background: var(--color-selected-bg);
+  color: var(--color-text-primary);
+}
+
+:global(.file-item).focused {
+  outline: 2px solid var(--color-text-link);
+  outline-offset: -2px;
+}
+
+:global(.file-item).generated {
+  opacity: 0.6;
+}
+
+.fileIcon {
+  flex-shrink: 0;
+  font-size: var(--font-size-sm);
+}
+
+.fileStatus {
+  flex-shrink: 0;
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  font-family: var(--font-mono);
+  width: 0.875rem;
+  text-align: center;
+}
+
+.fileName {
+  flex-shrink: 0;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+}
+
+.fileDir {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-tertiary);
+  margin-left: var(--space-1);
+}
+
+.fileChanges {
+  flex-shrink: 0;
+  display: flex;
+  gap: var(--space-1);
+  font-size: var(--font-size-sm);
+  font-family: var(--font-mono);
+}
+
+/* Tree directory items */
+:global(.tree-dir) {
+  color: var(--color-text-secondary);
+  font-weight: 500;
+}
+
+:global(.tree-dir):hover {
+  color: var(--color-text-primary);
+}
+
+.treeToggle {
+  flex-shrink: 0;
+  width: 0.875rem;
+  font-size: var(--font-size-sm);
+  text-align: center;
+  color: var(--color-text-tertiary);
+}
+
+.commentBadge {
+  flex-shrink: 0;
+  background: var(--color-comment);
+  color: #fff;
+  font-size: var(--font-size-sm);
+  padding: 0 var(--space-1);
+  border-radius: 0.625rem;
+  font-weight: 600;
+}
+
+.openInZed {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  padding: 0 var(--space-1);
+  opacity: 0;
+  transition: opacity 0.1s ease;
+  margin-left: auto;
+}
+
+:global(.file-item):hover .openInZed {
+  opacity: 1;
+}
+
+.openInZed:hover {
+  color: var(--color-accent);
+}
+
+.collapseBtn {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  padding: 0 var(--space-1);
+}
+
+/* --- Add Folder Button (Sidebar) --- */
+.addFolderSection {
+  padding: var(--space-2) var(--space-3);
+}
+
+.addFolderBtn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-1) var(--space-2);
+  background: var(--color-bg-tertiary);
+  border: 1px dashed var(--color-border-primary);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.addFolderBtn:hover {
+  background: var(--color-bg-overlay);
+  color: var(--color-text-primary);
+}
+
+.removeFolderBtn {
+  margin-left: auto;
+  padding: 0 var(--space-1);
+  background: none;
+  border: none;
+  color: var(--color-text-tertiary);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  line-height: var(--line-height-tight);
+}
+
+.removeFolderBtn:hover {
+  color: var(--color-deleted);
+}
+
+.emptyHint {
+  padding: var(--space-2) var(--space-3);
+  color: var(--color-text-tertiary);
+  font-size: var(--font-size-sm);
+  font-style: italic;
+}

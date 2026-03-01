@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { clampScale, ZOOM_STEP } from "../utils/zoom";
+import s from "./MermaidZoomModal.module.css";
 
 interface MermaidZoomModalProps {
   svg: string;
@@ -75,9 +76,9 @@ export const MermaidZoomModal: React.FC<MermaidZoomModalProps> = ({
   }, []);
 
   return (
-    <div className="mermaid-zoom-modal" onClick={onClose}>
+    <div className={s.modal} role="dialog" aria-label="Diagram zoom" onClick={onClose}>
       <div
-        className="mermaid-zoom-container"
+        className={s.container}
         onClick={(e) => e.stopPropagation()}
         ref={containerRef}
         onWheel={handleWheel}
@@ -86,7 +87,7 @@ export const MermaidZoomModal: React.FC<MermaidZoomModalProps> = ({
         onPointerUp={handlePointerUp}
       >
         <div
-          className="mermaid-zoom-content"
+          className={s.content}
           style={{
             transform: `translate(${translate.x}px, ${translate.y}px) scale(${scale})`,
           }}
@@ -94,23 +95,23 @@ export const MermaidZoomModal: React.FC<MermaidZoomModalProps> = ({
         />
       </div>
 
-      <div className="mermaid-zoom-controls" onClick={(e) => e.stopPropagation()}>
+      <div className={s.controls} onClick={(e) => e.stopPropagation()}>
         <button
-          className="mermaid-zoom-ctrl-btn"
+          className={s.ctrlBtn}
           onClick={handleZoomOut}
           title="Zoom out"
         >
           -
         </button>
         <button
-          className="mermaid-zoom-ctrl-btn mermaid-zoom-level"
+          className={s.zoomLevel}
           onClick={handleReset}
           title="Reset zoom"
         >
           {Math.round(scale * 100)}%
         </button>
         <button
-          className="mermaid-zoom-ctrl-btn"
+          className={s.ctrlBtn}
           onClick={handleZoomIn}
           title="Zoom in"
         >
@@ -119,7 +120,7 @@ export const MermaidZoomModal: React.FC<MermaidZoomModalProps> = ({
       </div>
 
       <button
-        className="mermaid-zoom-close"
+        className={s.closeBtn}
         onClick={onClose}
         title="Close (Escape)"
       >
