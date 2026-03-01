@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback, useState, forwardRef, useImperativeHandle } from "react";
+import React, { useEffect, useRef, useCallback, useState } from "react";
 import { Terminal as XTerm } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { WebLinksAddon } from "@xterm/addon-web-links";
@@ -16,9 +16,8 @@ const DEFAULT_FONT_SIZE = 13;
 const MIN_FONT_SIZE = 8;
 const MAX_FONT_SIZE = 28;
 
-export const TerminalPanel = forwardRef<HTMLDivElement, { visible: boolean }>(({ visible }, ref) => {
+export const TerminalPanel: React.FC<{ visible: boolean }> = ({ visible }) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  useImperativeHandle(ref, () => containerRef.current!, []);
   const termRef = useRef<XTerm | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
   const searchAddonRef = useRef<SearchAddon | null>(null);
@@ -386,6 +385,4 @@ export const TerminalPanel = forwardRef<HTMLDivElement, { visible: boolean }>(({
       )}
     </div>
   );
-});
-
-TerminalPanel.displayName = "TerminalPanel";
+};
