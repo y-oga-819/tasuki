@@ -21,9 +21,47 @@ jobs:
           require: write
           username: ${{ github.actor }}
 
+  verify-version:
+    name: Verify version consistency
+    needs: authorize
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check versions match tag
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          PKG=$(jq -r '.version' package.json)
+          TAURI=$(jq -r '.version' src-tauri/tauri.conf.json)
+          CARGO=$(sed -n 's/^version = "\(.*\)"/\1/p' src-tauri/Cargo.toml | head -1)
+
+          echo "Tag:              $TAG"
+          echo "package.json:     $PKG"
+          echo "tauri.conf.json:  $TAURI"
+          echo "Cargo.toml:       $CARGO"
+
+          MISMATCH=0
+          if [ "$PKG" != "$TAG" ]; then
+            echo "::error::package.json version ($PKG) does not match tag ($TAG)"
+            MISMATCH=1
+          fi
+          if [ "$TAURI" != "$TAG" ]; then
+            echo "::error::tauri.conf.json version ($TAURI) does not match tag ($TAG)"
+            MISMATCH=1
+          fi
+          if [ "$CARGO" != "$TAG" ]; then
+            echo "::error::Cargo.toml version ($CARGO) does not match tag ($TAG)"
+            MISMATCH=1
+          fi
+
+          if [ "$MISMATCH" -eq 1 ]; then
+            echo "::error::Version mismatch detected. Run the 'Version Bump' workflow first."
+            exit 1
+          fi
+          echo "All versions match tag v$TAG"
+
   test:
     name: Lint & Test
-    needs: authorize
+    needs: [authorize, verify-version]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

@@ -1,0 +1,100 @@
+name: Version Bump
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: "Bump type"
+        required: true
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+      version:
+        description: "Or specify exact version (e.g. 0.2.0) — overrides bump type if set"
+        required: false
+        type: string
+
+concurrency:
+  group: version-bump
+  cancel-in-progress: false
+
+jobs:
+  bump:
+    name: Bump version & tag
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine next version
+        id: version
+        run: |
+          CURRENT=$(jq -r '.version' package.json)
+          echo "current=$CURRENT"
+
+          if [ -n "${{ inputs.version }}" ]; then
+            NEXT="${{ inputs.version }}"
+          else
+            IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT"
+            case "${{ inputs.bump }}" in
+              major) NEXT="$((MAJOR + 1)).0.0" ;;
+              minor) NEXT="$MAJOR.$((MINOR + 1)).0" ;;
+              patch) NEXT="$MAJOR.$MINOR.$((PATCH + 1))" ;;
+            esac
+          fi
+
+          if [[ ! "$NEXT" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Invalid version format '$NEXT'. Expected semver like '1.2.3'"
+            exit 1
+          fi
+
+          echo "next=$NEXT" >> "$GITHUB_OUTPUT"
+          echo "Bumping $CURRENT → $NEXT (${{ inputs.bump }})"
+
+      - name: Check tag does not already exist
+        run: |
+          if git rev-parse "v${{ steps.version.outputs.next }}" >/dev/null 2>&1; then
+            echo "::error::Tag v${{ steps.version.outputs.next }} already exists"
+            exit 1
+          fi
+
+      - name: Update package.json
+        run: |
+          jq --arg v "${{ steps.version.outputs.next }}" '.version = $v' package.json > package.json.tmp
+          mv package.json.tmp package.json
+
+      - name: Update src-tauri/tauri.conf.json
+        run: |
+          jq --arg v "${{ steps.version.outputs.next }}" '.version = $v' src-tauri/tauri.conf.json > tauri.conf.json.tmp
+          mv tauri.conf.json.tmp src-tauri/tauri.conf.json
+
+      - name: Update src-tauri/Cargo.toml
+        run: |
+          sed -i 's/^version = ".*"/version = "${{ steps.version.outputs.next }}"/' src-tauri/Cargo.toml
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+
+      - name: Update lock files
+        run: npm install --package-lock-only
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Commit, tag & push
+        env:
+          NEXT: ${{ steps.version.outputs.next }}
+        run: |
+          git add package.json package-lock.json src-tauri/Cargo.toml src-tauri/tauri.conf.json
+          git commit -m "chore: bump version to $NEXT"
+          git tag "v$NEXT"
+          git push origin HEAD "v$NEXT"
