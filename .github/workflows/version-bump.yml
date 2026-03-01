@@ -3,9 +3,17 @@ name: Version Bump
 on:
   workflow_dispatch:
     inputs:
-      version:
-        description: "Release version (e.g. 0.2.0) — without 'v' prefix"
+      bump:
+        description: "Bump type"
         required: true
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+      version:
+        description: "Or specify exact version (e.g. 0.2.0) — overrides bump type if set"
+        required: false
         type: string
 
 concurrency:
@@ -19,38 +27,55 @@ jobs:
     permissions:
       contents: write
     steps:
-      - name: Validate version format
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine next version
+        id: version
         run: |
-          if [[ ! "${{ inputs.version }}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "::error::Invalid version format '${{ inputs.version }}'. Expected semver like '1.2.3'"
+          CURRENT=$(jq -r '.version' package.json)
+          echo "current=$CURRENT"
+
+          if [ -n "${{ inputs.version }}" ]; then
+            NEXT="${{ inputs.version }}"
+          else
+            IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT"
+            case "${{ inputs.bump }}" in
+              major) NEXT="$((MAJOR + 1)).0.0" ;;
+              minor) NEXT="$MAJOR.$((MINOR + 1)).0" ;;
+              patch) NEXT="$MAJOR.$MINOR.$((PATCH + 1))" ;;
+            esac
+          fi
+
+          if [[ ! "$NEXT" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Invalid version format '$NEXT'. Expected semver like '1.2.3'"
             exit 1
           fi
 
-      - uses: actions/checkout@v4
-        with:
-          # Fetch full history so we can push back to the branch
-          fetch-depth: 0
+          echo "next=$NEXT" >> "$GITHUB_OUTPUT"
+          echo "Bumping $CURRENT → $NEXT (${{ inputs.bump }})"
 
       - name: Check tag does not already exist
         run: |
-          if git rev-parse "v${{ inputs.version }}" >/dev/null 2>&1; then
-            echo "::error::Tag v${{ inputs.version }} already exists"
+          if git rev-parse "v${{ steps.version.outputs.next }}" >/dev/null 2>&1; then
+            echo "::error::Tag v${{ steps.version.outputs.next }} already exists"
             exit 1
           fi
 
       - name: Update package.json
         run: |
-          jq --arg v "${{ inputs.version }}" '.version = $v' package.json > package.json.tmp
+          jq --arg v "${{ steps.version.outputs.next }}" '.version = $v' package.json > package.json.tmp
           mv package.json.tmp package.json
 
       - name: Update src-tauri/tauri.conf.json
         run: |
-          jq --arg v "${{ inputs.version }}" '.version = $v' src-tauri/tauri.conf.json > tauri.conf.json.tmp
+          jq --arg v "${{ steps.version.outputs.next }}" '.version = $v' src-tauri/tauri.conf.json > tauri.conf.json.tmp
           mv tauri.conf.json.tmp src-tauri/tauri.conf.json
 
       - name: Update src-tauri/Cargo.toml
         run: |
-          sed -i 's/^version = ".*"/version = "${{ inputs.version }}"/' src-tauri/Cargo.toml
+          sed -i 's/^version = ".*"/version = "${{ steps.version.outputs.next }}"/' src-tauri/Cargo.toml
 
       - uses: actions/setup-node@v4
         with:
@@ -66,8 +91,10 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
       - name: Commit, tag & push
+        env:
+          NEXT: ${{ steps.version.outputs.next }}
         run: |
           git add package.json package-lock.json src-tauri/Cargo.toml src-tauri/tauri.conf.json
-          git commit -m "chore: bump version to ${{ inputs.version }}"
-          git tag "v${{ inputs.version }}"
-          git push origin HEAD "v${{ inputs.version }}"
+          git commit -m "chore: bump version to $NEXT"
+          git tag "v$NEXT"
+          git push origin HEAD "v$NEXT"
