@@ -661,6 +661,16 @@ a:hover {
   color: var(--color-text-tertiary);
 }
 
+.diff-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-bg-secondary);
+  border-bottom: 1px solid var(--color-border-secondary);
+  color: var(--color-text-tertiary);
+  font-size: var(--font-size-sm);
+}
+
 /* --- Split layout (left=diff, handle, right=docs/terminal) --- */
 .main-content.split-layout {
   display: flex;
