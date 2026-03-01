@@ -110,6 +110,24 @@ export const FileSidebar: React.FC<FileSidebarProps> = ({ style }) => {
     [designDocs],
   );
 
+  const toggleDir = useCallback((dirPath: string) => {
+    setCollapsedDirs((prev) => {
+      const next = new Set(prev);
+      if (next.has(dirPath)) {
+        next.delete(dirPath);
+      } else {
+        next.add(dirPath);
+      }
+      return next;
+    });
+  }, []);
+
+  // Virtualized file tree
+  const flatNodes = useMemo(
+    () => flattenTree(fileTree, collapsedDirs),
+    [fileTree, collapsedDirs],
+  );
+
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
       if (e.key === "/") {
@@ -175,24 +193,6 @@ export const FileSidebar: React.FC<FileSidebarProps> = ({ style }) => {
       }
     },
     [flatNodes, focusedNodePath, collapsedDirs, toggleDir, setSelectedFile],
-  );
-
-  const toggleDir = useCallback((dirPath: string) => {
-    setCollapsedDirs((prev) => {
-      const next = new Set(prev);
-      if (next.has(dirPath)) {
-        next.delete(dirPath);
-      } else {
-        next.add(dirPath);
-      }
-      return next;
-    });
-  }, []);
-
-  // Virtualized file tree
-  const flatNodes = useMemo(
-    () => flattenTree(fileTree, collapsedDirs),
-    [fileTree, collapsedDirs],
   );
 
   const listContainerRef = useRef<HTMLDivElement>(null);
