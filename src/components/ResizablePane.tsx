@@ -109,7 +109,7 @@ export const ResizablePane: React.FC<ResizablePaneProps> = ({
 
   return (
     <div className={s.pane} ref={containerRef}>
-      <div className={`${s.left} resizable-left`} style={{ flexBasis: leftBasis }}>
+      <div className={s.left} aria-label="Primary" style={{ flexBasis: leftBasis }}>
         {left}
       </div>
       <div

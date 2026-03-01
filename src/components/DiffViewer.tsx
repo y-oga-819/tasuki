@@ -422,7 +422,7 @@ const ThreadDisplay: React.FC<{ thread: ReviewThread }> = ({ thread }) => {
       {comment.code_snippet && !thread.resolved && (
         <pre className={s.commentSnippet}>{comment.code_snippet}</pre>
       )}
-      <div className={`${s.commentBody} comment-body`}>{comment.body}</div>
+      <div className={s.commentBody}>{comment.body}</div>
       {thread.replies.map((reply) => (
         <div key={reply.id} className={s.commentReply}>
           <span className={s.replyArrow}>{"\u21B3"}</span>
@@ -450,7 +450,7 @@ const CommentFormInline: React.FC<{
           `-L${Math.max(target.selectionStart, target.selectionEnd)}`}
       </div>
       <textarea
-        className={`${s.formTextarea} dv-form-textarea`}
+        className={s.formTextarea}
         autoFocus
         placeholder="Write a review comment..."
         value={text}

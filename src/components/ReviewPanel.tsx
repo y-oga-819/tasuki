@@ -320,7 +320,7 @@ export const ReviewPanel: React.FC = () => {
   }, [verdict, setVerdict, writeGate, setGateStatus]);
 
   return (
-    <div className="review-panel">
+    <div className="review-panel" role="complementary" aria-label="Review">
       <div className={s.header}>
         <span className={s.title}>
           Review Comments
@@ -341,7 +341,7 @@ export const ReviewPanel: React.FC = () => {
             </span>
           )}
           <button
-            className={`btn btn-primary ${s.copyAllBtn} copy-all-btn`}
+            className={`btn btn-primary ${s.copyAllBtn}`}
             onClick={handleCopyAll}
             disabled={totalCount === 0 && !verdict}
             title="Copy all comments as structured review prompt"

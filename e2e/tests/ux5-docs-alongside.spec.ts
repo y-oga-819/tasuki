@@ -7,17 +7,17 @@ test.describe("UX5: Docs Alongside", () => {
   });
 
   test("split mode shows left pane with diff and right pane with docs/terminal", async ({ page }) => {
-    const splitTab = page.locator("button.tab-btn").filter({ hasText: "Split" });
+    const splitTab = page.getByRole("tab", { name: "Split" });
     await expect(splitTab).toHaveAttribute("aria-selected", "true");
 
-    const splitLeft = page.locator(".split-left");
+    const splitLeft = page.locator('[aria-label="Diff"]');
     await expect(splitLeft).toBeVisible();
 
-    const splitRight = page.locator(".split-right");
+    const splitRight = page.locator('[aria-label="Side panel"]');
     await expect(splitRight).toBeVisible();
 
     // Right pane should have Docs/Terminal tabs
-    const docsTab = splitRight.locator("button.right-pane-tab").filter({ hasText: "Docs" });
+    const docsTab = page.getByRole("tab", { name: "Docs" });
     await expect(docsTab).toBeVisible();
   });
 
@@ -26,23 +26,20 @@ test.describe("UX5: Docs Alongside", () => {
     await expect(docItem.first()).toBeVisible();
     await docItem.first().click();
 
-    const markdownViewer = page.locator("div.markdown-viewer");
+    const markdownViewer = page.getByRole("article", { name: "Document" });
     await expect(markdownViewer).toBeVisible();
   });
 
   test("Mermaid diagrams are rendered as SVG", async ({ page }) => {
-    const markdownViewer = page.locator("div.markdown-viewer");
+    const markdownViewer = page.getByRole("article", { name: "Document" });
     await expect(markdownViewer).toBeVisible();
 
     // Mermaid rendering is async, so check with extended timeout
-    const mermaidBlock = page.locator("div.mermaid-block");
+    const mermaidBlock = page.getByRole("figure", { name: "Mermaid diagram" }).first();
     const mermaidVisible = await mermaidBlock.isVisible().catch(() => false);
 
     if (mermaidVisible) {
-      const renderArea = mermaidBlock.locator("div.mermaid-render-area");
-      await expect(renderArea).toBeVisible({ timeout: 10000 });
-
-      const svg = renderArea.locator("svg");
+      const svg = mermaidBlock.locator("svg");
       await expect(svg).toBeVisible({ timeout: 10000 });
     }
     // If mermaid block doesn't appear, the markdown viewer is still verified as visible

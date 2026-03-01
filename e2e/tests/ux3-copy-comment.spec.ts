@@ -23,8 +23,7 @@ test.describe("UX3: Copy Comment", () => {
     });
 
     // Switch to Review tab in right pane
-    const reviewTab = page.locator("button.right-pane-tab").filter({ hasText: "Review" });
-    await reviewTab.click();
+    await page.getByRole("tab", { name: "Review" }).click();
 
     const copyBtn = page
       .locator('button.btn-icon[title="Copy this comment"]')
@@ -48,8 +47,7 @@ test.describe("UX3: Copy Comment", () => {
     });
 
     // Switch to Review tab in right pane
-    const reviewTab = page.locator("button.right-pane-tab").filter({ hasText: "Review" });
-    await reviewTab.click();
+    await page.getByRole("tab", { name: "Review" }).click();
 
     const copyBtn = page
       .locator('button.btn-icon[title="Copy this comment"]')

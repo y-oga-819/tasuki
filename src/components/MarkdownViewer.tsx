@@ -82,7 +82,7 @@ export const MarkdownViewer: React.FC = () => {
 
   if (!selectedDoc) {
     return (
-      <div className={`${s.viewer} ${s.empty} markdown-viewer`}>
+      <div className={`${s.viewer} ${s.empty}`} role="article" aria-label="Document">
         <p>Select a document from the sidebar to view.</p>
       </div>
     );
@@ -90,14 +90,14 @@ export const MarkdownViewer: React.FC = () => {
 
   if (!docContent) {
     return (
-      <div className={`${s.viewer} ${s.loading} markdown-viewer`}>
+      <div className={`${s.viewer} ${s.loading}`} role="article" aria-label="Document">
         <p>Loading...</p>
       </div>
     );
   }
 
   return (
-    <div className={`${s.viewer} markdown-viewer`}>
+    <div className={s.viewer} role="article" aria-label="Document">
       <header className={s.toolbar}>
         {tocItems.length > 3 && (
           <div className={s.tocContainer} ref={tocRef}>
@@ -236,7 +236,7 @@ const MermaidBlock: React.FC<{ code: string }> = ({ code }) => {
 
   if (state.status === "error") {
     return (
-      <div className={`${s.mermaidBlock} mermaid-block ${s.mermaidError}`}>
+      <div className={`${s.mermaidBlock} ${s.mermaidError}`} role="figure" aria-label="Mermaid diagram">
         <div className={s.mermaidLabel}>Mermaid Diagram (Error)</div>
         <pre className={s.mermaidSource}>
           <code>{code}</code>
@@ -247,17 +247,17 @@ const MermaidBlock: React.FC<{ code: string }> = ({ code }) => {
 
   if (state.status === "loading") {
     return (
-      <div className={`${s.mermaidBlock} mermaid-block ${s.mermaidLoading}`}>
+      <div className={`${s.mermaidBlock} ${s.mermaidLoading}`} role="figure" aria-label="Mermaid diagram">
         <div className={s.mermaidLabel}>Mermaid Diagram</div>
-        <div className={`${s.mermaidRenderArea} mermaid-render-area`}>Loading...</div>
+        <div className={s.mermaidRenderArea}>Loading...</div>
       </div>
     );
   }
 
   return (
-    <div className={s.mermaidBlock}>
+    <div className={s.mermaidBlock} role="figure" aria-label="Mermaid diagram">
       <button
-        className={`${s.zoomBtn} mermaid-zoom-btn`}
+        className={s.zoomBtn}
         onClick={() => setZoomOpen(true)}
         title="Zoom diagram"
       >
@@ -267,7 +267,7 @@ const MermaidBlock: React.FC<{ code: string }> = ({ code }) => {
       </button>
       <div
         ref={containerRef}
-        className={`${s.mermaidRenderArea} mermaid-render-area`}
+        className={s.mermaidRenderArea}
         dangerouslySetInnerHTML={{ __html: state.svg }}
       />
       {zoomOpen && (

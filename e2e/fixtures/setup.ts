@@ -19,7 +19,7 @@ export { expect };
 
 /** Wait for the app to finish loading (mock data rendered) */
 export async function waitForAppReady(page: Page): Promise<void> {
-  await page.locator("h1.toolbar-title").waitFor({ state: "visible" });
+  await page.getByRole("heading", { level: 1 }).waitFor({ state: "visible" });
   await page
     .locator(".loading-spinner")
     .waitFor({ state: "hidden" })
@@ -103,13 +103,11 @@ export async function submitCommentForm(
   page: Page,
   body: string,
 ): Promise<void> {
-  const textarea = page.locator("textarea.dv-form-textarea");
+  const textarea = page.getByPlaceholder("Write a review comment...");
   await expect(textarea).toBeVisible();
   await textarea.fill(body);
 
-  const submitBtn = page.locator("button.btn-primary", {
-    hasText: "Add Comment",
-  });
+  const submitBtn = page.getByRole("button", { name: /Add Comment/ });
   await expect(submitBtn).toBeEnabled();
   await submitBtn.dispatchEvent("click");
 }

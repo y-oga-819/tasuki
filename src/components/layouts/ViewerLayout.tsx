@@ -10,7 +10,7 @@ const TerminalPanel = lazy(() =>
 
 export const ViewerLayout: React.FC = () => {
   return (
-    <main className={`main-content viewer-layout ${l.viewerLayout}`}>
+    <main className={`main-content ${l.viewerLayout}`} aria-label="Viewer">
       <ResizablePane
         defaultRatio={0.6}
         minRatio={0.3}

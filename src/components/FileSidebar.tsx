@@ -465,7 +465,7 @@ export const FileSidebar: React.FC<FileSidebarProps> = ({ style }) => {
       {showDocFiles && (
         <div className={`${s.section} ${s.addFolderSection}`}>
           <button
-            className={`${s.addFolderBtn} add-folder-btn`}
+            className={s.addFolderBtn}
             onClick={handleAddFolder}
             title="Add a folder to browse"
           >
@@ -487,7 +487,7 @@ export const FileSidebar: React.FC<FileSidebarProps> = ({ style }) => {
             className={`${s.section} ${collapsedSections.has(sectionId) ? s.collapsed : ""}`}
           >
             <h3
-              className={`${s.sectionTitle} ${s.sectionToggle} sidebar-section-title`}
+              className={`${s.sectionTitle} ${s.sectionToggle}`}
               onClick={() => toggleSection(sectionId)}
             >
               <span className={s.chevron}>▼</span>
@@ -527,7 +527,7 @@ export const FileSidebar: React.FC<FileSidebarProps> = ({ style }) => {
           className={`${s.section} ${collapsedSections.has("documents") ? s.collapsed : ""}`}
         >
           <h3
-            className={`${s.sectionTitle} ${s.sectionToggle} sidebar-section-title`}
+            className={`${s.sectionTitle} ${s.sectionToggle}`}
             onClick={() => toggleSection("documents")}
           >
             <span className={s.chevron}>▼</span>
@@ -550,7 +550,7 @@ export const FileSidebar: React.FC<FileSidebarProps> = ({ style }) => {
           className={`${s.section} ${collapsedSections.has("design-docs") ? s.collapsed : ""}`}
         >
           <h3
-            className={`${s.sectionTitle} ${s.sectionToggle} sidebar-section-title`}
+            className={`${s.sectionTitle} ${s.sectionToggle}`}
             onClick={() => toggleSection("design-docs")}
           >
             <span className={s.chevron}>▼</span>
@@ -575,7 +575,7 @@ export const FileSidebar: React.FC<FileSidebarProps> = ({ style }) => {
           className={`${s.section} ${collapsedSections.has("changed-files") ? s.collapsed : ""}`}
         >
           <h3
-            className={`${s.sectionTitle} ${s.sectionToggle} sidebar-section-title`}
+            className={`${s.sectionTitle} ${s.sectionToggle}`}
             onClick={() => toggleSection("changed-files")}
           >
             <span className={s.chevron}>▼</span>

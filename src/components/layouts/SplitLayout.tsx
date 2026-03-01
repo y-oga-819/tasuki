@@ -93,7 +93,8 @@ export const SplitLayout: React.FC = () => {
     <main className={`main-content ${l.splitLayout}`} ref={mainRef}>
       {/* Left pane — diff */}
       <div
-        className={`${l.splitLeft} split-left`}
+        className={l.splitLeft}
+        aria-label="Diff"
         style={{ flexBasis: `${splitRatio * 100}%` }}
       >
         <DiffPane />
@@ -117,7 +118,8 @@ export const SplitLayout: React.FC = () => {
 
       {/* Right pane — tabs */}
       <div
-        className={`${l.splitRight} split-right`}
+        className={l.splitRight}
+        aria-label="Side panel"
         style={{ flexBasis: `${(1 - splitRatio) * 100}%` }}
       >
         <div className={l.rightPaneTabs} role="tablist" aria-label="Right pane">
@@ -126,7 +128,7 @@ export const SplitLayout: React.FC = () => {
             id="tab-docs"
             aria-selected={rightPaneMode === "docs"}
             aria-controls="panel-docs"
-            className={`${rightPaneMode === "docs" ? l.rightPaneTabActive : l.rightPaneTab} right-pane-tab`}
+            className={rightPaneMode === "docs" ? l.rightPaneTabActive : l.rightPaneTab}
             onClick={() => setRightPaneMode("docs")}
           >
             Docs
@@ -136,7 +138,7 @@ export const SplitLayout: React.FC = () => {
             id="tab-terminal"
             aria-selected={rightPaneMode === "terminal"}
             aria-controls="panel-terminal"
-            className={`${rightPaneMode === "terminal" ? l.rightPaneTabActive : l.rightPaneTab} right-pane-tab`}
+            className={rightPaneMode === "terminal" ? l.rightPaneTabActive : l.rightPaneTab}
             onClick={() => setRightPaneMode("terminal")}
           >
             Terminal
@@ -146,7 +148,7 @@ export const SplitLayout: React.FC = () => {
             id="tab-review"
             aria-selected={rightPaneMode === "review"}
             aria-controls="panel-review"
-            className={`${rightPaneMode === "review" ? l.rightPaneTabActive : l.rightPaneTab} right-pane-tab`}
+            className={rightPaneMode === "review" ? l.rightPaneTabActive : l.rightPaneTab}
             onClick={() => setRightPaneMode("review")}
           >
             Review

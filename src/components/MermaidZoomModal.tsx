@@ -76,7 +76,7 @@ export const MermaidZoomModal: React.FC<MermaidZoomModalProps> = ({
   }, []);
 
   return (
-    <div className={`${s.modal} mermaid-zoom-modal`} onClick={onClose}>
+    <div className={s.modal} role="dialog" aria-label="Diagram zoom" onClick={onClose}>
       <div
         className={s.container}
         onClick={(e) => e.stopPropagation()}
@@ -95,23 +95,23 @@ export const MermaidZoomModal: React.FC<MermaidZoomModalProps> = ({
         />
       </div>
 
-      <div className={`${s.controls} mermaid-zoom-controls`} onClick={(e) => e.stopPropagation()}>
+      <div className={s.controls} onClick={(e) => e.stopPropagation()}>
         <button
-          className={`${s.ctrlBtn} mermaid-zoom-ctrl-btn`}
+          className={s.ctrlBtn}
           onClick={handleZoomOut}
           title="Zoom out"
         >
           -
         </button>
         <button
-          className={`${s.zoomLevel} mermaid-zoom-level`}
+          className={s.zoomLevel}
           onClick={handleReset}
           title="Reset zoom"
         >
           {Math.round(scale * 100)}%
         </button>
         <button
-          className={`${s.ctrlBtn} mermaid-zoom-ctrl-btn`}
+          className={s.ctrlBtn}
           onClick={handleZoomIn}
           title="Zoom in"
         >
@@ -120,7 +120,7 @@ export const MermaidZoomModal: React.FC<MermaidZoomModalProps> = ({
       </div>
 
       <button
-        className={`${s.closeBtn} mermaid-zoom-close`}
+        className={s.closeBtn}
         onClick={onClose}
         title="Close (Escape)"
       >

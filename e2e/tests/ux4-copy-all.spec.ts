@@ -15,10 +15,9 @@ test.describe("UX4: Copy All", () => {
     page,
   }) => {
     // Switch to Review tab in right pane
-    const reviewTab = page.locator("button.right-pane-tab").filter({ hasText: "Review" });
-    await reviewTab.click();
+    await page.getByRole("tab", { name: "Review" }).click();
 
-    const copyAllBtn = page.locator("button.copy-all-btn");
+    const copyAllBtn = page.getByRole("button", { name: "Copy All" });
     await expect(copyAllBtn).toBeVisible();
     await expect(copyAllBtn).toHaveText("Copy All");
     await expect(copyAllBtn).toBeDisabled();
@@ -36,15 +35,11 @@ test.describe("UX4: Copy All", () => {
     });
 
     // Switch to Review tab in right pane
-    const reviewTab = page.locator("button.right-pane-tab").filter({ hasText: "Review" });
-    await reviewTab.click();
+    await page.getByRole("tab", { name: "Review" }).click();
 
-    await page
-      .locator(".comment-body")
-      .filter({ hasText: "First comment" })
-      .waitFor();
+    await page.getByText("First comment").waitFor();
 
-    const copyAllBtn = page.locator("button.copy-all-btn");
+    const copyAllBtn = page.getByRole("button", { name: "Copy All" });
     await expect(copyAllBtn).toBeEnabled();
     await copyAllBtn.click();
 

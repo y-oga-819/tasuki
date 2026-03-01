@@ -38,7 +38,7 @@ export const Toolbar: React.FC = () => {
   return (
     <header className={s.toolbar}>
       <div className={s.left}>
-        <h1 className={`${s.title} toolbar-title`}>Tasuki</h1>
+        <h1 className={s.title}>Tasuki</h1>
         {repoInfo && (
           <>
             <span className={s.repo}>{repoInfo.repo_name}</span>
@@ -81,7 +81,7 @@ export const Toolbar: React.FC = () => {
         {displayMode !== "viewer" && (
           <>
             {diffResult && (
-              <div className={`${s.stats} toolbar-stats`}>
+              <div className={s.stats} aria-label="Diff statistics">
                 <span>
                   {diffResult.stats.files_changed} files
                 </span>

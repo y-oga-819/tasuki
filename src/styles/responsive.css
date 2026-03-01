@@ -12,8 +12,8 @@
     --sidebar-width: 220px;
   }
 
-  /* Reduce right pane tab padding */
-  .split-right {
+  /* Reduce right pane max-width constraint on narrow screens */
+  [aria-label="Side panel"] {
     max-width: none;
   }
 }
