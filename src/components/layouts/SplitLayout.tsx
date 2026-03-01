@@ -157,7 +157,7 @@ export const SplitLayout: React.FC = () => {
           id={`panel-${rightPaneMode}`}
           aria-labelledby={`tab-${rightPaneMode}`}
         >
-          <Suspense fallback={<div className="loading-spinner">Loading...</div>}>
+          <Suspense fallback={<MarkdownSkeleton />}>
             {rightPaneMode === "docs" && <MarkdownViewer />}
             {rightPaneMode === "terminal" && <TerminalPanel visible />}
             {rightPaneMode === "review" && <ReviewPanel />}
@@ -167,3 +167,20 @@ export const SplitLayout: React.FC = () => {
     </main>
   );
 };
+
+/** Skeleton loading for Markdown/Review/Terminal panes */
+const MarkdownSkeleton: React.FC = () => (
+  <div className="skeleton-container">
+    <div className="skeleton-header skeleton-pulse" style={{ width: "40%" }} />
+    <div className="skeleton-lines">
+      <div className="skeleton-line skeleton-pulse" style={{ width: "95%" }} />
+      <div className="skeleton-line skeleton-pulse" style={{ width: "80%" }} />
+      <div className="skeleton-line skeleton-pulse" style={{ width: "60%" }} />
+    </div>
+    <div className="skeleton-header skeleton-pulse" style={{ width: "30%", marginTop: "1rem" }} />
+    <div className="skeleton-lines">
+      <div className="skeleton-line skeleton-pulse" style={{ width: "85%" }} />
+      <div className="skeleton-line skeleton-pulse" style={{ width: "70%" }} />
+    </div>
+  </div>
+);

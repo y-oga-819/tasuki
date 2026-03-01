@@ -673,6 +673,44 @@ textarea {
   font-size: var(--font-size-base);
 }
 
+/* --- Skeleton loading --- */
+.skeleton-container {
+  width: 100%;
+  padding: var(--space-4);
+}
+
+.skeleton-file {
+  margin-bottom: var(--space-4);
+}
+
+.skeleton-header {
+  height: 2.5rem;
+  border-radius: var(--radius-sm);
+  margin-bottom: var(--space-2);
+}
+
+.skeleton-lines {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding-left: var(--space-3);
+}
+
+.skeleton-line {
+  height: 1.25rem;
+  border-radius: var(--radius-sm);
+}
+
+.skeleton-pulse {
+  background: var(--color-bg-tertiary);
+  animation: skeleton-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.8; }
+}
+
 .error-message {
   color: var(--color-deleted);
   text-align: center;

@@ -13,7 +13,7 @@ export const LayoutSwitch: React.FC = () => {
   if (isLoading) {
     return (
       <main className="main-content loading">
-        <div className="loading-spinner">Loading...</div>
+        <DiffSkeleton />
       </main>
     );
   }
@@ -38,3 +38,21 @@ export const LayoutSwitch: React.FC = () => {
       return <ViewerLayout />;
   }
 };
+
+/** Skeleton loading state for diff view */
+const DiffSkeleton: React.FC = () => (
+  <div className="skeleton-container">
+    {[1, 2, 3].map((i) => (
+      <div key={i} className="skeleton-file">
+        <div className="skeleton-header skeleton-pulse" />
+        <div className="skeleton-lines">
+          <div className="skeleton-line skeleton-pulse" style={{ width: "90%" }} />
+          <div className="skeleton-line skeleton-pulse" style={{ width: "70%" }} />
+          <div className="skeleton-line skeleton-pulse" style={{ width: "80%" }} />
+          <div className="skeleton-line skeleton-pulse" style={{ width: "60%" }} />
+          <div className="skeleton-line skeleton-pulse" style={{ width: "85%" }} />
+        </div>
+      </div>
+    ))}
+  </div>
+);
