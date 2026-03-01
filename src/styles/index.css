@@ -506,6 +506,11 @@ textarea {
   color: var(--color-text-primary);
 }
 
+.file-item.focused {
+  outline: 2px solid var(--color-text-link);
+  outline-offset: -2px;
+}
+
 .file-item.generated {
   opacity: 0.6;
 }

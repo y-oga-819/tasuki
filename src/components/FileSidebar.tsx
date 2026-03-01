@@ -55,6 +55,8 @@ export const FileSidebar: React.FC<FileSidebarProps> = ({ style }) => {
     new Set(),
   );
   const [fileFilter, setFileFilter] = useState("");
+  const [focusedNodePath, setFocusedNodePath] = useState<string | null>(null);
+  const filterInputRef = useRef<HTMLInputElement>(null);
 
   const toggleSection = useCallback((sectionId: string) => {
     setCollapsedSections((prev) => {
@@ -110,23 +112,69 @@ export const FileSidebar: React.FC<FileSidebarProps> = ({ style }) => {
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
-      if (!diffResult) return;
-      const files = diffResult.files;
-      const currentIndex = files.findIndex(
-        (f) => f.file.path === selectedFile,
-      );
+      if (e.key === "/") {
+        e.preventDefault();
+        filterInputRef.current?.focus();
+        return;
+      }
 
-      if (e.key === "ArrowDown") {
-        e.preventDefault();
-        const next = Math.min(currentIndex + 1, files.length - 1);
-        setSelectedFile(files[next].file.path);
-      } else if (e.key === "ArrowUp") {
-        e.preventDefault();
-        const prev = Math.max(currentIndex - 1, 0);
-        setSelectedFile(files[prev].file.path);
+      if (flatNodes.length === 0) return;
+
+      const currentIndex = focusedNodePath
+        ? flatNodes.findIndex((n) => n.node.path === focusedNodePath)
+        : -1;
+      const currentNode = currentIndex >= 0 ? flatNodes[currentIndex] : null;
+
+      switch (e.key) {
+        case "ArrowDown": {
+          e.preventDefault();
+          const next = Math.min(
+            currentIndex < 0 ? 0 : currentIndex + 1,
+            flatNodes.length - 1,
+          );
+          const nextNode = flatNodes[next];
+          setFocusedNodePath(nextNode.node.path);
+          if (!nextNode.node.isDir && nextNode.node.fileDiff) {
+            setSelectedFile(nextNode.node.fileDiff.file.path);
+          }
+          break;
+        }
+        case "ArrowUp": {
+          e.preventDefault();
+          const prev = Math.max(currentIndex - 1, 0);
+          const prevNode = flatNodes[prev];
+          setFocusedNodePath(prevNode.node.path);
+          if (!prevNode.node.isDir && prevNode.node.fileDiff) {
+            setSelectedFile(prevNode.node.fileDiff.file.path);
+          }
+          break;
+        }
+        case "ArrowRight": {
+          e.preventDefault();
+          if (currentNode?.node.isDir && collapsedDirs.has(currentNode.node.path)) {
+            toggleDir(currentNode.node.path);
+          }
+          break;
+        }
+        case "ArrowLeft": {
+          e.preventDefault();
+          if (currentNode?.node.isDir && !collapsedDirs.has(currentNode.node.path)) {
+            toggleDir(currentNode.node.path);
+          }
+          break;
+        }
+        case "Enter": {
+          e.preventDefault();
+          if (currentNode?.node.isDir) {
+            toggleDir(currentNode.node.path);
+          } else if (currentNode?.node.fileDiff) {
+            setSelectedFile(currentNode.node.fileDiff.file.path);
+          }
+          break;
+        }
       }
     },
-    [diffResult, selectedFile, setSelectedFile],
+    [flatNodes, focusedNodePath, collapsedDirs, toggleDir, setSelectedFile],
   );
 
   const toggleDir = useCallback((dirPath: string) => {
@@ -168,11 +216,12 @@ export const FileSidebar: React.FC<FileSidebarProps> = ({ style }) => {
 
       if (node.isDir) {
         const isCollapsed = collapsedDirs.has(node.path);
+        const isFocused = focusedNodePath === node.path;
         return (
           <li
             role="treeitem"
             aria-expanded={!isCollapsed}
-            className="file-item tree-dir"
+            className={`file-item tree-dir${isFocused ? " focused" : ""}`}
             style={{ ...rowStyle, paddingLeft: `${depth * 12 + 12}px` }}
             onClick={() => toggleDir(node.path)}
           >
@@ -191,12 +240,13 @@ export const FileSidebar: React.FC<FileSidebarProps> = ({ style }) => {
       const isGenCollapsed = collapsedFiles.has(fd.file.path);
       const isGenerated = fd.file.is_generated;
       const count = commentCount(fd.file.path);
+      const isFocused = focusedNodePath === node.path;
 
       return (
         <li
           role="treeitem"
           aria-selected={selectedFile === fd.file.path}
-          className={`file-item ${selectedFile === fd.file.path ? "selected" : ""} ${isGenerated ? "generated" : ""}`}
+          className={`file-item ${selectedFile === fd.file.path ? "selected" : ""} ${isGenerated ? "generated" : ""}${isFocused ? " focused" : ""}`}
           style={{ ...rowStyle, paddingLeft: `${depth * 12 + 12}px` }}
           onClick={() => {
             if (isGenerated && isGenCollapsed) {
@@ -251,7 +301,7 @@ export const FileSidebar: React.FC<FileSidebarProps> = ({ style }) => {
       );
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [flatNodes, collapsedDirs, collapsedFiles, selectedFile, isTauri, threads],
+    [flatNodes, collapsedDirs, collapsedFiles, selectedFile, focusedNodePath, isTauri, threads],
   );
 
   const renderDocTreeNode = (node: FileTreeNode, depth: number) => {
@@ -541,6 +591,7 @@ export const FileSidebar: React.FC<FileSidebarProps> = ({ style }) => {
             <div className="section-collapse-inner">
               <div className="sidebar-filter">
                 <input
+                  ref={filterInputRef}
                   type="text"
                   className="sidebar-filter-input"
                   placeholder="Filter files\u2026"
