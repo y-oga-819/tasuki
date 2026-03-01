@@ -1,0 +1,40 @@
+/* ResizablePane — component-scoped styles */
+
+.pane {
+  display: flex;
+  width: 100%;
+  height: 100%;
+}
+
+.left {
+  overflow-y: auto;
+  min-width: 0;
+  height: 100%;
+}
+
+.right {
+  overflow-y: auto;
+  min-width: 0;
+  height: 100%;
+  max-width: 900px;
+}
+
+.handle {
+  position: relative;
+  width: var(--resize-handle-width);
+  flex-shrink: 0;
+  background: var(--color-border-primary);
+  cursor: col-resize;
+  transition: background 0.15s ease;
+}
+
+.handle::before {
+  content: "";
+  position: absolute;
+  inset: 0 calc(-1 * (var(--resize-handle-hitarea) - var(--resize-handle-width)) / 2);
+}
+
+.handle:hover,
+.handle:active {
+  background: var(--color-text-link);
+}

@@ -1,0 +1,251 @@
+/* ============================================
+   Tasuki — Global / Shared Styles
+   ============================================ */
+
+/* --- App Layout --- */
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.app-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* --- Shared tab group (Toolbar) --- */
+.tab-group {
+  display: flex;
+  gap: 1px;
+  background: var(--color-border-primary);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.tab-btn {
+  padding: var(--space-1) var(--space-3);
+  border: none;
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.tab-btn:hover {
+  color: var(--color-text-primary);
+  background: var(--color-bg-overlay);
+}
+
+.tab-btn.active {
+  color: var(--color-text-primary);
+  background: var(--color-btn-secondary-hover);
+}
+
+/* --- Layout toggle buttons (shared: Toolbar + MarkdownViewer) --- */
+.layout-toggle {
+  display: flex;
+  gap: 1px;
+  background: var(--color-border-primary);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.layout-btn {
+  padding: 2px var(--space-2);
+  border: none;
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+}
+
+.layout-btn:hover {
+  color: var(--color-text-primary);
+}
+
+.layout-btn.active {
+  color: var(--color-text-primary);
+  background: var(--color-btn-secondary-hover);
+}
+
+/* --- Stat colors (shared: Toolbar + FileSidebar) --- */
+.stat-added {
+  color: var(--color-added);
+}
+
+.stat-deleted {
+  color: var(--color-deleted);
+}
+
+/* --- Badge (shared: FileSidebar + ReviewPanel) --- */
+.badge {
+  background: var(--color-bg-overlay);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  padding: 0 6px;
+  border-radius: 10px;
+  font-weight: 500;
+}
+
+/* --- Buttons (shared across components) --- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--color-border-primary);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  background: var(--color-btn-secondary);
+  color: var(--color-text-primary);
+}
+
+.btn:hover {
+  background: var(--color-btn-secondary-hover);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: var(--color-btn-primary);
+  border-color: var(--color-btn-primary);
+  color: #fff;
+}
+
+.btn-primary:hover {
+  background: var(--color-btn-primary-hover);
+}
+
+.btn-secondary {
+  background: var(--color-btn-secondary);
+  color: var(--color-text-secondary);
+}
+
+.btn-icon {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  padding: 2px;
+  opacity: 0.6;
+  transition: opacity 0.1s;
+}
+
+.btn-icon:hover {
+  opacity: 1;
+}
+
+.btn-xs {
+  padding: 1px var(--space-2);
+  font-size: var(--font-size-sm);
+}
+
+kbd {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  padding: 1px 4px;
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border-primary);
+  border-radius: 3px;
+  color: var(--color-text-secondary);
+  margin-left: var(--space-2);
+}
+
+/* --- Sidebar resize handle (App.tsx) --- */
+.sidebar-resize-handle {
+  position: relative;
+  width: var(--resize-handle-width);
+  flex-shrink: 0;
+  background: var(--color-border-primary);
+  cursor: col-resize;
+  transition: background 0.15s ease;
+}
+
+.sidebar-resize-handle::before {
+  content: "";
+  position: absolute;
+  inset: 0 calc(-1 * (var(--resize-handle-hitarea) - var(--resize-handle-width)) / 2);
+}
+
+.sidebar-resize-handle:hover,
+.sidebar-resize-handle:active {
+  background: var(--color-text-link);
+}
+
+/* --- Main content states (shared across layouts) --- */
+.main-content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.main-content.loading,
+.main-content.error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.loading-spinner {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-base);
+}
+
+/* --- Skeleton loading (shared: LayoutSwitch + SplitLayout) --- */
+.skeleton-container {
+  width: 100%;
+  padding: var(--space-4);
+}
+
+.skeleton-file {
+  margin-bottom: var(--space-4);
+}
+
+.skeleton-header {
+  height: 2.5rem;
+  border-radius: var(--radius-sm);
+  margin-bottom: var(--space-2);
+}
+
+.skeleton-lines {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding-left: var(--space-3);
+}
+
+.skeleton-line {
+  height: 1.25rem;
+  border-radius: var(--radius-sm);
+}
+
+.skeleton-pulse {
+  background: var(--color-bg-tertiary);
+  animation: skeleton-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.8; }
+}
+
+/* --- Error message --- */
+.error-message {
+  color: var(--color-deleted);
+  text-align: center;
+  padding: var(--space-5);
+}
+
+.error-message h3 {
+  margin-bottom: var(--space-2);
+}

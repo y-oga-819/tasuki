@@ -17,6 +17,7 @@ import {
   type FileTreeNode,
 } from "../utils/file-tree";
 import * as api from "../utils/tauri-api";
+import s from "./FileSidebar.module.css";
 
 const DIR_ROW_HEIGHT = 28;
 const FILE_ROW_HEIGHT = 32;
@@ -225,13 +226,13 @@ export const FileSidebar: React.FC<FileSidebarProps> = ({ style }) => {
             style={{ ...rowStyle, paddingLeft: `${depth * 12 + 12}px` }}
             onClick={() => toggleDir(node.path)}
           >
-            <span className="tree-toggle">
+            <span className={s.treeToggle}>
               {isCollapsed ? "▶" : "▼"}
             </span>
-            <span className="file-icon">
+            <span className={s.fileIcon}>
               {isCollapsed ? <FolderClosedIcon /> : <FolderOpenIcon />}
             </span>
-            <span className="file-name">{node.name}</span>
+            <span className={s.fileName}>{node.name}</span>
           </li>
         );
       }
@@ -257,14 +258,14 @@ export const FileSidebar: React.FC<FileSidebarProps> = ({ style }) => {
           title={fd.file.path}
         >
           <span
-            className="file-status"
+            className={s.fileStatus}
             style={{ color: getStatusColor(fd.file.status) }}
           >
             {getStatusLabel(fd.file.status)}
           </span>
-          <span className="file-icon">{getFileIcon(node.name)}</span>
-          <span className="file-name">{node.name}</span>
-          <span className="file-changes">
+          <span className={s.fileIcon}>{getFileIcon(node.name)}</span>
+          <span className={s.fileName}>{node.name}</span>
+          <span className={s.fileChanges}>
             {fd.file.additions > 0 && (
               <span className="stat-added">+{fd.file.additions}</span>
             )}
@@ -272,10 +273,10 @@ export const FileSidebar: React.FC<FileSidebarProps> = ({ style }) => {
               <span className="stat-deleted">-{fd.file.deletions}</span>
             )}
           </span>
-          {count > 0 && <span className="comment-badge">{count}</span>}
+          {count > 0 && <span className={s.commentBadge}>{count}</span>}
           {isTauri && (
             <button
-              className="open-in-zed-btn"
+              className={s.openInZed}
               onClick={(e) => {
                 e.stopPropagation();
                 api.openInZed(fd.file.path).catch((err) => console.error("Failed to open in Zed:", err));
@@ -287,7 +288,7 @@ export const FileSidebar: React.FC<FileSidebarProps> = ({ style }) => {
           )}
           {isGenerated && (
             <button
-              className="collapse-btn"
+              className={s.collapseBtn}
               onClick={(e) => {
                 e.stopPropagation();
                 toggleFileCollapse(fd.file.path);
@@ -316,13 +317,13 @@ export const FileSidebar: React.FC<FileSidebarProps> = ({ style }) => {
             style={{ paddingLeft: `${depth * 12 + 12}px` }}
             onClick={() => toggleDir(node.path)}
           >
-            <span className="tree-toggle">
+            <span className={s.treeToggle}>
               {isCollapsed ? "▶" : "▼"}
             </span>
-            <span className="file-icon">
+            <span className={s.fileIcon}>
               {isCollapsed ? <FolderClosedIcon /> : <FolderOpenIcon />}
             </span>
-            <span className="file-name">{node.name}</span>
+            <span className={s.fileName}>{node.name}</span>
           </li>
           {!isCollapsed &&
             node.children.map((child) =>
@@ -345,8 +346,8 @@ export const FileSidebar: React.FC<FileSidebarProps> = ({ style }) => {
         }}
         title={node.path}
       >
-        <span className="file-icon">{getFileIcon(node.name)}</span>
-        <span className="file-name">{node.name}</span>
+        <span className={s.fileIcon}>{getFileIcon(node.name)}</span>
+        <span className={s.fileName}>{node.name}</span>
       </li>
     );
   };
@@ -363,13 +364,13 @@ export const FileSidebar: React.FC<FileSidebarProps> = ({ style }) => {
             style={{ paddingLeft: `${depth * 12 + 12}px` }}
             onClick={() => toggleDir(`design:${node.path}`)}
           >
-            <span className="tree-toggle">
+            <span className={s.treeToggle}>
               {isCollapsed ? "▶" : "▼"}
             </span>
-            <span className="file-icon">
+            <span className={s.fileIcon}>
               {isCollapsed ? <FolderClosedIcon /> : <FolderOpenIcon />}
             </span>
-            <span className="file-name">{node.name}</span>
+            <span className={s.fileName}>{node.name}</span>
           </li>
           {!isCollapsed &&
             node.children.map((child) =>
@@ -393,8 +394,8 @@ export const FileSidebar: React.FC<FileSidebarProps> = ({ style }) => {
         }}
         title={node.path}
       >
-        <span className="file-icon">📐</span>
-        <span className="file-name">{node.name}</span>
+        <span className={s.fileIcon}>📐</span>
+        <span className={s.fileName}>{node.name}</span>
       </li>
     );
   };
@@ -412,13 +413,13 @@ export const FileSidebar: React.FC<FileSidebarProps> = ({ style }) => {
             style={{ paddingLeft: `${depth * 12 + 12}px` }}
             onClick={() => toggleDir(key)}
           >
-            <span className="tree-toggle">
+            <span className={s.treeToggle}>
               {isCollapsed ? "▶" : "▼"}
             </span>
-            <span className="file-icon">
+            <span className={s.fileIcon}>
               {isCollapsed ? <FolderClosedIcon /> : <FolderOpenIcon />}
             </span>
-            <span className="file-name">{node.name}</span>
+            <span className={s.fileName}>{node.name}</span>
           </li>
           {!isCollapsed &&
             node.children.map((child) =>
@@ -442,8 +443,8 @@ export const FileSidebar: React.FC<FileSidebarProps> = ({ style }) => {
         }}
         title={`${folder}/${node.path}`}
       >
-        <span className="file-icon">{getFileIcon(node.name)}</span>
-        <span className="file-name">{node.name}</span>
+        <span className={s.fileIcon}>{getFileIcon(node.name)}</span>
+        <span className={s.fileName}>{node.name}</span>
       </li>
     );
   };
@@ -460,11 +461,11 @@ export const FileSidebar: React.FC<FileSidebarProps> = ({ style }) => {
   );
 
   return (
-    <aside className="file-sidebar" style={style} aria-label="File browser">
+    <aside className={s.sidebar} style={style} aria-label="File browser">
       {showDocFiles && (
-        <div className="sidebar-section add-folder-section">
+        <div className={`${s.section} ${s.addFolderSection}`}>
           <button
-            className="add-folder-btn"
+            className={s.addFolderBtn}
             onClick={handleAddFolder}
             title="Add a folder to browse"
           >
@@ -483,16 +484,16 @@ export const FileSidebar: React.FC<FileSidebarProps> = ({ style }) => {
         return (
           <div
             key={sectionId}
-            className={`sidebar-section ${collapsedSections.has(sectionId) ? "collapsed" : ""}`}
+            className={`${s.section} ${collapsedSections.has(sectionId) ? s.collapsed : ""}`}
           >
             <h3
-              className="sidebar-section-title sidebar-section-toggle"
+              className={`${s.sectionTitle} ${s.sectionToggle} sidebar-section-title`}
               onClick={() => toggleSection(sectionId)}
             >
-              <span className="section-chevron">▼</span>
+              <span className={s.chevron}>▼</span>
               {folderName}
               <button
-                className="remove-folder-btn"
+                className={s.removeFolderBtn}
                 onClick={(e) => {
                   e.stopPropagation();
                   removeExternalFolder(folder);
@@ -503,13 +504,13 @@ export const FileSidebar: React.FC<FileSidebarProps> = ({ style }) => {
               </button>
             </h3>
             <div
-              className={`section-collapse ${collapsedSections.has(sectionId) ? "collapsed" : ""}`}
+              className={`${s.collapse} ${collapsedSections.has(sectionId) ? s.collapsed : ""}`}
             >
-              <div className="section-collapse-inner">
+              <div className={s.collapseInner}>
                 {tree.length === 0 ? (
-                  <p className="sidebar-empty-hint">No .md files found</p>
+                  <p className={s.emptyHint}>No .md files found</p>
                 ) : (
-                  <ul className="file-list" role="tree" aria-label={folderName}>
+                  <ul className={s.fileList} role="tree" aria-label={folderName}>
                     {tree.map((node) =>
                       renderExternalDocTreeNode(folder, node, 0),
                     )}
@@ -523,20 +524,20 @@ export const FileSidebar: React.FC<FileSidebarProps> = ({ style }) => {
 
       {showDocFiles && docFiles.length > 0 && (
         <div
-          className={`sidebar-section ${collapsedSections.has("documents") ? "collapsed" : ""}`}
+          className={`${s.section} ${collapsedSections.has("documents") ? s.collapsed : ""}`}
         >
           <h3
-            className="sidebar-section-title sidebar-section-toggle"
+            className={`${s.sectionTitle} ${s.sectionToggle} sidebar-section-title`}
             onClick={() => toggleSection("documents")}
           >
-            <span className="section-chevron">▼</span>
+            <span className={s.chevron}>▼</span>
             Documents
           </h3>
           <div
-            className={`section-collapse ${collapsedSections.has("documents") ? "collapsed" : ""}`}
+            className={`${s.collapse} ${collapsedSections.has("documents") ? s.collapsed : ""}`}
           >
-            <div className="section-collapse-inner">
-              <ul className="file-list" role="tree" aria-label="Documents">
+            <div className={s.collapseInner}>
+              <ul className={s.fileList} role="tree" aria-label="Documents">
                 {docTree.map((node) => renderDocTreeNode(node, 0))}
               </ul>
             </div>
@@ -546,20 +547,20 @@ export const FileSidebar: React.FC<FileSidebarProps> = ({ style }) => {
 
       {showDocFiles && designDocs.length > 0 && (
         <div
-          className={`sidebar-section ${collapsedSections.has("design-docs") ? "collapsed" : ""}`}
+          className={`${s.section} ${collapsedSections.has("design-docs") ? s.collapsed : ""}`}
         >
           <h3
-            className="sidebar-section-title sidebar-section-toggle"
+            className={`${s.sectionTitle} ${s.sectionToggle} sidebar-section-title`}
             onClick={() => toggleSection("design-docs")}
           >
-            <span className="section-chevron">▼</span>
+            <span className={s.chevron}>▼</span>
             Design Docs
           </h3>
           <div
-            className={`section-collapse ${collapsedSections.has("design-docs") ? "collapsed" : ""}`}
+            className={`${s.collapse} ${collapsedSections.has("design-docs") ? s.collapsed : ""}`}
           >
-            <div className="section-collapse-inner">
-              <ul className="file-list" role="tree" aria-label="Design docs">
+            <div className={s.collapseInner}>
+              <ul className={s.fileList} role="tree" aria-label="Design docs">
                 {designDocTree.map((node) =>
                   renderDesignDocTreeNode(node, 0),
                 )}
@@ -571,13 +572,13 @@ export const FileSidebar: React.FC<FileSidebarProps> = ({ style }) => {
 
       {showDiffFiles && diffResult && (
         <div
-          className={`sidebar-section ${collapsedSections.has("changed-files") ? "collapsed" : ""}`}
+          className={`${s.section} ${collapsedSections.has("changed-files") ? s.collapsed : ""}`}
         >
           <h3
-            className="sidebar-section-title sidebar-section-toggle"
+            className={`${s.sectionTitle} ${s.sectionToggle} sidebar-section-title`}
             onClick={() => toggleSection("changed-files")}
           >
-            <span className="section-chevron">▼</span>
+            <span className={s.chevron}>▼</span>
             Changed Files
             <span className="badge">
               {fileFilter
@@ -586,14 +587,14 @@ export const FileSidebar: React.FC<FileSidebarProps> = ({ style }) => {
             </span>
           </h3>
           <div
-            className={`section-collapse ${collapsedSections.has("changed-files") ? "collapsed" : ""}`}
+            className={`${s.collapse} ${collapsedSections.has("changed-files") ? s.collapsed : ""}`}
           >
-            <div className="section-collapse-inner">
-              <div className="sidebar-filter">
+            <div className={s.collapseInner}>
+              <div className={s.filter}>
                 <input
                   ref={filterInputRef}
                   type="text"
-                  className="sidebar-filter-input"
+                  className={s.filterInput}
                   placeholder="Filter files\u2026"
                   value={fileFilter}
                   onChange={(e) => setFileFilter(e.target.value)}
@@ -602,7 +603,7 @@ export const FileSidebar: React.FC<FileSidebarProps> = ({ style }) => {
                 />
                 {fileFilter && (
                   <button
-                    className="sidebar-filter-clear"
+                    className={s.filterClear}
                     onClick={() => setFileFilter("")}
                     aria-label="Clear filter"
                   >
@@ -610,7 +611,7 @@ export const FileSidebar: React.FC<FileSidebarProps> = ({ style }) => {
                   </button>
                 )}
               </div>
-              <div className="sidebar-stats">
+              <div className={s.sidebarStats}>
                 <span className="stat-added">
                   +{diffResult.stats.additions}
                 </span>
@@ -620,7 +621,7 @@ export const FileSidebar: React.FC<FileSidebarProps> = ({ style }) => {
               </div>
               <div
                 ref={listContainerRef}
-                className="file-list-virtual-container"
+                className={s.virtualContainer}
                 role="tree"
                 aria-label="Changed files"
                 tabIndex={0}

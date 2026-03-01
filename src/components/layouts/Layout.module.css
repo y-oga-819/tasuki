@@ -1,0 +1,114 @@
+/* Layouts — shared across SplitLayout, DiffOnlyLayout, ViewerLayout */
+
+/* Split layout */
+.splitLayout {
+  display: flex;
+  flex-direction: row;
+  overflow: hidden;
+}
+
+.splitLeft {
+  min-width: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+.diffOnly {
+  composes: splitLeft;
+  flex: 1;
+  overflow: hidden;
+}
+
+.splitHandle {
+  position: relative;
+  width: var(--resize-handle-width);
+  flex-shrink: 0;
+  background: var(--color-border-primary);
+  cursor: col-resize;
+  transition: background 0.15s ease;
+}
+
+.splitHandle::before {
+  content: "";
+  position: absolute;
+  inset: 0 calc(-1 * (var(--resize-handle-hitarea) - var(--resize-handle-width)) / 2);
+}
+
+.splitHandle:hover,
+.splitHandle:active {
+  background: var(--color-text-link);
+}
+
+.splitRight {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  height: 100%;
+}
+
+.rightPaneTabs {
+  display: flex;
+  gap: 0;
+  padding: 4px 8px 0;
+  border-bottom: 1px solid var(--color-border-primary);
+  background: var(--color-bg-secondary);
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.rightPaneTab {
+  padding: 6px 14px;
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.rightPaneTab:hover {
+  color: var(--color-text-primary);
+}
+
+.rightPaneTabActive {
+  composes: rightPaneTab;
+  color: var(--color-text-link);
+  border-bottom-color: var(--color-text-link);
+}
+
+.rightPaneBody {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.rightPaneContent {
+  height: 100%;
+  overflow-y: auto;
+}
+
+/* No selection / no changes */
+.noSelection {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--color-text-secondary);
+  gap: var(--space-2);
+}
+
+/* Viewer Layout */
+.viewerLayout {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.viewerContent {
+  font-size: 15px;
+}

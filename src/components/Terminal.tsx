@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import "@xterm/xterm/css/xterm.css";
 import { useTerminalManager } from "./TerminalManagerContext";
+import s from "./Terminal.module.css";
 
 export const TerminalPanel: React.FC<{ visible: boolean }> = ({ visible }) => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -78,15 +79,15 @@ export const TerminalPanel: React.FC<{ visible: boolean }> = ({ visible }) => {
 
   return (
     <div
-      className={`terminal-container ${visible ? "" : "terminal-hidden"}`}
+      className={`${s.container} ${visible ? "" : s.hidden}`}
       ref={containerRef}
     >
       {searchVisible && (
-        <div className="terminal-search-bar">
+        <div className={s.searchBar}>
           <input
             ref={searchInputRef}
             type="text"
-            className="terminal-search-input"
+            className={s.searchInput}
             placeholder="Search..."
             value={searchQuery}
             onChange={(e) => {
@@ -103,21 +104,21 @@ export const TerminalPanel: React.FC<{ visible: boolean }> = ({ visible }) => {
             }}
           />
           <button
-            className="terminal-search-btn"
+            className={s.searchBtn}
             title="Previous (Shift+Enter)"
             onClick={() => doSearch(searchQuery, "prev")}
           >
             &#x25B2;
           </button>
           <button
-            className="terminal-search-btn"
+            className={s.searchBtn}
             title="Next (Enter)"
             onClick={() => doSearch(searchQuery, "next")}
           >
             &#x25BC;
           </button>
           <button
-            className="terminal-search-btn terminal-search-close"
+            className={s.closeBtn}
             title="Close (Escape)"
             onClick={closeSearch}
           >

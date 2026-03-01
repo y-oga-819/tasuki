@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import s from "./ResizablePane.module.css";
 
 interface ResizablePaneProps {
   left: React.ReactNode;
@@ -107,12 +108,12 @@ export const ResizablePane: React.FC<ResizablePaneProps> = ({
   const rightBasis = `${(1 - ratio) * 100}%`;
 
   return (
-    <div className="resizable-pane" ref={containerRef}>
-      <div className="resizable-left" style={{ flexBasis: leftBasis }}>
+    <div className={s.pane} ref={containerRef}>
+      <div className={`${s.left} resizable-left`} style={{ flexBasis: leftBasis }}>
         {left}
       </div>
       <div
-        className="resizable-handle"
+        className={s.handle}
         role="separator"
         aria-orientation="vertical"
         aria-label="Resize pane"
@@ -125,7 +126,7 @@ export const ResizablePane: React.FC<ResizablePaneProps> = ({
         onPointerUp={handlePointerUp}
         onKeyDown={handleKeyDown}
       />
-      <div className="resizable-right" style={{ flexBasis: rightBasis }}>
+      <div className={s.right} style={{ flexBasis: rightBasis }}>
         {right}
       </div>
     </div>

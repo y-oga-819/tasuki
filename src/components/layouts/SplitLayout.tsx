@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState, lazy, Suspense } from 
 import { useUiStore } from "../../store/uiStore";
 import { clampSplitRatio } from "../../utils/layout";
 import { DiffPane } from "../DiffPane";
+import l from "./Layout.module.css";
 
 const MarkdownViewer = lazy(() =>
   import("../MarkdownViewer").then((m) => ({ default: m.MarkdownViewer })),
@@ -89,10 +90,10 @@ export const SplitLayout: React.FC = () => {
   }, []);
 
   return (
-    <main className="main-content split-layout" ref={mainRef}>
+    <main className={`main-content ${l.splitLayout}`} ref={mainRef}>
       {/* Left pane — diff */}
       <div
-        className="split-left"
+        className={`${l.splitLeft} split-left`}
         style={{ flexBasis: `${splitRatio * 100}%` }}
       >
         <DiffPane />
@@ -100,7 +101,7 @@ export const SplitLayout: React.FC = () => {
 
       {/* Resize handle */}
       <div
-        className="split-handle"
+        className={l.splitHandle}
         role="separator"
         aria-orientation="vertical"
         aria-label="Resize pane"
@@ -116,16 +117,16 @@ export const SplitLayout: React.FC = () => {
 
       {/* Right pane — tabs */}
       <div
-        className="split-right"
+        className={`${l.splitRight} split-right`}
         style={{ flexBasis: `${(1 - splitRatio) * 100}%` }}
       >
-        <div className="right-pane-tabs" role="tablist" aria-label="Right pane">
+        <div className={l.rightPaneTabs} role="tablist" aria-label="Right pane">
           <button
             role="tab"
             id="tab-docs"
             aria-selected={rightPaneMode === "docs"}
             aria-controls="panel-docs"
-            className={`right-pane-tab ${rightPaneMode === "docs" ? "active" : ""}`}
+            className={rightPaneMode === "docs" ? l.rightPaneTabActive : l.rightPaneTab}
             onClick={() => setRightPaneMode("docs")}
           >
             Docs
@@ -135,7 +136,7 @@ export const SplitLayout: React.FC = () => {
             id="tab-terminal"
             aria-selected={rightPaneMode === "terminal"}
             aria-controls="panel-terminal"
-            className={`right-pane-tab ${rightPaneMode === "terminal" ? "active" : ""}`}
+            className={rightPaneMode === "terminal" ? l.rightPaneTabActive : l.rightPaneTab}
             onClick={() => setRightPaneMode("terminal")}
           >
             Terminal
@@ -145,14 +146,14 @@ export const SplitLayout: React.FC = () => {
             id="tab-review"
             aria-selected={rightPaneMode === "review"}
             aria-controls="panel-review"
-            className={`right-pane-tab ${rightPaneMode === "review" ? "active" : ""}`}
+            className={rightPaneMode === "review" ? l.rightPaneTabActive : l.rightPaneTab}
             onClick={() => setRightPaneMode("review")}
           >
             Review
           </button>
         </div>
         <div
-          className="right-pane-body"
+          className={l.rightPaneBody}
           role="tabpanel"
           id={`panel-${rightPaneMode}`}
           aria-labelledby={`tab-${rightPaneMode}`}

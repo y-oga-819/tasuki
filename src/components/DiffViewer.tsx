@@ -15,6 +15,7 @@ import { useDiffStore } from "../store/diffStore";
 import { useEditorStore } from "../store/editorStore";
 import { useReviewStore } from "../store/reviewStore";
 import type { CommentFormTarget } from "../store/editorStore";
+import s from "./DiffViewer.module.css";
 
 const isMac =
   typeof navigator !== "undefined" && navigator.platform.includes("Mac");
@@ -25,29 +26,29 @@ import { generateGitPatch, getCodeSnippet } from "../utils/diff-utils";
 
 const changeTypeIcons: Record<string, React.ReactNode> = {
   modified: (
-    <svg viewBox="0 0 16 16" className="dv-change-icon dv-change-icon--modified">
+    <svg viewBox="0 0 16 16" className={s.changeIconModified}>
       <path d="M1.5 8c0 1.613.088 2.806.288 3.704.196.88.478 1.381.802 1.706s.826.607 1.706.802c.898.2 2.091.288 3.704.288s2.806-.088 3.704-.288c.88-.195 1.381-.478 1.706-.802s.607-.826.802-1.706c.2-.898.288-2.091.288-3.704s-.088-2.806-.288-3.704c-.195-.88-.478-1.381-.802-1.706s-.826-.606-1.706-.802C10.806 1.588 9.613 1.5 8 1.5s-2.806.088-3.704.288c-.88.196-1.381.478-1.706.802s-.606.826-.802 1.706C1.588 5.194 1.5 6.387 1.5 8M0 8c0-6.588 1.412-8 8-8s8 1.412 8 8-1.412 8-8 8-8-1.412-8-8m8 3a3 3 0 1 0 0-6 3 3 0 0 0 0 6" fill="currentColor"/>
     </svg>
   ),
   added: (
-    <svg viewBox="0 0 16 16" className="dv-change-icon dv-change-icon--added">
+    <svg viewBox="0 0 16 16" className={s.changeIconAdded}>
       <path d="M8 4a.75.75 0 0 1 .75.75v2.5h2.5a.75.75 0 0 1 0 1.5h-2.5v2.5a.75.75 0 0 1-1.5 0v-2.5h-2.5a.75.75 0 0 1 0-1.5h2.5v-2.5A.75.75 0 0 1 8 4" fill="currentColor"/><path d="M1.788 4.296c.196-.88.478-1.381.802-1.706s.826-.606 1.706-.802C5.194 1.588 6.387 1.5 8 1.5s2.806.088 3.704.288c.88.196 1.381.478 1.706.802s.607.826.802 1.706c.2.898.288 2.091.288 3.704s-.088 2.806-.288 3.704c-.195.88-.478 1.381-.802 1.706s-.826.607-1.706.802c-.898.2-2.091.288-3.704.288s-2.806-.088-3.704-.288c-.88-.195-1.381-.478-1.706-.802s-.606-.826-.802-1.706C1.588 10.806 1.5 9.613 1.5 8s.088-2.806.288-3.704M8 0C1.412 0 0 1.412 0 8s1.412 8 8 8 8-1.412 8-8-1.412-8-8-8" fill="currentColor"/>
     </svg>
   ),
   deleted: (
-    <svg viewBox="0 0 16 16" className="dv-change-icon dv-change-icon--deleted">
+    <svg viewBox="0 0 16 16" className={s.changeIconDeleted}>
       <path d="M4 8a.75.75 0 0 1 .75-.75h6.5a.75.75 0 0 1 0 1.5h-6.5A.75.75 0 0 1 4 8" fill="currentColor"/><path d="M1.788 4.296c.196-.88.478-1.381.802-1.706s.826-.606 1.706-.802C5.194 1.588 6.387 1.5 8 1.5s2.806.088 3.704.288c.88.196 1.381.478 1.706.802s.607.826.802 1.706c.2.898.288 2.091.288 3.704s-.088 2.806-.288 3.704c-.195.88-.478 1.381-.802 1.706s-.826.607-1.706.802c-.898.2-2.091.288-3.704.288s-2.806-.088-3.704-.288c-.88-.195-1.381-.478-1.706-.802s-.606-.826-.802-1.706C1.588 10.806 1.5 9.613 1.5 8s.088-2.806.288-3.704M8 0C1.412 0 0 1.412 0 8s1.412 8 8 8 8-1.412 8-8-1.412-8-8-8" fill="currentColor"/>
     </svg>
   ),
   renamed: (
-    <svg viewBox="0 0 16 16" className="dv-change-icon dv-change-icon--renamed">
+    <svg viewBox="0 0 16 16" className={s.changeIconRenamed}>
       <path d="M1.788 4.296c.196-.88.478-1.381.802-1.706s.826-.606 1.706-.802C5.194 1.588 6.387 1.5 8 1.5s2.806.088 3.704.288c.88.196 1.381.478 1.706.802s.607.826.802 1.706c.2.898.288 2.091.288 3.704s-.088 2.806-.288 3.704c-.195.88-.478 1.381-.802 1.706s-.826.607-1.706.802c-.898.2-2.091.288-3.704.288s-2.806-.088-3.704-.288c-.88-.195-1.381-.478-1.706-.802s-.606-.826-.802-1.706C1.588 10.806 1.5 9.613 1.5 8s.088-2.806.288-3.704M8 0C1.412 0 0 1.412 0 8s1.412 8 8 8 8-1.412 8-8-1.412-8-8-8" fill="currentColor"/><path d="M8.495 4.695a.75.75 0 0 0-.05 1.06L10.486 8l-2.041 2.246a.75.75 0 0 0 1.11 1.008l2.5-2.75a.75.75 0 0 0 0-1.008l-2.5-2.75a.75.75 0 0 0-1.06-.051m-4 0a.75.75 0 0 0-.05 1.06l2.044 2.248-1.796 1.995a.75.75 0 0 0 1.114 1.004l2.25-2.5a.75.75 0 0 0-.002-1.007l-2.5-2.75a.75.75 0 0 0-1.06-.05" fill="currentColor"/>
     </svg>
   ),
 };
 
 const arrowRightIcon = (
-  <svg viewBox="0 0 16 16" className="dv-rename-arrow">
+  <svg viewBox="0 0 16 16" className={s.renameArrow}>
     <path d="M8.47 4.22a.75.75 0 0 0 0 1.06l1.97 1.97H3.75a.75.75 0 0 0 0 1.5h6.69l-1.97 1.97a.75.75 0 1 0 1.06 1.06l3.25-3.25a.75.75 0 0 0 0-1.06L9.53 4.22a.75.75 0 0 0-1.06 0" fill="currentColor"/>
   </svg>
 );
@@ -144,7 +145,7 @@ export const DiffViewer = React.memo<DiffViewerProps>(function DiffViewer({ file
 
       return (
         <button
-          className="dv-hover-comment-btn"
+          className={s.hoverBtn}
           onPointerDown={(e) => {
             e.stopPropagation();
             const line = getHoveredLine();
@@ -253,28 +254,28 @@ export const DiffViewer = React.memo<DiffViewerProps>(function DiffViewer({ file
 
   const fileHeader = (
     <div className="dv-file-header" onClick={() => toggleFileCollapse(filePath)}>
-      <div className="dv-header-left">
-        <span className="dv-toggle">{isCollapsed ? "\u25B6" : "\u25BC"}</span>
+      <div className={s.headerLeft}>
+        <span className={s.toggle}>{isCollapsed ? "\u25B6" : "\u25BC"}</span>
         {changeIcon}
         {fileDiff.file.old_path && (
           <>
-            <span className="dv-file-path">{fileDiff.file.old_path}</span>
+            <span className={s.filePath}>{fileDiff.file.old_path}</span>
             {arrowRightIcon}
           </>
         )}
-        <span className="dv-file-path">{filePath}</span>
+        <span className={s.filePath}>{filePath}</span>
       </div>
-      <div className="dv-header-right">
-        <span className="dv-stats">
+      <div className={s.headerRight}>
+        <span className={s.stats}>
           {fileDiff.file.additions > 0 && (
-            <span className="dv-stat-add">+{fileDiff.file.additions}</span>
+            <span className={s.statAdd}>+{fileDiff.file.additions}</span>
           )}
           {fileDiff.file.deletions > 0 && (
-            <span className="dv-stat-del">-{fileDiff.file.deletions}</span>
+            <span className={s.statDel}>-{fileDiff.file.deletions}</span>
           )}
         </span>
         {fileDiff.file.is_generated && (
-          <span className="dv-generated">Generated</span>
+          <span className={s.generated}>Generated</span>
         )}
       </div>
     </div>
@@ -283,10 +284,10 @@ export const DiffViewer = React.memo<DiffViewerProps>(function DiffViewer({ file
   // --- Binary ---
   if (fileDiff.file.is_binary) {
     return (
-      <div className="dv-binary">
+      <div className={s.binary}>
         {fileHeader}
         {!isCollapsed && (
-          <div className="dv-binary-body">Binary file changed</div>
+          <div className={s.binaryBody}>Binary file changed</div>
         )}
       </div>
     );
@@ -403,15 +404,15 @@ const ThreadDisplay: React.FC<{ thread: ReviewThread }> = ({ thread }) => {
   const comment = thread.root;
 
   return (
-    <div className={`dv-comment ${thread.resolved ? "dv-comment--resolved" : ""}`}>
-      <div className="dv-comment-header">
-        <span className="dv-comment-location">
+    <div className={`${s.comment} ${thread.resolved ? s.resolved : ""}`}>
+      <div className={s.commentHeader}>
+        <span className={s.commentLocation}>
           L{comment.line_start}
           {comment.line_start !== comment.line_end && `-L${comment.line_end}`}
         </span>
-        <span className="dv-comment-type">{comment.type}</span>
+        <span className={s.commentType}>{comment.type}</span>
         <button
-          className="dv-comment-delete"
+          className={s.commentDelete}
           onClick={() => removeThread(comment.id)}
           title="Remove comment"
         >
@@ -419,14 +420,14 @@ const ThreadDisplay: React.FC<{ thread: ReviewThread }> = ({ thread }) => {
         </button>
       </div>
       {comment.code_snippet && !thread.resolved && (
-        <pre className="dv-comment-snippet">{comment.code_snippet}</pre>
+        <pre className={s.commentSnippet}>{comment.code_snippet}</pre>
       )}
-      <div className="dv-comment-body">{comment.body}</div>
+      <div className={`${s.commentBody} comment-body`}>{comment.body}</div>
       {thread.replies.map((reply) => (
-        <div key={reply.id} className="dv-comment-reply">
-          <span className="dv-reply-arrow">{"\u21B3"}</span>
-          <span className="dv-reply-body">{reply.body}</span>
-          <span className="dv-reply-author">{reply.author}</span>
+        <div key={reply.id} className={s.commentReply}>
+          <span className={s.replyArrow}>{"\u21B3"}</span>
+          <span className={s.replyBody}>{reply.body}</span>
+          <span className={s.replyAuthor}>{reply.author}</span>
         </div>
       ))}
     </div>
@@ -442,14 +443,14 @@ const CommentFormInline: React.FC<{
   const [text, setText] = useState("");
 
   return (
-    <div className="dv-comment-form">
-      <div className="dv-form-header">
+    <div className={s.commentForm}>
+      <div className={s.formHeader}>
         L{Math.min(target.selectionStart, target.selectionEnd)}
         {target.selectionStart !== target.selectionEnd &&
           `-L${Math.max(target.selectionStart, target.selectionEnd)}`}
       </div>
       <textarea
-        className="dv-form-textarea"
+        className={`${s.formTextarea} dv-form-textarea`}
         autoFocus
         placeholder="Write a review comment..."
         value={text}
@@ -465,7 +466,7 @@ const CommentFormInline: React.FC<{
         }}
         rows={3}
       />
-      <div className="dv-form-actions">
+      <div className={s.formActions}>
         <button className="btn btn-secondary" onClick={onCancel}>
           Cancel
         </button>

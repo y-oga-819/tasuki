@@ -1,0 +1,132 @@
+/* ============================================
+   Tasuki — Design Tokens (CSS Custom Properties)
+   ============================================ */
+
+:root {
+  /* Background */
+  --color-bg-primary: #0d1117;
+  --color-bg-secondary: #161b22;
+  --color-bg-tertiary: #1c2128;
+  --color-bg-overlay: #30363d;
+
+  /* Text */
+  --color-text-primary: #e6edf3;
+  --color-text-secondary: #8b949e;
+  --color-text-tertiary: #6e7681;
+  --color-text-link: #58a6ff;
+
+  /* Borders */
+  --color-border-primary: #30363d;
+  --color-border-secondary: #21262d;
+
+  /* Diff colors */
+  --color-added: #3fb950;
+  --color-added-bg: rgba(63, 185, 80, 0.15);
+  --color-added-line-bg: rgba(63, 185, 80, 0.1);
+  --color-deleted: #f85149;
+  --color-deleted-bg: rgba(248, 81, 73, 0.15);
+  --color-deleted-line-bg: rgba(248, 81, 73, 0.1);
+  --color-modified: #d29922;
+  --color-renamed: #58a6ff;
+
+  /* Selection */
+  --color-selected-bg: rgba(88, 166, 255, 0.15);
+  --color-selected-border: #58a6ff;
+
+  /* Actions */
+  --color-btn-primary: #238636;
+  --color-btn-primary-hover: #2ea043;
+  --color-btn-secondary: #21262d;
+  --color-btn-secondary-hover: #30363d;
+  --color-btn-danger: #da3633;
+  --color-accent: #58a6ff;
+  --color-danger: #f85149;
+
+  /* Review */
+  --color-approve: #3fb950;
+  --color-request-changes: #d29922;
+  --color-comment: #58a6ff;
+
+  /* ── Typography ── */
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans",
+    Helvetica, Arial, sans-serif;
+  --font-mono: "SF Mono", "Fira Code", "Fira Mono", "Roboto Mono", Menlo,
+    Consolas, monospace;
+
+  --font-size-sm:    0.75rem;   /* 12px — メタデータ, 補助テキスト */
+  --font-size-base:  0.875rem;  /* 14px — UI テキスト, diff, コード */
+  --font-size-prose: 1rem;      /* 16px — Markdown 本文 (日本語可読性) */
+  --font-size-lg:    1rem;      /* 16px — セクション見出し */
+  --font-size-xl:    1.25rem;   /* 20px — ページタイトル */
+
+  --line-height-tight: 1.25;
+  --line-height-base:  1.5;
+  --line-height-loose: 1.75;
+
+  --font-weight-normal:   400;
+  --font-weight-medium:   500;
+  --font-weight-semibold: 600;
+
+  /* ── Spacing (4px grid, rem) ── */
+  --space-1: 0.25rem;   /*  4px */
+  --space-2: 0.5rem;    /*  8px */
+  --space-3: 0.75rem;   /* 12px */
+  --space-4: 1rem;      /* 16px */
+  --space-5: 1.5rem;    /* 24px */
+  --space-6: 2rem;      /* 32px */
+  --space-8: 3rem;      /* 48px */
+
+  /* ── Border Radius (4px grid, rem) ── */
+  --radius-sm: 0.25rem;  /*  4px */
+  --radius-md: 0.5rem;   /*  8px */
+  --radius-lg: 0.75rem;  /* 12px */
+
+  /* ── Layout ── */
+  --sidebar-width: 260px;
+  --toolbar-height: 3rem;         /* 48px */
+  --interactive-min: 1.5rem;      /* 24px — WCAG 2.5.8 最小ターゲット */
+  --interactive-comfortable: 2rem; /* 32px — 推奨ターゲット */
+
+  /* ── Resize Handle ── */
+  --resize-handle-width: 4px;
+  --resize-handle-hitarea: 12px;
+
+  /* ── Z-Index Layers ── */
+  --z-base: 0;
+  --z-sticky: 10;
+  --z-dropdown: 100;
+  --z-overlay: 500;
+  --z-modal: 1000;
+
+  /* ── Terminal (xterm.js) theme ── */
+  --term-bg: #0d1117;
+  --term-fg: #e6edf3;
+  --term-cursor: #58a6ff;
+  --term-cursor-accent: #0d1117;
+  --term-selection: rgba(88, 166, 255, 0.3);
+  --term-black: #484f58;
+  --term-red: #ff7b72;
+  --term-green: #3fb950;
+  --term-yellow: #d29922;
+  --term-blue: #58a6ff;
+  --term-magenta: #bc8cff;
+  --term-cyan: #39c5cf;
+  --term-white: #b1bac4;
+  --term-bright-black: #6e7681;
+  --term-bright-red: #ffa198;
+  --term-bright-green: #56d364;
+  --term-bright-yellow: #e3b341;
+  --term-bright-blue: #79c0ff;
+  --term-bright-magenta: #d2a8ff;
+  --term-bright-cyan: #56d4dd;
+  --term-bright-white: #f0f6fc;
+
+  /* ── Pierre (@pierre/diffs) integration ── */
+  --diffs-font-family: var(--font-mono);
+  --diffs-font-fallback: Menlo, Consolas, monospace;
+  --diffs-header-font-family: var(--font-sans);
+  --diffs-font-size: var(--font-size-base);
+  --diffs-line-height: var(--line-height-base);
+  --diffs-tab-size: 4;
+  --diffs-gap-inline: var(--space-2);
+}

@@ -1,0 +1,79 @@
+/* ============================================
+   Tasuki — Reset & Base Styles
+   ============================================ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: var(--font-sans);
+  font-size: var(--font-size-base);
+  color: var(--color-text-primary);
+  background-color: var(--color-bg-primary);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: var(--color-text-link);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+/* Interactive element minimum size (WCAG 2.5.8) */
+button,
+[role="button"],
+input,
+select,
+textarea {
+  min-height: var(--interactive-min);
+  min-width: var(--interactive-min);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border-primary);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-bg-overlay);
+}
+
+/* Selection */
+::selection {
+  background: rgba(88, 166, 255, 0.3);
+}
+
+/* CSS Custom Highlight API */
+::highlight(diff-search) {
+  background-color: rgba(255, 200, 0, 0.35);
+}
+
+::highlight(diff-search-current) {
+  background-color: rgba(255, 150, 0, 0.6);
+}

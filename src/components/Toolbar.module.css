@@ -1,0 +1,84 @@
+/* Toolbar — component-scoped styles */
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: var(--toolbar-height);
+  padding: 0 var(--space-4);
+  background-color: var(--color-bg-secondary);
+  border-bottom: 1px solid var(--color-border-primary);
+  flex-shrink: 0;
+  gap: var(--space-4);
+}
+
+.left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.title {
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  letter-spacing: -0.01em;
+}
+
+.repo {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  padding: 2px var(--space-2);
+  background: var(--color-bg-tertiary);
+  border-radius: var(--radius-sm);
+}
+
+.branch {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  font-family: var(--font-mono);
+}
+
+.branchIcon {
+  flex-shrink: 0;
+  color: var(--color-text-tertiary);
+}
+
+.worktreeBadge {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  padding: 1px 6px;
+  background: var(--color-bg-overlay);
+  border-radius: 10px;
+  font-weight: 500;
+}
+
+.separator {
+  width: 1px;
+  height: 20px;
+  background: var(--color-border-primary);
+  flex-shrink: 0;
+}
+
+.center {
+  display: flex;
+  align-items: center;
+}
+
+.right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.stats {
+  display: flex;
+  gap: var(--space-2);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  font-family: var(--font-mono);
+}

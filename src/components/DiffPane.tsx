@@ -5,6 +5,7 @@ import { DiffViewer } from "./DiffViewer";
 import { DiffSearchBar } from "./DiffSearchBar";
 import { ErrorBoundary } from "./ErrorBoundary";
 import type { FileDiff } from "../types";
+import s from "./DiffPane.module.css";
 
 const isMac =
   typeof navigator !== "undefined" && navigator.platform.includes("Mac");
@@ -48,7 +49,7 @@ const LazyDiffViewer: React.FC<{
     return (
       <div
         ref={ref}
-        className="diff-placeholder"
+        className={s.placeholder}
         style={{ height: PLACEHOLDER_HEIGHT }}
         data-file-path={fileDiff.file.path}
       />
@@ -104,9 +105,9 @@ const AllFileDiffs: React.FC = () => {
 
   if (!diffResult || diffResult.files.length === 0) {
     return (
-      <div className="no-changes">
+      <div className={s.noChanges}>
         <p>No changes detected.</p>
-        <p className="hint">
+        <p className={s.hint}>
           Make changes to the repository and they will appear here.
         </p>
       </div>
@@ -216,14 +217,14 @@ export const DiffPane: React.FC = () => {
   }, [diffResult, selectedFile, setSelectedFile, lineSelection, commentFormTarget, setCommentFormTarget]);
 
   return (
-    <div className="diff-content-search-wrapper">
+    <div className={s.wrapper}>
       {searchVisible && (
         <DiffSearchBar
           scrollContainerRef={scrollRef}
           onClose={() => setSearchVisible(false)}
         />
       )}
-      <div className="diff-scroll-container" ref={scrollRef}>
+      <div className={s.scrollContainer} ref={scrollRef}>
         <AllFileDiffs />
       </div>
     </div>

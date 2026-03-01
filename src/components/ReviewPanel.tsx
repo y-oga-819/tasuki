@@ -5,6 +5,7 @@ import { formatReviewPrompt, formatSingleComment } from "../utils/format-review"
 import { copyToClipboard } from "../utils/tauri-api";
 import * as api from "../utils/tauri-api";
 import type { ReviewThread, DocComment } from "../types";
+import s from "./ReviewPanel.module.css";
 
 // --- Thread card for unresolved threads ---
 
@@ -46,13 +47,13 @@ const ThreadCard: React.FC<{
   };
 
   return (
-    <li className="thread-card">
-      <div className="thread-header">
-        <span className="comment-location">
+    <li className={s.threadCard}>
+      <div className={s.threadHeader}>
+        <span className={s.commentLocation}>
           {c.file_path}:L{c.line_start}
           {c.line_end !== c.line_start ? `-${c.line_end}` : ""}
         </span>
-        <div className="thread-header-actions">
+        <div className={s.threadHeaderActions}>
           <button
             className="btn-icon"
             onClick={() => onCopy(thread)}
@@ -60,7 +61,7 @@ const ThreadCard: React.FC<{
           >
             {"\u{1F4CB}"}
           </button>
-          <div className="thread-menu-container" ref={menuRef}>
+          <div className={s.menuContainer} ref={menuRef}>
             <button
               className="btn-icon"
               onClick={() => setShowMenu(!showMenu)}
@@ -69,9 +70,9 @@ const ThreadCard: React.FC<{
               {"\u2026"}
             </button>
             {showMenu && (
-              <div className="thread-menu">
+              <div className={s.menu}>
                 <button
-                  className="thread-menu-item thread-menu-item--danger"
+                  className={s.menuItemDanger}
                   onClick={() => {
                     removeThread(c.id);
                     setShowMenu(false);
@@ -85,25 +86,25 @@ const ThreadCard: React.FC<{
         </div>
       </div>
       {c.code_snippet && (
-        <pre className="comment-snippet">
+        <pre className={s.commentSnippet}>
           <code>{c.code_snippet}</code>
         </pre>
       )}
-      <div className="comment-body">{c.body}</div>
+      <div className={s.commentBody}>{c.body}</div>
 
       {/* Replies */}
       {thread.replies.map((reply) => (
-        <div key={reply.id} className="thread-reply">
-          <span className="thread-reply-arrow">{"\u21B3"}</span>
-          <span className="thread-reply-body">{reply.body}</span>
-          <span className="thread-reply-author">{reply.author}</span>
+        <div key={reply.id} className={s.threadReply}>
+          <span className={s.threadReplyArrow}>{"\u21B3"}</span>
+          <span className={s.threadReplyBody}>{reply.body}</span>
+          <span className={s.threadReplyAuthor}>{reply.author}</span>
         </div>
       ))}
 
       {/* Reply input + actions */}
-      <div className="thread-footer">
+      <div className={s.threadFooter}>
         <textarea
-          className="thread-reply-input"
+          className={s.threadReplyInput}
           placeholder="Write a reply..."
           value={replyText}
           onChange={(e) => setReplyText(e.target.value)}
@@ -112,7 +113,7 @@ const ThreadCard: React.FC<{
           }}
           rows={1}
         />
-        <div className="thread-actions">
+        <div className={s.threadActions}>
           <button
             className="btn btn-xs"
             onClick={handleReply}
@@ -141,10 +142,10 @@ const ResolvedThreadCard: React.FC<{
   const c = thread.root;
 
   return (
-    <li className="thread-card thread-card--resolved">
-      <div className="thread-header">
-        <span className="comment-location">
-          <span className="resolve-check">{"\u2713"} </span>
+    <li className={`${s.threadCard} ${s.threadResolved}`}>
+      <div className={s.threadHeader}>
+        <span className={s.commentLocation}>
+          <span className={s.resolveCheck}>{"\u2713"} </span>
           {c.file_path}:L{c.line_start}
           {c.line_end !== c.line_start ? `-${c.line_end}` : ""}
         </span>
@@ -156,7 +157,7 @@ const ResolvedThreadCard: React.FC<{
           {"\u21A9"}
         </button>
       </div>
-      <div className="comment-body">{c.body}</div>
+      <div className={s.commentBody}>{c.body}</div>
     </li>
   );
 };
@@ -171,14 +172,14 @@ const DocCommentItem: React.FC<{
 }> = ({ comment, onRemove, onResolve, onUnresolve }) => {
   const c = comment;
   return (
-    <li className={`comment-item doc-comment ${c.resolved ? "resolved" : ""}`}>
-      <div className="comment-item-header">
-        <span className="comment-location">
-          {c.resolved && <span className="resolve-check">{"\u2713"} </span>}
+    <li className={`${s.commentItem} ${c.resolved ? s.resolved : ""}`}>
+      <div className={s.commentItemHeader}>
+        <span className={s.commentLocation}>
+          {c.resolved && <span className={s.resolveCheck}>{"\u2713"} </span>}
           {c.file_path}
           {c.section ? ` \u2014 ${c.section}` : ""}
         </span>
-        <div className="comment-item-actions">
+        <div className={s.commentActions}>
           {c.resolved ? (
             <button
               className="btn-icon"
@@ -205,7 +206,7 @@ const DocCommentItem: React.FC<{
           </button>
         </div>
       </div>
-      <div className="comment-body">{c.body}</div>
+      <div className={s.commentBody}>{c.body}</div>
     </li>
   );
 };
@@ -320,23 +321,27 @@ export const ReviewPanel: React.FC = () => {
 
   return (
     <div className="review-panel">
-      <div className="review-panel-header">
-        <span className="review-title">
+      <div className={s.header}>
+        <span className={s.title}>
           Review Comments
           {totalCount > 0 && (
             <span className="badge">{totalCount}</span>
           )}
         </span>
-        <div className="review-header-actions">
+        <div className={s.headerActions}>
           {gateStatus !== "none" && (
-            <span className={`gate-badge gate-${gateStatus}`}>
+            <span className={
+              gateStatus === "approved" ? s.gateApproved :
+              gateStatus === "rejected" ? s.gateRejected :
+              s.gateInvalidated
+            }>
               {gateStatus === "approved" && "Gate: Approved"}
               {gateStatus === "rejected" && "Gate: Rejected"}
               {gateStatus === "invalidated" && "Gate: Invalidated"}
             </span>
           )}
           <button
-            className="btn btn-primary copy-all-btn"
+            className={`btn btn-primary ${s.copyAllBtn}`}
             onClick={handleCopyAll}
             disabled={totalCount === 0 && !verdict}
             title="Copy all comments as structured review prompt"
@@ -347,14 +352,14 @@ export const ReviewPanel: React.FC = () => {
       </div>
 
       {totalCount === 0 && (
-        <div className="review-empty">
+        <div className={s.empty}>
           <p>No comments yet. Click on line numbers in the diff to add comments.</p>
         </div>
       )}
 
       {/* Unresolved threads */}
       {unresolvedThreads.length > 0 && (
-        <ul className="comment-list">
+        <ul className={s.commentList}>
           {unresolvedThreads.map((t) => (
             <ThreadCard
               key={t.root.id}
@@ -367,7 +372,7 @@ export const ReviewPanel: React.FC = () => {
 
       {/* Doc comments */}
       {docComments.length > 0 && (
-        <ul className="comment-list">
+        <ul className={s.commentList}>
           {docComments.map((c) => (
             <DocCommentItem
               key={c.id}
@@ -382,11 +387,11 @@ export const ReviewPanel: React.FC = () => {
 
       {/* Resolved threads (collapsible) */}
       {resolvedThreads.length > 0 && (
-        <details className="resolved-section">
-          <summary className="resolved-header">
+        <details className={s.resolvedSection}>
+          <summary className={s.resolvedHeader}>
             Resolved ({resolvedThreads.length})
           </summary>
-          <ul className="comment-list">
+          <ul className={s.commentList}>
             {resolvedThreads.map((t) => (
               <ResolvedThreadCard key={t.root.id} thread={t} />
             ))}
@@ -395,23 +400,23 @@ export const ReviewPanel: React.FC = () => {
       )}
 
       {/* Verdict bar */}
-      <div className="review-verdict">
-        <div className="verdict-info">
+      <div className={s.verdict}>
+        <div className={s.verdictInfo}>
           {totalCount > 0 && (
             unresolvedCount > 0 ? (
-              <span className="unresolved-count">
+              <span className={s.unresolvedCount}>
                 Unresolved: {unresolvedCount} {unresolvedCount === 1 ? "thread" : "threads"}
               </span>
             ) : (
-              <span className="all-resolved">
+              <span className={s.allResolved}>
                 All threads resolved
               </span>
             )
           )}
         </div>
-        <div className="verdict-buttons">
+        <div className={s.verdictButtons}>
           <button
-            className={`btn verdict-btn ${verdict === "approve" ? "active" : ""}`}
+            className={`btn ${s.verdictBtn} ${verdict === "approve" ? s.verdictBtnActive : ""}`}
             onClick={handleApprove}
             disabled={!canApprove}
             title={!canApprove ? "Resolve all threads before approving" : ""}
@@ -419,7 +424,7 @@ export const ReviewPanel: React.FC = () => {
             Approve
           </button>
           <button
-            className={`btn verdict-btn request-changes ${verdict === "request_changes" ? "active" : ""}`}
+            className={`btn ${s.verdictBtn} ${verdict === "request_changes" ? s.verdictBtnRejectActive : ""}`}
             onClick={handleReject}
           >
             Reject
