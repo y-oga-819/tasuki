@@ -341,7 +341,7 @@ export const ReviewPanel: React.FC = () => {
             </span>
           )}
           <button
-            className={`btn btn-primary ${s.copyAllBtn}`}
+            className={`btn btn-primary ${s.copyAllBtn} copy-all-btn`}
             onClick={handleCopyAll}
             disabled={totalCount === 0 && !verdict}
             title="Copy all comments as structured review prompt"

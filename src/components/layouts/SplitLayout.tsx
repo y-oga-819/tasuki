@@ -126,7 +126,7 @@ export const SplitLayout: React.FC = () => {
             id="tab-docs"
             aria-selected={rightPaneMode === "docs"}
             aria-controls="panel-docs"
-            className={rightPaneMode === "docs" ? l.rightPaneTabActive : l.rightPaneTab}
+            className={`${rightPaneMode === "docs" ? l.rightPaneTabActive : l.rightPaneTab} right-pane-tab`}
             onClick={() => setRightPaneMode("docs")}
           >
             Docs
@@ -136,7 +136,7 @@ export const SplitLayout: React.FC = () => {
             id="tab-terminal"
             aria-selected={rightPaneMode === "terminal"}
             aria-controls="panel-terminal"
-            className={rightPaneMode === "terminal" ? l.rightPaneTabActive : l.rightPaneTab}
+            className={`${rightPaneMode === "terminal" ? l.rightPaneTabActive : l.rightPaneTab} right-pane-tab`}
             onClick={() => setRightPaneMode("terminal")}
           >
             Terminal
@@ -146,7 +146,7 @@ export const SplitLayout: React.FC = () => {
             id="tab-review"
             aria-selected={rightPaneMode === "review"}
             aria-controls="panel-review"
-            className={rightPaneMode === "review" ? l.rightPaneTabActive : l.rightPaneTab}
+            className={`${rightPaneMode === "review" ? l.rightPaneTabActive : l.rightPaneTab} right-pane-tab`}
             onClick={() => setRightPaneMode("review")}
           >
             Review

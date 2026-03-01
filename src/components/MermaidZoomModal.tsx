@@ -120,7 +120,7 @@ export const MermaidZoomModal: React.FC<MermaidZoomModalProps> = ({
       </div>
 
       <button
-        className={s.closeBtn}
+        className={`${s.closeBtn} mermaid-zoom-close`}
         onClick={onClose}
         title="Close (Escape)"
       >

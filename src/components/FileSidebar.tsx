@@ -465,7 +465,7 @@ export const FileSidebar: React.FC<FileSidebarProps> = ({ style }) => {
       {showDocFiles && (
         <div className={`${s.section} ${s.addFolderSection}`}>
           <button
-            className={s.addFolderBtn}
+            className={`${s.addFolderBtn} add-folder-btn`}
             onClick={handleAddFolder}
             title="Add a folder to browse"
           >
