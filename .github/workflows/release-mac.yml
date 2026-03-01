@@ -10,8 +10,20 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Gate: only maintainers (write access or above) can trigger a release
+  authorize:
+    name: Authorize
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check actor permission
+        uses: actions-cool/check-user-permission@v2
+        with:
+          require: write
+          username: ${{ github.actor }}
+
   test:
     name: Lint & Test
+    needs: authorize
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
