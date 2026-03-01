@@ -1,0 +1,62 @@
+name: Tag Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version tag (e.g. v0.2.0)"
+        required: true
+        type: string
+      dry_run:
+        description: "Dry run (tag is created but not pushed)"
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  create-tag:
+    name: Create version tag
+    runs-on: ubuntu-latest
+    # Restrict to repository admins via environment protection rules.
+    # Create a "release" environment in Settings > Environments and
+    # add required reviewers (repo owner / admins) to gate execution.
+    environment: release
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          # To trigger the release workflow from the newly pushed tag,
+          # use a PAT instead of the default GITHUB_TOKEN.
+          # Create a fine-grained PAT with "Contents: Read and write" scope
+          # and store it as a repository secret named RELEASE_PAT.
+          token: ${{ secrets.RELEASE_PAT }}
+
+      - name: Validate version format
+        run: |
+          VERSION="${{ inputs.version }}"
+          if [[ ! "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$ ]]; then
+            echo "::error::Invalid version format: '$VERSION'. Expected: v<major>.<minor>.<patch> (e.g. v0.2.0, v1.0.0-beta.1)"
+            exit 1
+          fi
+
+      - name: Check tag does not already exist
+        run: |
+          if git rev-parse "refs/tags/${{ inputs.version }}" >/dev/null 2>&1; then
+            echo "::error::Tag '${{ inputs.version }}' already exists."
+            exit 1
+          fi
+
+      - name: Create and push tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "${{ inputs.version }}" -m "Release ${{ inputs.version }}"
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            echo "::notice::Dry run — tag '${{ inputs.version }}' created locally but NOT pushed."
+            git tag -v "${{ inputs.version }}" 2>/dev/null || git show "${{ inputs.version }}" --no-patch
+          else
+            git push origin "${{ inputs.version }}"
+            echo "::notice::Tag '${{ inputs.version }}' pushed. Release workflow should start shortly."
+          fi
