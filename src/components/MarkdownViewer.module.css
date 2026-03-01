@@ -30,8 +30,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: var(--interactive-comfortable);
+  height: var(--interactive-comfortable);
   border: 1px solid var(--color-border-primary);
   border-radius: var(--radius-md);
   background: var(--color-bg-secondary);
@@ -47,11 +47,11 @@
 
 .tocDropdown {
   position: absolute;
-  top: 36px;
+  top: calc(var(--interactive-comfortable) + var(--space-1));
   left: 0;
   z-index: 10;
-  width: 320px;
-  max-height: 400px;
+  width: 20rem;
+  max-height: 25rem;
   overflow-y: auto;
   padding: var(--space-3);
   background: var(--color-bg-secondary);
@@ -73,7 +73,7 @@
 
 .tocItem {
   font-size: var(--font-size-sm);
-  line-height: 1.8;
+  line-height: var(--line-height-loose);
 }
 
 .tocItem a {
@@ -127,7 +127,7 @@
   color: var(--color-text-primary);
   white-space: pre-wrap;
   word-wrap: break-word;
-  line-height: 1.6;
+  line-height: var(--line-height-base);
   margin-top: var(--space-4);
 }
 
@@ -146,18 +146,18 @@
   padding-bottom: var(--space-2);
 }
 
-.content h1 { font-size: 24px; }
-.content h2 { font-size: 20px; }
+.content h1 { font-size: 1.5rem; }
+.content h2 { font-size: var(--font-size-xl); }
 
 .content h3 {
-  font-size: 16px;
+  font-size: var(--font-size-lg);
   border-bottom: none;
 }
 
 .content h4,
 .content h5,
 .content h6 {
-  font-size: 14px;
+  font-size: var(--font-size-base);
   border-bottom: none;
 }
 
@@ -179,7 +179,7 @@
 .content blockquote {
   margin: var(--space-3) 0;
   padding: var(--space-2) var(--space-4);
-  border-left: 3px solid var(--color-border-primary);
+  border-left: var(--space-1) solid var(--color-border-primary);
   color: var(--color-text-secondary);
   background: var(--color-bg-secondary);
   border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
@@ -199,7 +199,7 @@
 /* Code in markdown */
 .inlineCode {
   background: var(--color-bg-overlay);
-  padding: 1px 5px;
+  padding: var(--space-1);
   border-radius: var(--radius-sm);
   font-family: var(--font-mono);
   font-size: 0.9em;
@@ -214,7 +214,7 @@
   overflow-x: auto;
   font-family: var(--font-mono);
   font-size: var(--font-size-sm);
-  line-height: 1.5;
+  line-height: var(--line-height-base);
   margin-bottom: var(--space-3);
 }
 
@@ -265,7 +265,7 @@
 .mermaidLoading .mermaidRenderArea {
   color: var(--color-text-secondary);
   font-size: var(--font-size-sm);
-  min-height: 80px;
+  min-height: 5rem;
   align-items: center;
 }
 
@@ -310,8 +310,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 1.75rem;
+  height: 1.75rem;
   padding: 0;
   background: var(--color-bg-overlay);
   border: 1px solid var(--color-border-primary);

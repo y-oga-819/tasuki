@@ -34,14 +34,14 @@
   color: var(--color-text-secondary);
   font-size: var(--font-size-sm);
   flex-shrink: 0;
-  width: 14px;
+  width: 0.875rem;
   text-align: center;
 }
 
 /* Change type icon */
 .changeIcon {
-  width: 16px;
-  height: 16px;
+  width: 1rem;
+  height: 1rem;
   flex-shrink: 0;
 }
 
@@ -67,8 +67,8 @@
 
 /* Rename arrow */
 .renameArrow {
-  width: 16px;
-  height: 16px;
+  width: 1rem;
+  height: 1rem;
   flex-shrink: 0;
   color: var(--color-text-secondary);
 }
@@ -105,7 +105,7 @@
   font-size: var(--font-size-sm);
   color: var(--color-text-tertiary);
   background: var(--color-bg-overlay);
-  padding: 1px 6px;
+  padding: var(--space-1) var(--space-2);
   border-radius: var(--radius-sm);
 }
 
@@ -126,8 +126,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 22px;
-  height: 22px;
+  width: var(--interactive-min);
+  height: var(--interactive-min);
   border-radius: 50%;
   border: none;
   background: var(--color-btn-primary);
@@ -150,7 +150,7 @@
   background: var(--color-bg-tertiary);
   border: 1px solid var(--color-border-primary);
   border-radius: var(--radius-md);
-  border-left: 3px solid var(--color-comment);
+  border-left: var(--space-1) solid var(--color-comment);
   font-family: var(--font-sans);
 }
 
@@ -180,7 +180,7 @@
   color: var(--color-text-tertiary);
   cursor: pointer;
   font-size: var(--font-size-base);
-  padding: 0 2px;
+  padding: 0 var(--space-1);
   line-height: var(--line-height-tight);
 }
 
@@ -273,7 +273,7 @@
   font-size: var(--font-size-sm);
   padding: var(--space-2);
   resize: vertical;
-  min-height: 60px;
+  min-height: 3.75rem;
 }
 
 .formTextarea:focus {
