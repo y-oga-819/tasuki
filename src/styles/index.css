@@ -302,6 +302,8 @@ a:hover {
   background-color: var(--color-bg-secondary);
   overflow-y: auto;
   overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .sidebar-resize-handle {
@@ -437,6 +439,35 @@ a:hover {
   gap: var(--space-2);
   padding: var(--space-2) var(--space-3);
   font-size: var(--font-size-sm);
+}
+
+/* Changed Files section stretches to fill sidebar */
+.sidebar-section:last-child {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar-section:last-child > .section-collapse {
+  flex: 1;
+  min-height: 0;
+}
+
+.sidebar-section:last-child > .section-collapse > .section-collapse-inner {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.file-list-virtual-container {
+  flex: 1;
+  min-height: 0;
+  outline: none;
+}
+
+.file-list-virtual-container ul {
+  list-style: none;
 }
 
 .file-list {

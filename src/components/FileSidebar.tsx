@@ -1,4 +1,5 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { List, type RowComponentProps } from "react-window";
 import { useDisplayStore } from "../store/displayStore";
 import { useDiffStore } from "../store/diffStore";
 import { useDocStore } from "../store/docStore";
@@ -141,6 +142,31 @@ function buildPathTree(paths: string[]): FileTreeNode[] {
   return sortTreeNodes(root.children.map(collapseNode));
 }
 
+/** Flattened node for virtualized rendering */
+interface FlatNode {
+  node: FileTreeNode;
+  depth: number;
+}
+
+/** Flatten a tree into a linear array, skipping children of collapsed dirs */
+function flattenTree(
+  nodes: FileTreeNode[],
+  collapsedDirs: Set<string>,
+  depth = 0,
+): FlatNode[] {
+  const result: FlatNode[] = [];
+  for (const node of nodes) {
+    result.push({ node, depth });
+    if (node.isDir && !collapsedDirs.has(node.path)) {
+      result.push(...flattenTree(node.children, collapsedDirs, depth + 1));
+    }
+  }
+  return result;
+}
+
+const DIR_ROW_HEIGHT = 28;
+const FILE_ROW_HEIGHT = 32;
+
 interface FileSidebarProps {
   style?: React.CSSProperties;
 }
@@ -261,16 +287,39 @@ export const FileSidebar: React.FC<FileSidebarProps> = ({ style }) => {
     });
   }, []);
 
-  const renderTreeNode = (node: FileTreeNode, depth: number) => {
-    if (node.isDir) {
-      const isCollapsed = collapsedDirs.has(node.path);
-      return (
-        <React.Fragment key={node.path}>
+  // Virtualized file tree
+  const flatNodes = useMemo(
+    () => flattenTree(fileTree, collapsedDirs),
+    [fileTree, collapsedDirs],
+  );
+
+  const listContainerRef = useRef<HTMLDivElement>(null);
+  const [listHeight, setListHeight] = useState(300);
+
+  // Measure available height for virtual list
+  useEffect(() => {
+    const el = listContainerRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver((entries) => {
+      const h = entries[0]?.contentRect.height;
+      if (h && h > 0) setListHeight(h);
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  const TreeRow = useCallback(
+    ({ index, style: rowStyle }: RowComponentProps) => {
+      const { node, depth } = flatNodes[index];
+
+      if (node.isDir) {
+        const isCollapsed = collapsedDirs.has(node.path);
+        return (
           <li
             role="treeitem"
             aria-expanded={!isCollapsed}
             className="file-item tree-dir"
-            style={{ paddingLeft: `${depth * 12 + 12}px` }}
+            style={{ ...rowStyle, paddingLeft: `${depth * 12 + 12}px` }}
             onClick={() => toggleDir(node.path)}
           >
             <span className="tree-toggle">
@@ -281,78 +330,75 @@ export const FileSidebar: React.FC<FileSidebarProps> = ({ style }) => {
             </span>
             <span className="file-name">{node.name}</span>
           </li>
-          {!isCollapsed &&
-            node.children.map((child) =>
-              renderTreeNode(child, depth + 1),
-            )}
-        </React.Fragment>
-      );
-    }
+        );
+      }
 
-    const fd = node.fileDiff!;
-    const isGenCollapsed = collapsedFiles.has(fd.file.path);
-    const isGenerated = fd.file.is_generated;
-    const count = commentCount(fd.file.path);
+      const fd = node.fileDiff!;
+      const isGenCollapsed = collapsedFiles.has(fd.file.path);
+      const isGenerated = fd.file.is_generated;
+      const count = commentCount(fd.file.path);
 
-    return (
-      <li
-        key={fd.file.path}
-        role="treeitem"
-        aria-selected={selectedFile === fd.file.path}
-        className={`file-item ${selectedFile === fd.file.path ? "selected" : ""} ${isGenerated ? "generated" : ""}`}
-        style={{ paddingLeft: `${depth * 12 + 12}px` }}
-        onClick={() => {
-          if (isGenerated && isGenCollapsed) {
-            toggleFileCollapse(fd.file.path);
-          }
-          setSelectedFile(fd.file.path);
-        }}
-        title={fd.file.path}
-      >
-        <span
-          className="file-status"
-          style={{ color: getStatusColor(fd.file.status) }}
-        >
-          {getStatusLabel(fd.file.status)}
-        </span>
-        <span className="file-icon">{getFileIcon(node.name)}</span>
-        <span className="file-name">{node.name}</span>
-        <span className="file-changes">
-          {fd.file.additions > 0 && (
-            <span className="stat-added">+{fd.file.additions}</span>
-          )}
-          {fd.file.deletions > 0 && (
-            <span className="stat-deleted">-{fd.file.deletions}</span>
-          )}
-        </span>
-        {count > 0 && <span className="comment-badge">{count}</span>}
-        {isTauri && (
-          <button
-            className="open-in-zed-btn"
-            onClick={(e) => {
-              e.stopPropagation();
-              api.openInZed(fd.file.path).catch((err) => console.error("Failed to open in Zed:", err));
-            }}
-            title="Open in Zed"
-          >
-            ↗
-          </button>
-        )}
-        {isGenerated && (
-          <button
-            className="collapse-btn"
-            onClick={(e) => {
-              e.stopPropagation();
+      return (
+        <li
+          role="treeitem"
+          aria-selected={selectedFile === fd.file.path}
+          className={`file-item ${selectedFile === fd.file.path ? "selected" : ""} ${isGenerated ? "generated" : ""}`}
+          style={{ ...rowStyle, paddingLeft: `${depth * 12 + 12}px` }}
+          onClick={() => {
+            if (isGenerated && isGenCollapsed) {
               toggleFileCollapse(fd.file.path);
-            }}
-            title={isGenCollapsed ? "Expand" : "Collapse"}
+            }
+            setSelectedFile(fd.file.path);
+          }}
+          title={fd.file.path}
+        >
+          <span
+            className="file-status"
+            style={{ color: getStatusColor(fd.file.status) }}
           >
-            {isGenCollapsed ? "▶" : "▼"}
-          </button>
-        )}
-      </li>
-    );
-  };
+            {getStatusLabel(fd.file.status)}
+          </span>
+          <span className="file-icon">{getFileIcon(node.name)}</span>
+          <span className="file-name">{node.name}</span>
+          <span className="file-changes">
+            {fd.file.additions > 0 && (
+              <span className="stat-added">+{fd.file.additions}</span>
+            )}
+            {fd.file.deletions > 0 && (
+              <span className="stat-deleted">-{fd.file.deletions}</span>
+            )}
+          </span>
+          {count > 0 && <span className="comment-badge">{count}</span>}
+          {isTauri && (
+            <button
+              className="open-in-zed-btn"
+              onClick={(e) => {
+                e.stopPropagation();
+                api.openInZed(fd.file.path).catch((err) => console.error("Failed to open in Zed:", err));
+              }}
+              title="Open in Zed"
+            >
+              ↗
+            </button>
+          )}
+          {isGenerated && (
+            <button
+              className="collapse-btn"
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleFileCollapse(fd.file.path);
+              }}
+              title={isGenCollapsed ? "Expand" : "Collapse"}
+            >
+              {isGenCollapsed ? "▶" : "▼"}
+            </button>
+          )}
+        </li>
+      );
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [flatNodes, collapsedDirs, collapsedFiles, selectedFile, isTauri, threads],
+  );
 
   const renderDocTreeNode = (node: FileTreeNode, depth: number) => {
     if (node.isDir) {
@@ -667,9 +713,26 @@ export const FileSidebar: React.FC<FileSidebarProps> = ({ style }) => {
                   -{diffResult.stats.deletions}
                 </span>
               </div>
-              <ul className="file-list" role="tree" aria-label="Changed files" tabIndex={0} onKeyDown={handleKeyDown}>
-                {fileTree.map((node) => renderTreeNode(node, 0))}
-              </ul>
+              <div
+                ref={listContainerRef}
+                className="file-list-virtual-container"
+                role="tree"
+                aria-label="Changed files"
+                tabIndex={0}
+                onKeyDown={handleKeyDown}
+              >
+                <List
+                  style={{ overflow: "auto" }}
+                  rowComponent={TreeRow}
+                  rowCount={flatNodes.length}
+                  rowHeight={(index: number) =>
+                    flatNodes[index].node.isDir ? DIR_ROW_HEIGHT : FILE_ROW_HEIGHT
+                  }
+                  rowProps={{}}
+                  overscanCount={10}
+                  defaultHeight={listHeight}
+                />
+              </div>
             </div>
           </div>
         </div>
