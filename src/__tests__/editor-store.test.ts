@@ -6,6 +6,8 @@ beforeEach(() => {
   useEditorStore.setState({
     lineSelection: null,
     commentFormTarget: null,
+    searchQuery: "",
+    searchMatches: 0,
   });
 });
 
@@ -14,6 +16,8 @@ describe("useEditorStore", () => {
     const s = useEditorStore.getState();
     expect(s.lineSelection).toBeNull();
     expect(s.commentFormTarget).toBeNull();
+    expect(s.searchQuery).toBe("");
+    expect(s.searchMatches).toBe(0);
   });
 
   it("setLineSelection sets unified selection object", () => {
@@ -33,6 +37,18 @@ describe("useEditorStore", () => {
     useEditorStore.getState().setLineSelection(null);
     const s = useEditorStore.getState();
     expect(s.lineSelection).toBeNull();
+  });
+
+  it("setSearchQuery persists search state across calls", () => {
+    useEditorStore.getState().setSearchQuery("hello");
+    expect(useEditorStore.getState().searchQuery).toBe("hello");
+    useEditorStore.getState().setSearchQuery("");
+    expect(useEditorStore.getState().searchQuery).toBe("");
+  });
+
+  it("setSearchMatches updates match count", () => {
+    useEditorStore.getState().setSearchMatches(42);
+    expect(useEditorStore.getState().searchMatches).toBe(42);
   });
 
   it("setCommentFormTarget sets and clears target", () => {

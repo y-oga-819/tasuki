@@ -24,6 +24,12 @@ interface EditorState {
   // Comment form
   commentFormTarget: CommentFormTarget | null;
   setCommentFormTarget: (target: CommentFormTarget | null) => void;
+
+  // Diff search state (persists across file switches) [M7]
+  searchQuery: string;
+  setSearchQuery: (query: string) => void;
+  searchMatches: number;
+  setSearchMatches: (count: number) => void;
 }
 
 export const useEditorStore = create<EditorState>((set) => ({
@@ -35,4 +41,8 @@ export const useEditorStore = create<EditorState>((set) => ({
     }),
   commentFormTarget: null,
   setCommentFormTarget: (target) => set({ commentFormTarget: target }),
+  searchQuery: "",
+  setSearchQuery: (query) => set({ searchQuery: query }),
+  searchMatches: 0,
+  setSearchMatches: (count) => set({ searchMatches: count }),
 }));

@@ -8,6 +8,7 @@ beforeEach(() => {
     selectedDoc: null,
     docContent: null,
     docSource: "repo",
+    isDocLoading: false,
     externalFolders: [],
     externalDocs: {},
   });
@@ -21,6 +22,7 @@ describe("useDocStore", () => {
     expect(s.selectedDoc).toBeNull();
     expect(s.docContent).toBeNull();
     expect(s.docSource).toBe("repo");
+    expect(s.isDocLoading).toBe(false);
     expect(s.externalFolders).toEqual([]);
     expect(s.externalDocs).toEqual({});
   });
@@ -78,5 +80,12 @@ describe("useDocStore", () => {
   it("setExternalDocs sets files for a folder", () => {
     useDocStore.getState().setExternalDocs("/docs", ["a.md", "b.md"]);
     expect(useDocStore.getState().externalDocs).toEqual({ "/docs": ["a.md", "b.md"] });
+  });
+
+  it("setIsDocLoading toggles loading state", () => {
+    useDocStore.getState().setIsDocLoading(true);
+    expect(useDocStore.getState().isDocLoading).toBe(true);
+    useDocStore.getState().setIsDocLoading(false);
+    expect(useDocStore.getState().isDocLoading).toBe(false);
   });
 });

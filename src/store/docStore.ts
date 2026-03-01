@@ -15,6 +15,10 @@ interface DocState {
   docSource: "repo" | "design" | "external";
   setDocSource: (source: "repo" | "design" | "external") => void;
 
+  // Loading state
+  isDocLoading: boolean;
+  setIsDocLoading: (loading: boolean) => void;
+
   // External folders
   externalFolders: string[];
   addExternalFolder: (folder: string) => void;
@@ -35,6 +39,9 @@ export const useDocStore = create<DocState>((set) => ({
   setDocContent: (content) => set({ docContent: content }),
   docSource: "repo",
   setDocSource: (source) => set({ docSource: source }),
+
+  isDocLoading: false,
+  setIsDocLoading: (loading) => set({ isDocLoading: loading }),
 
   externalFolders: [],
   addExternalFolder: (folder) =>
