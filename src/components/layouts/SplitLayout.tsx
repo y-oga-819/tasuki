@@ -90,27 +90,44 @@ export const SplitLayout: React.FC = () => {
         className="split-right"
         style={{ flexBasis: `${(1 - splitRatio) * 100}%` }}
       >
-        <div className="right-pane-tabs">
+        <div className="right-pane-tabs" role="tablist" aria-label="Right pane">
           <button
+            role="tab"
+            id="tab-docs"
+            aria-selected={rightPaneMode === "docs"}
+            aria-controls="panel-docs"
             className={`right-pane-tab ${rightPaneMode === "docs" ? "active" : ""}`}
             onClick={() => setRightPaneMode("docs")}
           >
             Docs
           </button>
           <button
+            role="tab"
+            id="tab-terminal"
+            aria-selected={rightPaneMode === "terminal"}
+            aria-controls="panel-terminal"
             className={`right-pane-tab ${rightPaneMode === "terminal" ? "active" : ""}`}
             onClick={() => setRightPaneMode("terminal")}
           >
             Terminal
           </button>
           <button
+            role="tab"
+            id="tab-review"
+            aria-selected={rightPaneMode === "review"}
+            aria-controls="panel-review"
             className={`right-pane-tab ${rightPaneMode === "review" ? "active" : ""}`}
             onClick={() => setRightPaneMode("review")}
           >
             Review
           </button>
         </div>
-        <div className="right-pane-body">
+        <div
+          className="right-pane-body"
+          role="tabpanel"
+          id={`panel-${rightPaneMode}`}
+          aria-labelledby={`tab-${rightPaneMode}`}
+        >
           <Suspense fallback={<div className="loading-spinner">Loading...</div>}>
             {rightPaneMode === "docs" && <MarkdownViewer />}
             {rightPaneMode === "terminal" && <TerminalPanel visible />}

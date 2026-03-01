@@ -257,6 +257,8 @@ export const FileSidebar: React.FC<FileSidebarProps> = ({ style }) => {
       return (
         <React.Fragment key={node.path}>
           <li
+            role="treeitem"
+            aria-expanded={!isCollapsed}
             className="file-item tree-dir"
             style={{ paddingLeft: `${depth * 12 + 12}px` }}
             onClick={() => toggleDir(node.path)}
@@ -285,6 +287,8 @@ export const FileSidebar: React.FC<FileSidebarProps> = ({ style }) => {
     return (
       <li
         key={fd.file.path}
+        role="treeitem"
+        aria-selected={selectedFile === fd.file.path}
         className={`file-item ${selectedFile === fd.file.path ? "selected" : ""} ${isGenerated ? "generated" : ""}`}
         style={{ paddingLeft: `${depth * 12 + 12}px` }}
         onClick={() => {
@@ -346,6 +350,8 @@ export const FileSidebar: React.FC<FileSidebarProps> = ({ style }) => {
       return (
         <React.Fragment key={node.path}>
           <li
+            role="treeitem"
+            aria-expanded={!isCollapsed}
             className="file-item tree-dir"
             style={{ paddingLeft: `${depth * 12 + 12}px` }}
             onClick={() => toggleDir(node.path)}
@@ -369,6 +375,8 @@ export const FileSidebar: React.FC<FileSidebarProps> = ({ style }) => {
     return (
       <li
         key={node.path}
+        role="treeitem"
+        aria-selected={selectedDoc === node.path}
         className={`file-item ${selectedDoc === node.path ? "selected" : ""}`}
         style={{ paddingLeft: `${depth * 12 + 12}px` }}
         onClick={() => {
@@ -389,6 +397,8 @@ export const FileSidebar: React.FC<FileSidebarProps> = ({ style }) => {
       return (
         <React.Fragment key={`design:${node.path}`}>
           <li
+            role="treeitem"
+            aria-expanded={!isCollapsed}
             className="file-item tree-dir"
             style={{ paddingLeft: `${depth * 12 + 12}px` }}
             onClick={() => toggleDir(`design:${node.path}`)}
@@ -413,6 +423,8 @@ export const FileSidebar: React.FC<FileSidebarProps> = ({ style }) => {
     return (
       <li
         key={docId}
+        role="treeitem"
+        aria-selected={selectedDoc === docId}
         className={`file-item ${selectedDoc === docId ? "selected" : ""}`}
         style={{ paddingLeft: `${depth * 12 + 12}px` }}
         onClick={() => {
@@ -434,6 +446,8 @@ export const FileSidebar: React.FC<FileSidebarProps> = ({ style }) => {
       return (
         <React.Fragment key={key}>
           <li
+            role="treeitem"
+            aria-expanded={!isCollapsed}
             className="file-item tree-dir"
             style={{ paddingLeft: `${depth * 12 + 12}px` }}
             onClick={() => toggleDir(key)}
@@ -458,6 +472,8 @@ export const FileSidebar: React.FC<FileSidebarProps> = ({ style }) => {
     return (
       <li
         key={docId}
+        role="treeitem"
+        aria-selected={selectedDoc === docId}
         className={`file-item ${selectedDoc === docId ? "selected" : ""}`}
         style={{ paddingLeft: `${depth * 12 + 12}px` }}
         onClick={() => {
@@ -484,7 +500,7 @@ export const FileSidebar: React.FC<FileSidebarProps> = ({ style }) => {
   );
 
   return (
-    <aside className="file-sidebar" style={style}>
+    <aside className="file-sidebar" style={style} aria-label="File browser">
       {showDocFiles && (
         <div className="sidebar-section add-folder-section">
           <button
@@ -533,7 +549,7 @@ export const FileSidebar: React.FC<FileSidebarProps> = ({ style }) => {
                 {tree.length === 0 ? (
                   <p className="sidebar-empty-hint">No .md files found</p>
                 ) : (
-                  <ul className="file-list">
+                  <ul className="file-list" role="tree" aria-label={folderName}>
                     {tree.map((node) =>
                       renderExternalDocTreeNode(folder, node, 0),
                     )}
@@ -560,7 +576,7 @@ export const FileSidebar: React.FC<FileSidebarProps> = ({ style }) => {
             className={`section-collapse ${collapsedSections.has("documents") ? "collapsed" : ""}`}
           >
             <div className="section-collapse-inner">
-              <ul className="file-list">
+              <ul className="file-list" role="tree" aria-label="Documents">
                 {docTree.map((node) => renderDocTreeNode(node, 0))}
               </ul>
             </div>
@@ -583,7 +599,7 @@ export const FileSidebar: React.FC<FileSidebarProps> = ({ style }) => {
             className={`section-collapse ${collapsedSections.has("design-docs") ? "collapsed" : ""}`}
           >
             <div className="section-collapse-inner">
-              <ul className="file-list">
+              <ul className="file-list" role="tree" aria-label="Design docs">
                 {designDocTree.map((node) =>
                   renderDesignDocTreeNode(node, 0),
                 )}
@@ -617,7 +633,7 @@ export const FileSidebar: React.FC<FileSidebarProps> = ({ style }) => {
                   -{diffResult.stats.deletions}
                 </span>
               </div>
-              <ul className="file-list" tabIndex={0} onKeyDown={handleKeyDown}>
+              <ul className="file-list" role="tree" aria-label="Changed files" tabIndex={0} onKeyDown={handleKeyDown}>
                 {fileTree.map((node) => renderTreeNode(node, 0))}
               </ul>
             </div>
