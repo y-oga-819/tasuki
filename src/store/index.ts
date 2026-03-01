@@ -4,17 +4,21 @@
  * Import directly from the domain stores:
  *   import { useDisplayStore } from "../store/displayStore";
  *   import { useDiffStore }    from "../store/diffStore";
+ *   import { useDocStore }     from "../store/docStore";
+ *   import { useEditorStore }  from "../store/editorStore";
  *   import { useReviewStore }  from "../store/reviewStore";
  */
 
 import { useDisplayStore } from "./displayStore";
 import { useDiffStore } from "./diffStore";
+import { useDocStore } from "./docStore";
+import { useEditorStore } from "./editorStore";
 import { useReviewStore } from "./reviewStore";
 
-export { useDisplayStore, useDiffStore, useReviewStore };
+export { useDisplayStore, useDiffStore, useDocStore, useEditorStore, useReviewStore };
 
 // Re-export types previously exported from this module
-export type { CommentFormTarget } from "./diffStore";
+export type { CommentFormTarget } from "./editorStore";
 export type { DiffOverflow } from "./displayStore";
 
 // Expose a combined proxy for e2e tests in development mode.
@@ -25,6 +29,8 @@ if (import.meta.env.DEV && typeof window !== "undefined") {
     getState: () => ({
       ...useDisplayStore.getState(),
       ...useDiffStore.getState(),
+      ...useDocStore.getState(),
+      ...useEditorStore.getState(),
       ...useReviewStore.getState(),
     }),
   };

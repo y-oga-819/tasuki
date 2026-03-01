@@ -12,8 +12,9 @@ import type {
 import { getFiletypeFromFileName, cleanLastNewline } from "@pierre/diffs";
 import { useDisplayStore } from "../store/displayStore";
 import { useDiffStore } from "../store/diffStore";
+import { useEditorStore } from "../store/editorStore";
 import { useReviewStore } from "../store/reviewStore";
-import type { CommentFormTarget } from "../store/diffStore";
+import type { CommentFormTarget } from "../store/editorStore";
 
 const isMac =
   typeof navigator !== "undefined" && navigator.platform.includes("Mac");
@@ -65,15 +66,14 @@ interface DiffViewerProps {
 
 export const DiffViewer: React.FC<DiffViewerProps> = ({ fileDiff }) => {
   const { diffLayout, diffOverflow, expandUnchanged } = useDisplayStore();
+  const { collapsedFiles, toggleFileCollapse } = useDiffStore();
   const {
-    collapsedFiles,
-    toggleFileCollapse,
     selectedLineRange,
     selectedLineFile,
     setSelectedLineRange,
     commentFormTarget,
     setCommentFormTarget,
-  } = useDiffStore();
+  } = useEditorStore();
 
   const filePath = fileDiff.file.path;
 

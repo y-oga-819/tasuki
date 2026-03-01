@@ -5,6 +5,7 @@ import { FileSidebar } from "./components/FileSidebar";
 import { MainContent } from "./components/MainContent";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { useDiffStore } from "./store/diffStore";
+import { useDocStore } from "./store/docStore";
 import { useReviewStore } from "./store/reviewStore";
 import { useDiff } from "./hooks/useDiff";
 import { useFileWatcher } from "./hooks/useFileWatcher";
@@ -18,7 +19,8 @@ const MIN_SIDEBAR_WIDTH = 160;
 const MAX_SIDEBAR_WIDTH = 500;
 
 const App: React.FC = () => {
-  const { setRepoPath, setRepoInfo, setDocFiles, setDesignDocs, setSelectedDoc } = useDiffStore();
+  const { setRepoPath, setRepoInfo } = useDiffStore();
+  const { setDocFiles, setDesignDocs, setSelectedDoc } = useDocStore();
   const { gateStatus, setGateStatus, setVerdict } = useReviewStore();
   const { refetch } = useDiff();
 

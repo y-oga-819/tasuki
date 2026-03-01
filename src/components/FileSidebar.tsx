@@ -1,6 +1,7 @@
 import React, { useCallback, useMemo, useState } from "react";
 import { useDisplayStore } from "../store/displayStore";
 import { useDiffStore } from "../store/diffStore";
+import { useDocStore } from "../store/docStore";
 import { useReviewStore } from "../store/reviewStore";
 import type { FileDiff } from "../types";
 import { getStatusColor, getStatusLabel } from "../utils/diff-utils";
@@ -152,6 +153,8 @@ export const FileSidebar: React.FC<FileSidebarProps> = ({ style }) => {
     setSelectedFile,
     collapsedFiles,
     toggleFileCollapse,
+  } = useDiffStore();
+  const {
     docFiles,
     selectedDoc,
     setSelectedDoc,
@@ -162,7 +165,7 @@ export const FileSidebar: React.FC<FileSidebarProps> = ({ style }) => {
     removeExternalFolder,
     externalDocs,
     setExternalDocs,
-  } = useDiffStore();
+  } = useDocStore();
   const { threads } = useReviewStore();
 
   const isTauri = typeof window !== "undefined" && "__TAURI__" in window;
