@@ -64,8 +64,7 @@ interface DiffViewerProps {
   fileDiff: FileDiff;
 }
 
-export const DiffViewer: React.FC<DiffViewerProps> = ({ fileDiff }) => {
-  const { diffLayout, diffOverflow, expandUnchanged } = useUiStore();
+export const DiffViewer = React.memo<DiffViewerProps>(function DiffViewer({ fileDiff }) {
   const { collapsedFiles, toggleFileCollapse } = useDiffStore();
   const {
     lineSelection,
@@ -83,9 +82,6 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({ fileDiff }) => {
   const addThread = useReviewStore((s) => s.addThread);
 
   const isCollapsed = collapsedFiles.has(filePath);
-
-  // DiffLayout now uses Pierre-native naming directly
-  const diffStyle = diffLayout;
 
   // Detect language via Pierre's built-in detection
   const lang = useMemo(
@@ -122,27 +118,10 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({ fileDiff }) => {
   );
 
   // --- Build annotations: saved threads + active form ---
-  const lineAnnotations = useMemo(() => {
-    const annotations: DiffLineAnnotation<AnnotationMeta>[] = [];
-
-    for (const thread of fileThreads) {
-      annotations.push({
-        side: "additions",
-        lineNumber: thread.root.line_end,
-        metadata: { kind: "comment", thread },
-      });
-    }
-
-    if (commentFormTarget && commentFormTarget.filePath === filePath) {
-      annotations.push({
-        side: commentFormTarget.side,
-        lineNumber: commentFormTarget.lineNumber,
-        metadata: { kind: "form", target: commentFormTarget },
-      });
-    }
-
-    return annotations;
-  }, [fileThreads, commentFormTarget, filePath]);
+  const lineAnnotations = useMemo(
+    () => buildAnnotations(fileThreads, commentFormTarget, filePath),
+    [fileThreads, commentFormTarget, filePath],
+  );
 
   // --- Line selection handling ---
   const handleLineSelected = useCallback(
@@ -256,24 +235,8 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({ fileDiff }) => {
     return null;
   }, [lineSelection, commentFormTarget, filePath]);
 
-  // --- Shared Pierre options ---
-  const options = useMemo<FileDiffOptions<AnnotationMeta>>(
-    () => ({
-      diffStyle,
-      theme: { dark: "github-dark", light: "github-light" },
-      themeType: "dark",
-      disableFileHeader: true,
-      enableLineSelection: true,
-      onLineSelected: handleLineSelected,
-      enableHoverUtility: true,
-      expandUnchanged,
-      diffIndicators: "bars",
-      lineDiffType: "word-alt",
-      overflow: diffOverflow,
-      hunkSeparators: "metadata",
-    }),
-    [diffStyle, diffOverflow, expandUnchanged, handleLineSelected],
-  );
+  // --- Shared Pierre options (UI-only deps, stable across comment changes) ---
+  const options = usePierreOptions(handleLineSelected);
 
   // Shared render props
   const sharedProps = {
@@ -341,7 +304,7 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({ fileDiff }) => {
               theme: { dark: "github-dark", light: "github-light" },
               themeType: "dark",
               disableFileHeader: true,
-              overflow: diffOverflow,
+              overflow: options.overflow,
             }}
             selectedLines={selectedLines}
           />
@@ -377,10 +340,61 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({ fileDiff }) => {
       )}
     </div>
   );
-};
+});
 
 // --- Empty array singleton ---
 const EMPTY_THREADS: ReviewThread[] = [];
+
+// --- Pure function: build annotations from threads + active form ---
+function buildAnnotations(
+  fileThreads: ReviewThread[],
+  commentFormTarget: CommentFormTarget | null,
+  filePath: string,
+): DiffLineAnnotation<AnnotationMeta>[] {
+  const annotations: DiffLineAnnotation<AnnotationMeta>[] = [];
+
+  for (const thread of fileThreads) {
+    annotations.push({
+      side: "additions",
+      lineNumber: thread.root.line_end,
+      metadata: { kind: "comment", thread },
+    });
+  }
+
+  if (commentFormTarget && commentFormTarget.filePath === filePath) {
+    annotations.push({
+      side: commentFormTarget.side,
+      lineNumber: commentFormTarget.lineNumber,
+      metadata: { kind: "form", target: commentFormTarget },
+    });
+  }
+
+  return annotations;
+}
+
+// --- Hook: Pierre options with UI-only dependencies ---
+function usePierreOptions(
+  onLineSelected: (range: SelectedLineRange | null) => void,
+): FileDiffOptions<AnnotationMeta> {
+  const diffStyle = useUiStore((s) => s.diffLayout);
+  const overflow = useUiStore((s) => s.diffOverflow);
+  const expandUnchanged = useUiStore((s) => s.expandUnchanged);
+
+  return useMemo(() => ({
+    diffStyle,
+    theme: { dark: "github-dark", light: "github-light" },
+    themeType: "dark",
+    disableFileHeader: true,
+    enableLineSelection: true,
+    onLineSelected,
+    enableHoverUtility: true,
+    expandUnchanged,
+    diffIndicators: "bars",
+    lineDiffType: "word-alt",
+    overflow,
+    hunkSeparators: "metadata",
+  }), [diffStyle, overflow, expandUnchanged, onLineSelected]);
+}
 
 // --- Sub-components ---
 
