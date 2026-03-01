@@ -1,0 +1,73 @@
+name: Version Bump
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version (e.g. 0.2.0) — without 'v' prefix"
+        required: true
+        type: string
+
+concurrency:
+  group: version-bump
+  cancel-in-progress: false
+
+jobs:
+  bump:
+    name: Bump version & tag
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Validate version format
+        run: |
+          if [[ ! "${{ inputs.version }}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Invalid version format '${{ inputs.version }}'. Expected semver like '1.2.3'"
+            exit 1
+          fi
+
+      - uses: actions/checkout@v4
+        with:
+          # Fetch full history so we can push back to the branch
+          fetch-depth: 0
+
+      - name: Check tag does not already exist
+        run: |
+          if git rev-parse "v${{ inputs.version }}" >/dev/null 2>&1; then
+            echo "::error::Tag v${{ inputs.version }} already exists"
+            exit 1
+          fi
+
+      - name: Update package.json
+        run: |
+          jq --arg v "${{ inputs.version }}" '.version = $v' package.json > package.json.tmp
+          mv package.json.tmp package.json
+
+      - name: Update src-tauri/tauri.conf.json
+        run: |
+          jq --arg v "${{ inputs.version }}" '.version = $v' src-tauri/tauri.conf.json > tauri.conf.json.tmp
+          mv tauri.conf.json.tmp src-tauri/tauri.conf.json
+
+      - name: Update src-tauri/Cargo.toml
+        run: |
+          sed -i 's/^version = ".*"/version = "${{ inputs.version }}"/' src-tauri/Cargo.toml
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+
+      - name: Update lock files
+        run: npm install --package-lock-only
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Commit, tag & push
+        run: |
+          git add package.json package-lock.json src-tauri/Cargo.toml src-tauri/tauri.conf.json
+          git commit -m "chore: bump version to ${{ inputs.version }}"
+          git tag "v${{ inputs.version }}"
+          git push origin HEAD "v${{ inputs.version }}"
