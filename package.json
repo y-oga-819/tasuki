@@ -1,6 +1,6 @@
 {
   "name": "tasuki",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "Tasuki — A review assistant tool where Claude Code and humans pass the tasuki (sash) to reach the goal together",
   "license": "MIT",
   "repository": {
