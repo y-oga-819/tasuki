@@ -148,12 +148,12 @@ jobs:
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Signing identity only — certificate is already in keychain from above
-          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
-          # Apple notarization (optional — skip to produce un-notarized builds)
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          # Ad-hoc signing (-) when no developer identity is configured
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY || '-' }}
+          # Apple notarization (only when full signing is configured)
+          APPLE_ID: ${{ secrets.APPLE_SIGNING_IDENTITY && secrets.APPLE_ID || '' }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_SIGNING_IDENTITY && secrets.APPLE_PASSWORD || '' }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_SIGNING_IDENTITY && secrets.APPLE_TEAM_ID || '' }}
         with:
           tagName: ${{ inputs.tag }}
           releaseName: "Tasuki ${{ inputs.tag }}"
