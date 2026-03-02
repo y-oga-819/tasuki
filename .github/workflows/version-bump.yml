@@ -98,4 +98,5 @@ jobs:
           git add package.json package-lock.json src-tauri/Cargo.toml src-tauri/tauri.conf.json
           git commit -m "chore: bump version to $NEXT [skip ci]"
           git tag "v$NEXT"
-          git push origin HEAD "v$NEXT"
+          git push origin HEAD
+          git push origin "v$NEXT"
