@@ -13,6 +13,9 @@ concurrency:
 jobs:
   frontend:
     name: Frontend (Lint + Vitest)
+    if: >-
+      github.event_name == 'pull_request' ||
+      !startsWith(github.event.head_commit.message, 'release: bump version')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -26,6 +29,9 @@ jobs:
 
   rust:
     name: Rust Tests
+    if: >-
+      github.event_name == 'pull_request' ||
+      !startsWith(github.event.head_commit.message, 'release: bump version')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -48,6 +54,9 @@ jobs:
 
   e2e:
     name: E2E (Playwright)
+    if: >-
+      github.event_name == 'pull_request' ||
+      !startsWith(github.event.head_commit.message, 'release: bump version')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6

@@ -96,7 +96,7 @@ jobs:
           NEXT: ${{ steps.version.outputs.next }}
         run: |
           git add package.json package-lock.json src-tauri/Cargo.toml src-tauri/tauri.conf.json
-          git commit -m "chore: bump version to $NEXT [skip ci]"
+          git commit -m "release: bump version to $NEXT"
           git tag "v$NEXT"
           git push origin HEAD
           git push origin "v$NEXT"
