@@ -1,5 +1,11 @@
 # Tasuki（襷）
 
+[![CI](https://github.com/y-oga-819/tasuki/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/y-oga-819/tasuki/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/y-oga-819/tasuki)](https://github.com/y-oga-819/tasuki/releases/latest)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Platform: macOS](https://img.shields.io/badge/platform-macOS-lightgrey.svg)]()
+[![Node.js](https://img.shields.io/badge/node-%3E%3D20-brightgreen.svg)]()
+
 A review assistant tool where Claude Code and humans pass the *tasuki* (relay sash) to reach the goal together.
 
 [日本語版 / Japanese](#日本語)
