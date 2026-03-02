@@ -74,19 +74,9 @@ jobs:
       - run: npm test
 
   build-mac:
-    name: Build macOS (${{ matrix.arch }})
+    name: Build macOS (arm64)
     needs: test
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - arch: arm64
-            target: aarch64-apple-darwin
-            runner: macos-14
-          - arch: x64
-            target: x86_64-apple-darwin
-            runner: macos-15-intel
-    runs-on: ${{ matrix.runner }}
+    runs-on: macos-14
     permissions:
       contents: write
     steps:
@@ -103,12 +93,11 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.target }}
+          targets: aarch64-apple-darwin
 
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri -> target
-          key: ${{ matrix.target }}
 
       # Import certificate manually to work around macOS 14+ keychain API changes.
       # The Tauri CLI's built-in import uses flags incompatible with newer macOS.
@@ -164,10 +153,9 @@ jobs:
 
             ## Downloads
 
-            | Platform | Architecture | File |
-            |----------|-------------|------|
-            | macOS | Apple Silicon (arm64) | `.dmg` |
-            | macOS | Intel (x64) | `.dmg` |
+            | Platform | File |
+            |----------|------|
+            | macOS (Apple Silicon / Intel via Rosetta 2) | `.dmg` |
           releaseDraft: true
           prerelease: false
-          args: --target ${{ matrix.target }}
+          args: --target aarch64-apple-darwin
