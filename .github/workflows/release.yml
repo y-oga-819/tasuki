@@ -145,15 +145,50 @@ jobs:
           security list-keychain -d user -s "$KEYCHAIN_PATH"
           rm -f "$CERTIFICATE_PATH"
 
+      - name: Check signing configuration
+        id: signing
+        run: |
+          if [ -n "$IDENTITY" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "⚠️ No signing identity configured — using ad-hoc signing"
+          fi
+        env:
+          IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+
+      # Signed + notarized build (when Apple Developer identity is configured)
       - uses: tauri-apps/tauri-action@v0
+        if: steps.signing.outputs.enabled == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Ad-hoc signing (-) when no developer identity is configured
-          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY || '-' }}
-          # Apple notarization (only when full signing is configured)
-          APPLE_ID: ${{ secrets.APPLE_SIGNING_IDENTITY && secrets.APPLE_ID || '' }}
-          APPLE_PASSWORD: ${{ secrets.APPLE_SIGNING_IDENTITY && secrets.APPLE_PASSWORD || '' }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_SIGNING_IDENTITY && secrets.APPLE_TEAM_ID || '' }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        with:
+          tagName: ${{ inputs.tag }}
+          releaseName: "Tasuki ${{ inputs.tag }}"
+          releaseBody: |
+            ## What's Changed
+
+            See the full changelog: https://github.com/${{ github.repository }}/compare/.../${{ inputs.tag }}
+
+            ## Downloads
+
+            | Platform | File |
+            |----------|------|
+            | macOS (Apple Silicon / Intel via Rosetta 2) | `.dmg` |
+          releaseDraft: true
+          prerelease: false
+          args: --target aarch64-apple-darwin
+
+      # Ad-hoc signed build (no Apple Developer account required)
+      - uses: tauri-apps/tauri-action@v0
+        if: steps.signing.outputs.enabled != 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          APPLE_SIGNING_IDENTITY: "-"
         with:
           tagName: ${{ inputs.tag }}
           releaseName: "Tasuki ${{ inputs.tag }}"
