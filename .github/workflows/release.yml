@@ -1,12 +1,15 @@
 name: Release
 
 on:
-  push:
-    tags:
-      - "v[0-9]*"
+  workflow_call:
+    inputs:
+      tag:
+        description: "Tag name (e.g. v0.1.4)"
+        required: true
+        type: string
 
 concurrency:
-  group: release-${{ github.ref }}
+  group: release-${{ inputs.tag }}
   cancel-in-progress: true
 
 jobs:
@@ -27,9 +30,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.tag }}
       - name: Check versions match tag
+        env:
+          TAG_NAME: ${{ inputs.tag }}
         run: |
-          TAG="${GITHUB_REF_NAME#v}"
+          TAG="${TAG_NAME#v}"
           PKG=$(jq -r '.version' package.json)
           TAURI=$(jq -r '.version' src-tauri/tauri.conf.json)
           CARGO=$(sed -n 's/^version = "\(.*\)"/\1/p' src-tauri/Cargo.toml | head -1)
@@ -65,6 +72,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.tag }}
       - uses: actions/setup-node@v6
         with:
           node-version-file: .node-version
@@ -81,6 +90,8 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.tag }}
 
       - uses: actions/setup-node@v6
         with:
@@ -144,12 +155,12 @@ jobs:
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         with:
-          tagName: ${{ github.ref_name }}
-          releaseName: "Tasuki ${{ github.ref_name }}"
+          tagName: ${{ inputs.tag }}
+          releaseName: "Tasuki ${{ inputs.tag }}"
           releaseBody: |
             ## What's Changed
 
-            See the full changelog: https://github.com/${{ github.repository }}/compare/.../${{ github.ref_name }}
+            See the full changelog: https://github.com/${{ github.repository }}/compare/.../${{ inputs.tag }}
 
             ## Downloads
 
