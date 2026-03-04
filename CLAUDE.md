@@ -133,5 +133,5 @@
 - diff描画は `@pierre/diffs` が Shadow DOM 内で行う。Playwright からは CSS セレクタで pierce 可能だが、hover イベントは Shadow DOM に阻まれるため、E2E テストでは `openCommentForm()` でストア経由で操作する
 - E2E テストは `localhost:1420` の開発サーバーに接続する。`reuseExistingServer: true` なので事前に `npm run dev` を起動しておくと速い
 - Tauri 環境外（`npm run dev` のブラウザ開発時）では `tauri-api.ts` がモックデータを返す。新しいコマンドを追加した場合は `mockInvoke` にもケースを追加すること
-- レビューセッションは `.tasuki/reviews/` に永続化される。コミットゲートは `/tmp/tasuki/{repo}/{branch}/review.json` に書き込まれる
+- レビューセッションは `/tmp/tasuki/{repo}/reviews/` に永続化される。コミットゲートは `/tmp/tasuki/{repo}/{branch}/review.json` に書き込まれる
 - 設計書は `~/.claude/designs/{repo-name}/` から読み取られる。パストラバーサル防止のバリデーションあり

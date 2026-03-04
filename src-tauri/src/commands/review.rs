@@ -4,6 +4,7 @@ use std::path::PathBuf;
 use tauri::State;
 
 use crate::error::TasukiError;
+use crate::git;
 use crate::state::AppState;
 
 /// Validated source type for review sessions
@@ -29,11 +30,11 @@ impl SourceType {
     }
 }
 
-/// Build the path for a review session file
-fn review_file_path(repo_path: &str, head_sha: &str, source_type: &SourceType) -> PathBuf {
+/// Build the path for a review session file: /tmp/tasuki/{repo}/reviews/{sha}_{type}.json
+fn review_file_path(repo_name: &str, head_sha: &str, source_type: &SourceType) -> PathBuf {
     let short_sha = &head_sha[..head_sha.len().min(8)];
-    PathBuf::from(repo_path)
-        .join(".tasuki")
+    PathBuf::from("/tmp/tasuki")
+        .join(repo_name)
         .join("reviews")
         .join(format!("{}_{}.json", short_sha, source_type.as_str()))
 }
@@ -47,8 +48,9 @@ pub async fn save_review(
     json_data: String,
 ) -> Result<(), TasukiError> {
     let repo_path = state.repo_path.clone();
+    let repo_name = git::get_repo_info(&repo_path)?.repo_name;
     tokio::task::spawn_blocking(move || {
-        let path = review_file_path(&repo_path, &head_sha, &source_type);
+        let path = review_file_path(&repo_name, &head_sha, &source_type);
 
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent)
@@ -72,8 +74,9 @@ pub async fn load_review(
     source_type: SourceType,
 ) -> Result<Option<String>, TasukiError> {
     let repo_path = state.repo_path.clone();
+    let repo_name = git::get_repo_info(&repo_path)?.repo_name;
     tokio::task::spawn_blocking(move || {
-        let path = review_file_path(&repo_path, &head_sha, &source_type);
+        let path = review_file_path(&repo_name, &head_sha, &source_type);
 
         if !path.exists() {
             return Ok(None);

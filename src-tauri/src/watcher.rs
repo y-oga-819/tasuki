@@ -32,7 +32,6 @@ const IGNORE_PATTERNS: &[&str] = &[
     "node_modules",
     "target",
     "dist",
-    ".tasuki/reviews",
     "__pycache__",
     ".next",
     ".nuxt",
