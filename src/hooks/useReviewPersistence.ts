@@ -22,7 +22,7 @@ function sourceTypeKey(source: DiffSource): string {
 }
 
 /**
- * Hook that persists review threads to .tasuki/reviews/ and
+ * Hook that persists review threads to /tmp/tasuki/{repo}/reviews/ and
  * restores them on app startup based on HEAD SHA + diff hash.
  */
 export function useReviewPersistence() {
