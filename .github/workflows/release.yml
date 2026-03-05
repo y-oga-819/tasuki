@@ -82,126 +82,44 @@ jobs:
       - run: npm run lint
       - run: npm test
 
-  build-mac:
-    name: Build macOS (arm64)
+  create-release:
+    name: Create GitHub Release
     needs: test
-    runs-on: macos-14
+    runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v6
         with:
           ref: ${{ inputs.tag }}
+          fetch-depth: 0
 
-      - uses: actions/setup-node@v6
-        with:
-          node-version-file: .node-version
-          cache: npm
-
-      - run: npm install -g pnpm
-
-      - run: npm ci
-
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: aarch64-apple-darwin
-
-      - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: src-tauri -> target
-
-      # Import certificate manually to work around macOS 14+ keychain API changes.
-      # The Tauri CLI's built-in import uses flags incompatible with newer macOS.
-      - name: Import Apple certificate
+      - name: Generate release notes
+        id: notes
         env:
-          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG_NAME: ${{ inputs.tag }}
         run: |
-          if [ -z "$APPLE_CERTIFICATE" ]; then
-            echo "No Apple certificate configured — build will be unsigned"
-            exit 0
+          PREV_TAG=$(git describe --tags --abbrev=0 "${TAG_NAME}^" 2>/dev/null || echo "")
+          if [ -n "$PREV_TAG" ]; then
+            echo "prev_tag=$PREV_TAG" >> "$GITHUB_OUTPUT"
           fi
 
-          CERTIFICATE_PATH="$RUNNER_TEMP/build_certificate.p12"
-          KEYCHAIN_PATH="$RUNNER_TEMP/app-signing.keychain-db"
-          KEYCHAIN_PASSWORD="$(openssl rand -hex 32)"
-
-          echo "$APPLE_CERTIFICATE" | base64 --decode > "$CERTIFICATE_PATH"
-
-          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
-          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-
-          security import "$CERTIFICATE_PATH" \
-            -P "$APPLE_CERTIFICATE_PASSWORD" \
-            -T /usr/bin/codesign \
-            -T /usr/bin/security \
-            -f pkcs12 \
-            -k "$KEYCHAIN_PATH"
-
-          security set-key-partition-list -S apple-tool:,apple: \
-            -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-
-          security list-keychain -d user -s "$KEYCHAIN_PATH"
-          rm -f "$CERTIFICATE_PATH"
-
-      - name: Check signing configuration
-        id: signing
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG_NAME: ${{ inputs.tag }}
+          PREV_TAG: ${{ steps.notes.outputs.prev_tag }}
         run: |
-          if [ -n "$IDENTITY" ]; then
-            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          if [ -n "$PREV_TAG" ]; then
+            gh release create "$TAG_NAME" \
+              --title "Tasuki $TAG_NAME" \
+              --generate-notes \
+              --notes-start-tag "$PREV_TAG" \
+              --draft
           else
-            echo "enabled=false" >> "$GITHUB_OUTPUT"
-            echo "⚠️ No signing identity configured — using ad-hoc signing"
+            gh release create "$TAG_NAME" \
+              --title "Tasuki $TAG_NAME" \
+              --generate-notes \
+              --draft
           fi
-        env:
-          IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
-
-      # Signed + notarized build (when Apple Developer identity is configured)
-      - uses: tauri-apps/tauri-action@v0
-        if: steps.signing.outputs.enabled == 'true'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        with:
-          tagName: ${{ inputs.tag }}
-          releaseName: "Tasuki ${{ inputs.tag }}"
-          releaseBody: |
-            ## What's Changed
-
-            See the full changelog: https://github.com/${{ github.repository }}/compare/.../${{ inputs.tag }}
-
-            ## Downloads
-
-            | Platform | File |
-            |----------|------|
-            | macOS (Apple Silicon / Intel via Rosetta 2) | `.dmg` |
-          releaseDraft: true
-          prerelease: false
-          args: --target aarch64-apple-darwin
-
-      # Ad-hoc signed build (no Apple Developer account required)
-      - uses: tauri-apps/tauri-action@v0
-        if: steps.signing.outputs.enabled != 'true'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          APPLE_SIGNING_IDENTITY: "-"
-        with:
-          tagName: ${{ inputs.tag }}
-          releaseName: "Tasuki ${{ inputs.tag }}"
-          releaseBody: |
-            ## What's Changed
-
-            See the full changelog: https://github.com/${{ github.repository }}/compare/.../${{ inputs.tag }}
-
-            ## Downloads
-
-            | Platform | File |
-            |----------|------|
-            | macOS (Apple Silicon / Intel via Rosetta 2) | `.dmg` |
-          releaseDraft: true
-          prerelease: false
-          args: --target aarch64-apple-darwin
