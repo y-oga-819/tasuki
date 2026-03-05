@@ -62,6 +62,8 @@ pub fn run() {
             commands::get_repo_info,
             commands::list_design_docs,
             commands::read_design_doc,
+            commands::list_review_docs,
+            commands::read_review_doc,
             commands::write_commit_gate,
             commands::read_commit_gate,
             commands::clear_commit_gate,

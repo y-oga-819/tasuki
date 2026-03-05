@@ -6,14 +6,16 @@ interface DocState {
   setDocFiles: (files: string[]) => void;
   designDocs: string[];
   setDesignDocs: (docs: string[]) => void;
+  reviewDocs: string[];
+  setReviewDocs: (docs: string[]) => void;
 
   // Selected document
   selectedDoc: string | null;
   setSelectedDoc: (path: string | null) => void;
   docContent: string | null;
   setDocContent: (content: string | null) => void;
-  docSource: "repo" | "design" | "external";
-  setDocSource: (source: "repo" | "design" | "external") => void;
+  docSource: "repo" | "design" | "review" | "external";
+  setDocSource: (source: "repo" | "design" | "review" | "external") => void;
 
   // Loading state
   isDocLoading: boolean;
@@ -32,6 +34,8 @@ export const useDocStore = create<DocState>((set) => ({
   setDocFiles: (files) => set({ docFiles: files }),
   designDocs: [],
   setDesignDocs: (docs) => set({ designDocs: docs }),
+  reviewDocs: [],
+  setReviewDocs: (docs) => set({ reviewDocs: docs }),
 
   selectedDoc: null,
   setSelectedDoc: (path) => set({ selectedDoc: path }),

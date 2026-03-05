@@ -41,6 +41,7 @@ export const FileSidebar: React.FC<FileSidebarProps> = ({ style }) => {
     setSelectedDoc,
     setDocSource,
     designDocs,
+    reviewDocs,
     externalFolders,
     addExternalFolder,
     removeExternalFolder,
@@ -109,6 +110,10 @@ export const FileSidebar: React.FC<FileSidebarProps> = ({ style }) => {
   const designDocTree = useMemo(
     () => buildPathTree(designDocs),
     [designDocs],
+  );
+  const reviewDocTree = useMemo(
+    () => buildPathTree(reviewDocs),
+    [reviewDocs],
   );
 
   const toggleDir = useCallback((dirPath: string) => {
@@ -352,17 +357,23 @@ export const FileSidebar: React.FC<FileSidebarProps> = ({ style }) => {
     );
   };
 
-  const renderDesignDocTreeNode = (node: FileTreeNode, depth: number) => {
+  const renderPrefixedDocTreeNode = (
+    prefix: string,
+    source: "design" | "review",
+    icon: string,
+    node: FileTreeNode,
+    depth: number,
+  ): React.ReactNode => {
     if (node.isDir) {
-      const isCollapsed = collapsedDirs.has(`design:${node.path}`);
+      const isCollapsed = collapsedDirs.has(`${prefix}:${node.path}`);
       return (
-        <React.Fragment key={`design:${node.path}`}>
+        <React.Fragment key={`${prefix}:${node.path}`}>
           <li
             role="treeitem"
             aria-expanded={!isCollapsed}
             className="file-item tree-dir"
             style={{ paddingLeft: `${depth * 12 + 12}px` }}
-            onClick={() => toggleDir(`design:${node.path}`)}
+            onClick={() => toggleDir(`${prefix}:${node.path}`)}
           >
             <span className={s.treeToggle}>
               {isCollapsed ? "▶" : "▼"}
@@ -374,13 +385,13 @@ export const FileSidebar: React.FC<FileSidebarProps> = ({ style }) => {
           </li>
           {!isCollapsed &&
             node.children.map((child) =>
-              renderDesignDocTreeNode(child, depth + 1),
+              renderPrefixedDocTreeNode(prefix, source, icon, child, depth + 1),
             )}
         </React.Fragment>
       );
     }
 
-    const docId = `design:${node.path}`;
+    const docId = `${prefix}:${node.path}`;
     return (
       <li
         key={docId}
@@ -389,12 +400,12 @@ export const FileSidebar: React.FC<FileSidebarProps> = ({ style }) => {
         className={`file-item ${selectedDoc === docId ? "selected" : ""}`}
         style={{ paddingLeft: `${depth * 12 + 12}px` }}
         onClick={() => {
-          setDocSource("design");
+          setDocSource(source);
           setSelectedDoc(docId);
         }}
         title={node.path}
       >
-        <span className={s.fileIcon}>📐</span>
+        <span className={s.fileIcon}>{icon}</span>
         <span className={s.fileName}>{node.name}</span>
       </li>
     );
@@ -562,7 +573,32 @@ export const FileSidebar: React.FC<FileSidebarProps> = ({ style }) => {
             <div className={s.collapseInner}>
               <ul className={s.fileList} role="tree" aria-label="Design docs">
                 {designDocTree.map((node) =>
-                  renderDesignDocTreeNode(node, 0),
+                  renderPrefixedDocTreeNode("design", "design", "📐", node, 0),
+                )}
+              </ul>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showDocFiles && reviewDocs.length > 0 && (
+        <div
+          className={`${s.section} ${collapsedSections.has("reviews") ? s.collapsed : ""}`}
+        >
+          <h3
+            className={`${s.sectionTitle} ${s.sectionToggle}`}
+            onClick={() => toggleSection("reviews")}
+          >
+            <span className={s.chevron}>▼</span>
+            Reviews
+          </h3>
+          <div
+            className={`${s.collapse} ${collapsedSections.has("reviews") ? s.collapsed : ""}`}
+          >
+            <div className={s.collapseInner}>
+              <ul className={s.fileList} role="tree" aria-label="Reviews">
+                {reviewDocTree.map((node) =>
+                  renderPrefixedDocTreeNode("review", "review", "📝", node, 0),
                 )}
               </ul>
             </div>
