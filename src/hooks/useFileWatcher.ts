@@ -24,7 +24,6 @@ export function useFileWatcher(refetch: () => void, debounceMs = 400) {
     setThreads,
     setDocComments,
     setVerdict,
-    gateStatus,
     setGateStatus,
   } = useReviewStore();
 
@@ -36,7 +35,8 @@ export function useFileWatcher(refetch: () => void, debounceMs = 400) {
 
   // Invalidate commit gate when files change
   const invalidateGate = useCallback(async () => {
-    if (gateStatus === "approved" || gateStatus === "rejected") {
+    const currentGateStatus = useReviewStore.getState().gateStatus;
+    if (currentGateStatus === "approved" || currentGateStatus === "rejected") {
       try {
         await api.clearCommitGate();
       } catch {
@@ -45,7 +45,7 @@ export function useFileWatcher(refetch: () => void, debounceMs = 400) {
       setGateStatus("invalidated");
       setVerdict(null);
     }
-  }, [gateStatus, setGateStatus, setVerdict]);
+  }, [setGateStatus, setVerdict]);
 
   useEffect(() => {
     let unlisten: (() => void) | undefined;
