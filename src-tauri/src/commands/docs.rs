@@ -30,25 +30,7 @@ pub async fn read_file(
 /// List design documents from ~/.claude/designs/{repo-name}/ (recursive)
 #[tauri::command]
 pub async fn list_design_docs(state: State<'_, AppState>) -> Result<Vec<String>, TasukiError> {
-    let repo_path = state.repo_path.clone();
-    tokio::task::spawn_blocking(move || {
-        let repo_name = get_repo_name(&repo_path)?;
-
-        let home = dirs::home_dir()
-            .ok_or_else(|| TasukiError::Io("Cannot determine home directory".to_string()))?;
-        let design_dir = home.join(".claude").join("designs").join(&repo_name);
-
-        if !design_dir.exists() {
-            return Ok(Vec::new());
-        }
-
-        let mut files = Vec::new();
-        collect_md_files(&design_dir, &design_dir, &mut files)?;
-        files.sort();
-        Ok(files)
-    })
-    .await
-    .map_err(|e| TasukiError::Io(e.to_string()))?
+    list_claude_docs(&state, "designs").await
 }
 
 /// Read a design document from ~/.claude/designs/{repo-name}/{filename}
@@ -57,37 +39,22 @@ pub async fn read_design_doc(
     state: State<'_, AppState>,
     filename: String,
 ) -> Result<String, TasukiError> {
-    validate_design_doc_filename(&filename)?;
+    read_claude_doc(&state, "designs", &filename).await
+}
 
-    let repo_path = state.repo_path.clone();
-    tokio::task::spawn_blocking(move || {
-        let repo_name = get_repo_name(&repo_path)?;
+/// List review documents from ~/.claude/reviews/{repo-name}/ (recursive)
+#[tauri::command]
+pub async fn list_review_docs(state: State<'_, AppState>) -> Result<Vec<String>, TasukiError> {
+    list_claude_docs(&state, "reviews").await
+}
 
-        let home = dirs::home_dir()
-            .ok_or_else(|| TasukiError::Io("Cannot determine home directory".to_string()))?;
-        let file_path = home
-            .join(".claude")
-            .join("designs")
-            .join(&repo_name)
-            .join(&filename);
-
-        // Verify the canonical path is within the design directory
-        let design_dir = home.join(".claude").join("designs").join(&repo_name);
-        if let (Ok(canonical_file), Ok(canonical_dir)) =
-            (file_path.canonicalize(), design_dir.canonicalize())
-        {
-            if !canonical_file.starts_with(&canonical_dir) {
-                return Err(TasukiError::Io(
-                    "Invalid filename: path outside design directory".to_string(),
-                ));
-            }
-        }
-
-        fs::read_to_string(&file_path)
-            .map_err(|e| TasukiError::Io(format!("Cannot read design doc: {}", e)))
-    })
-    .await
-    .map_err(|e| TasukiError::Io(e.to_string()))?
+/// Read a review document from ~/.claude/reviews/{repo-name}/{filename}
+#[tauri::command]
+pub async fn read_review_doc(
+    state: State<'_, AppState>,
+    filename: String,
+) -> Result<String, TasukiError> {
+    read_claude_doc(&state, "reviews", &filename).await
 }
 
 /// List markdown files in an arbitrary directory (for viewer mode).
@@ -140,6 +107,70 @@ pub async fn read_external_file(file_path: String) -> Result<String, TasukiError
 }
 
 // ---- Helpers ----
+
+/// List markdown files from ~/.claude/{subdir}/{repo-name}/ (recursive)
+async fn list_claude_docs(
+    state: &State<'_, AppState>,
+    subdir: &str,
+) -> Result<Vec<String>, TasukiError> {
+    let repo_path = state.repo_path.clone();
+    let subdir = subdir.to_string();
+    tokio::task::spawn_blocking(move || {
+        let repo_name = get_repo_name(&repo_path)?;
+
+        let home = dirs::home_dir()
+            .ok_or_else(|| TasukiError::Io("Cannot determine home directory".to_string()))?;
+        let doc_dir = home.join(".claude").join(&subdir).join(&repo_name);
+
+        if !doc_dir.exists() {
+            return Ok(Vec::new());
+        }
+
+        let mut files = Vec::new();
+        collect_md_files(&doc_dir, &doc_dir, &mut files)?;
+        files.sort();
+        Ok(files)
+    })
+    .await
+    .map_err(|e| TasukiError::Io(e.to_string()))?
+}
+
+/// Read a markdown file from ~/.claude/{subdir}/{repo-name}/{filename}
+async fn read_claude_doc(
+    state: &State<'_, AppState>,
+    subdir: &str,
+    filename: &str,
+) -> Result<String, TasukiError> {
+    validate_design_doc_filename(filename)?;
+
+    let repo_path = state.repo_path.clone();
+    let subdir = subdir.to_string();
+    let filename = filename.to_string();
+    tokio::task::spawn_blocking(move || {
+        let repo_name = get_repo_name(&repo_path)?;
+
+        let home = dirs::home_dir()
+            .ok_or_else(|| TasukiError::Io("Cannot determine home directory".to_string()))?;
+        let doc_dir = home.join(".claude").join(&subdir).join(&repo_name);
+        let file_path = doc_dir.join(&filename);
+
+        // Verify the canonical path is within the target directory
+        if let (Ok(canonical_file), Ok(canonical_dir)) =
+            (file_path.canonicalize(), doc_dir.canonicalize())
+        {
+            if !canonical_file.starts_with(&canonical_dir) {
+                return Err(TasukiError::Io(
+                    format!("Invalid filename: path outside {} directory", subdir),
+                ));
+            }
+        }
+
+        fs::read_to_string(&file_path)
+            .map_err(|e| TasukiError::Io(format!("Cannot read {} doc: {}", subdir, e)))
+    })
+    .await
+    .map_err(|e| TasukiError::Io(e.to_string()))?
+}
 
 /// Get repo name via git::get_repo_info
 fn get_repo_name(repo_path: &str) -> Result<String, TasukiError> {

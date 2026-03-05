@@ -21,7 +21,7 @@ const MAX_SIDEBAR_WIDTH = 500;
 
 const App: React.FC = () => {
   const { setRepoPath, setRepoInfo } = useDiffStore();
-  const { setDocFiles, setDesignDocs, setSelectedDoc } = useDocStore();
+  const { setDocFiles, setDesignDocs, setReviewDocs, setSelectedDoc } = useDocStore();
   const { refetch } = useDiff();
 
   // Sidebar resize
@@ -105,8 +105,15 @@ const App: React.FC = () => {
       } catch {
         // May fail outside Tauri
       }
+
+      try {
+        const reviewDocs = await api.listReviewDocs();
+        setReviewDocs(reviewDocs);
+      } catch {
+        // May fail outside Tauri
+      }
     })();
-  }, [setRepoPath, setRepoInfo, setDocFiles, setDesignDocs, setSelectedDoc]);
+  }, [setRepoPath, setRepoInfo, setDocFiles, setDesignDocs, setReviewDocs, setSelectedDoc]);
 
   // Warn before closing if a terminal session is running
   useEffect(() => {

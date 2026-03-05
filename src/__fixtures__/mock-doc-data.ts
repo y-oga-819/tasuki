@@ -13,6 +13,12 @@ export const mockDesignDocNames: string[] = [
   "adr/0002_state-management.md",
 ];
 
+/** レビュー結果ファイル名配列（listReviewDocs の戻り値） */
+export const mockReviewDocNames: string[] = [
+  "pr_y-oga-819_tasuki_16.md",
+  "review_me_tasuki_20260301_001.md",
+];
+
 /** ドキュメントコンテンツ（readFile / readDesignDoc の戻り値） */
 export const mockDocContents: Record<string, string> = {
   "docs/architecture.md": `# Architecture

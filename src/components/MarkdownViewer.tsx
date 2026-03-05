@@ -30,6 +30,8 @@ export const MarkdownViewer: React.FC = () => {
         let content: string;
         if (docSource === "design") {
           content = await api.readDesignDoc(selectedDoc.replace("design:", ""));
+        } else if (docSource === "review") {
+          content = await api.readReviewDoc(selectedDoc.replace("review:", ""));
         } else if (docSource === "external") {
           // external:{folder}/{relativePath} → absolute path
           const absPath = selectedDoc.replace("external:", "");

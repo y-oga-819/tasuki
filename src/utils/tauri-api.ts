@@ -1,6 +1,6 @@
 import type { DiffResult, CommitInfo, ReviewSession, RepoInfo, CommitGateData, ChangeStatus } from "../types";
 import { mockDiffResult, emptyDiffResult } from "../__fixtures__/mock-diff-data";
-import { mockDocPaths, mockDesignDocNames, mockDocContents } from "../__fixtures__/mock-doc-data";
+import { mockDocPaths, mockDesignDocNames, mockReviewDocNames, mockDocContents } from "../__fixtures__/mock-doc-data";
 import { mockRepoInfo, mockCommitLog, mockHeadSha, mockDiffHash } from "../__fixtures__/mock-repo-data";
 
 /**
@@ -46,6 +46,12 @@ function mockInvoke<T>(cmd: string, args?: Record<string, unknown>): T {
     case "read_design_doc": {
       const filename = args?.filename as string;
       return (mockDocContents[filename] ?? `# ${filename}\n\nMock design doc content`) as T;
+    }
+    case "list_review_docs":
+      return mockReviewDocNames as T;
+    case "read_review_doc": {
+      const filename = args?.filename as string;
+      return (mockDocContents[filename] ?? `# ${filename}\n\nMock review doc content`) as T;
     }
 
     // External docs APIs
@@ -190,6 +196,14 @@ export async function listDesignDocs(): Promise<string[]> {
 
 export async function readDesignDoc(filename: string): Promise<string> {
   return invoke<string>("read_design_doc", { filename });
+}
+
+export async function listReviewDocs(): Promise<string[]> {
+  return invoke<string[]>("list_review_docs");
+}
+
+export async function readReviewDoc(filename: string): Promise<string> {
+  return invoke<string>("read_review_doc", { filename });
 }
 
 export async function spawnTerminal(cols: number, rows: number): Promise<void> {
