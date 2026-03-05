@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState, lazy, Suspense } from "react";
 import { useUiStore } from "../../store/uiStore";
-import { clampSplitRatio } from "../../utils/layout";
+import { clampSplitRatio, MIN_SPLIT_RATIO } from "../../utils/layout";
 import { DiffPane } from "../DiffPane";
 import l from "./Layout.module.css";
 
@@ -14,7 +14,7 @@ const TerminalPanel = lazy(() =>
   import("../Terminal").then((m) => ({ default: m.TerminalPanel })),
 );
 
-const DEFAULT_SPLIT_RATIO = 0.65;
+const DEFAULT_SPLIT_RATIO = MIN_SPLIT_RATIO;
 
 export const SplitLayout: React.FC = () => {
   const { rightPaneMode, setRightPaneMode } = useUiStore();
