@@ -12,7 +12,7 @@ export const ViewerLayout: React.FC = () => {
   return (
     <main className={`main-content ${l.viewerLayout}`} aria-label="Viewer">
       <ResizablePane
-        defaultRatio={0.6}
+        defaultRatio={0.3}
         minRatio={0.3}
         maxRatio={0.85}
         maxRightWidth={MAX_RIGHT_WIDTH}
