@@ -24,7 +24,11 @@
     "tauri": "tauri",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "playwright test --config e2e/playwright.config.ts"
+    "test:e2e": "playwright test --config e2e/playwright.config.ts",
+    "docs:dev": "vitepress dev website",
+    "docs:build": "vitepress build website",
+    "docs:preview": "vitepress preview website",
+    "build:demo": "vite build --base /tasuki/app/"
   },
   "dependencies": {
     "@pierre/diffs": "^1.0.11",
@@ -67,6 +71,7 @@
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.56.1",
     "vite": "^7.3.1",
+    "vitepress": "^1.6.4",
     "vitest": "^4.0.18"
   }
 }
