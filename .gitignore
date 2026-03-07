@@ -33,3 +33,7 @@ playwright-profile/
 
 # Tasuki local data
 .tasuki/
+
+# VitePress
+website/.vitepress/dist/
+website/.vitepress/cache/
