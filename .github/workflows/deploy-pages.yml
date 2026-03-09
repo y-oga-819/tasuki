@@ -40,7 +40,7 @@ jobs:
           mkdir -p website/.vitepress/dist/app
           cp -r dist/* website/.vitepress/dist/app/
 
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v4
         with:
           path: website/.vitepress/dist
 
