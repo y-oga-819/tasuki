@@ -1,5 +1,5 @@
 import React, { useMemo, useCallback, useState } from "react";
-import { MultiFileDiff, PatchDiff, File as PierreFile } from "@pierre/diffs/react";
+import { MultiFileDiff, PatchDiff, File as PierreFile, Virtualizer } from "@pierre/diffs/react";
 import type {
   DiffLineAnnotation,
 } from "@pierre/diffs/react";
@@ -103,6 +103,7 @@ export const DiffViewer = React.memo<DiffViewerProps>(function DiffViewer({ file
       name: oldName,
       contents: fileDiff.old_content ? cleanLastNewline(fileDiff.old_content) : "",
       lang: lang || undefined,
+      cacheKey: `old:${oldName}`,
     };
   }, [hasFileContents, fileDiff.old_content, fileDiff.file.old_path, fileDiff.file.path, lang]);
 
@@ -112,6 +113,7 @@ export const DiffViewer = React.memo<DiffViewerProps>(function DiffViewer({ file
       name: fileDiff.file.path,
       contents: fileDiff.new_content ? cleanLastNewline(fileDiff.new_content) : "",
       lang: lang || undefined,
+      cacheKey: `new:${fileDiff.file.path}`,
     };
   }, [hasFileContents, fileDiff.new_content, fileDiff.file.path, lang]);
 
@@ -323,11 +325,13 @@ export const DiffViewer = React.memo<DiffViewerProps>(function DiffViewer({ file
       <div>
         {fileHeader}
         {!isCollapsed && (
-          <MultiFileDiff<AnnotationMeta>
-            oldFile={oldFile}
-            newFile={newFile}
-            {...sharedProps}
-          />
+          <Virtualizer config={VIRTUALIZER_CONFIG}>
+            <MultiFileDiff<AnnotationMeta>
+              oldFile={oldFile}
+              newFile={newFile}
+              {...sharedProps}
+            />
+          </Virtualizer>
         )}
       </div>
     );
@@ -337,17 +341,20 @@ export const DiffViewer = React.memo<DiffViewerProps>(function DiffViewer({ file
     <div>
       {fileHeader}
       {!isCollapsed && (
-        <PatchDiff<AnnotationMeta>
-          patch={patch}
-          {...sharedProps}
-        />
+        <Virtualizer config={VIRTUALIZER_CONFIG}>
+          <PatchDiff<AnnotationMeta>
+            patch={patch}
+            {...sharedProps}
+          />
+        </Virtualizer>
       )}
     </div>
   );
 });
 
-// --- Empty array singleton ---
+// --- Constants ---
 const EMPTY_THREADS: ReviewThread[] = [];
+const VIRTUALIZER_CONFIG = { overscrollSize: 1000, intersectionObserverMargin: 4000 };
 
 // --- Pure function: build annotations from threads + active form ---
 function buildAnnotations(
