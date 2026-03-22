@@ -10,8 +10,14 @@ import s from "./DiffPane.module.css";
 const isMac =
   typeof navigator !== "undefined" && navigator.platform.includes("Mac");
 
-/** Placeholder height for a file diff before it's rendered */
-const PLACEHOLDER_HEIGHT = 64;
+/** Estimate placeholder height from hunk line counts to reduce layout shift */
+function estimateHeight(fileDiff: FileDiff): number {
+  let totalLines = 0;
+  for (const hunk of fileDiff.hunks) {
+    totalLines += hunk.lines.length;
+  }
+  return Math.max(64, totalLines * 20 + 48);
+}
 
 /**
  * Lazy-rendered diff: mounts DiffViewer only when entering viewport.
@@ -50,7 +56,7 @@ const LazyDiffViewer: React.FC<{
       <div
         ref={ref}
         className={s.placeholder}
-        style={{ height: PLACEHOLDER_HEIGHT }}
+        style={{ height: estimateHeight(fileDiff) }}
         data-file-path={fileDiff.file.path}
       />
     );
