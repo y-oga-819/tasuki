@@ -66,23 +66,26 @@ interface DiffViewerProps {
 }
 
 export const DiffViewer = React.memo<DiffViewerProps>(function DiffViewer({ fileDiff }) {
-  const { collapsedFiles, toggleFileCollapse } = useDiffStore();
-  const {
-    lineSelection,
-    setLineSelection,
-    commentFormTarget,
-    setCommentFormTarget,
-  } = useEditorStore();
-
   const filePath = fileDiff.file.path;
 
-  // File-scoped thread subscription (only re-renders when THIS file's threads change)
+  // File-scoped selectors: primitives/null for non-matching files to avoid cross-file re-renders
+  const isCollapsed = useDiffStore(
+    useCallback((s) => s.collapsedFiles.has(filePath), [filePath]),
+  );
+  const toggleFileCollapse = useDiffStore((s) => s.toggleFileCollapse);
+  const commentFormTarget = useEditorStore(
+    useCallback(
+      (s) => s.commentFormTarget?.filePath === filePath ? s.commentFormTarget : null,
+      [filePath],
+    ),
+  );
+  const setCommentFormTarget = useEditorStore((s) => s.setCommentFormTarget);
+  const lineSelection = useEditorStore((s) => s.lineSelection);
+  const setLineSelection = useEditorStore((s) => s.setLineSelection);
   const fileThreads = useReviewStore(
     useCallback((s) => s.threads.get(filePath) ?? EMPTY_THREADS, [filePath]),
   );
   const addThread = useReviewStore((s) => s.addThread);
-
-  const isCollapsed = collapsedFiles.has(filePath);
 
   // Detect language via Pierre's built-in detection
   const lang = useMemo(
@@ -141,7 +144,7 @@ export const DiffViewer = React.memo<DiffViewerProps>(function DiffViewer({ file
     ) => {
       const hovered = getHoveredLine();
       if (!hovered) return null;
-      if (commentFormTarget?.filePath === filePath) return null;
+      if (commentFormTarget) return null;
 
       return (
         <button
@@ -223,7 +226,7 @@ export const DiffViewer = React.memo<DiffViewerProps>(function DiffViewer({ file
 
   // --- selectedLines prop ---
   const selectedLines = useMemo(() => {
-    if (commentFormTarget?.filePath === filePath) {
+    if (commentFormTarget) {
       return {
         start: commentFormTarget.selectionStart,
         end: commentFormTarget.selectionEnd,
