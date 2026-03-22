@@ -13,6 +13,11 @@
   min-height: 0;
 }
 
+/* Limit paint/layout scope per diff file to prevent cross-file reflows */
+.scrollContainer > div > [data-file-path] {
+  contain: content;
+}
+
 .placeholder {
   display: flex;
   align-items: center;

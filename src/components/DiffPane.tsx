@@ -10,8 +10,14 @@ import s from "./DiffPane.module.css";
 const isMac =
   typeof navigator !== "undefined" && navigator.platform.includes("Mac");
 
-/** Placeholder height for a file diff before it's rendered */
-const PLACEHOLDER_HEIGHT = 64;
+/** Estimate placeholder height from hunk line counts to reduce layout shift */
+function estimateHeight(fileDiff: FileDiff): number {
+  let totalLines = 0;
+  for (const hunk of fileDiff.hunks) {
+    totalLines += hunk.lines.length;
+  }
+  return Math.max(64, totalLines * 20 + 48);
+}
 
 /**
  * Lazy-rendered diff: mounts DiffViewer only when entering viewport.
@@ -50,7 +56,7 @@ const LazyDiffViewer: React.FC<{
       <div
         ref={ref}
         className={s.placeholder}
-        style={{ height: PLACEHOLDER_HEIGHT }}
+        style={{ height: estimateHeight(fileDiff) }}
         data-file-path={fileDiff.file.path}
       />
     );
@@ -68,8 +74,8 @@ const EAGER_MOUNT_COUNT = 5;
 
 /** Render all file diffs, scrolling to selectedFile on change */
 const AllFileDiffs: React.FC = () => {
-  const { diffResult, selectedFile, collapsedFiles, toggleFileCollapse } =
-    useDiffStore();
+  const diffResult = useDiffStore((s) => s.diffResult);
+  const selectedFile = useDiffStore((s) => s.selectedFile);
   const containerRef = useRef<HTMLDivElement>(null);
   const prevFileRef = useRef<string | null>(null);
 
@@ -79,8 +85,8 @@ const AllFileDiffs: React.FC = () => {
     forceMountedRef.current.add(path);
   }, []);
 
-  // selectedFile変更時のみ実行。collapsedFiles/toggleFileCollapseは
-  // 意図的に依存配列から除外（折りたたみ操作でのスクロール発火を防止）
+  // collapsedFiles/toggleFileCollapse are accessed via getState() to avoid
+  // subscribing AllFileDiffs to collapse changes (DiffViewer handles its own)
   /* eslint-disable react-hooks/exhaustive-deps */
   useEffect(() => {
     if (!selectedFile || selectedFile === prevFileRef.current) return;
@@ -89,6 +95,7 @@ const AllFileDiffs: React.FC = () => {
     // Force-mount the selected file so it renders before scroll
     forceMount(selectedFile);
 
+    const { collapsedFiles, toggleFileCollapse } = useDiffStore.getState();
     if (collapsedFiles.has(selectedFile)) {
       toggleFileCollapse(selectedFile);
     }

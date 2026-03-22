@@ -48,8 +48,6 @@ export const FileSidebar: React.FC<FileSidebarProps> = ({ style }) => {
     externalDocs,
     setExternalDocs,
   } = useDocStore();
-  const { threads } = useReviewStore();
-
   const isTauri = typeof window !== "undefined" && "__TAURI__" in window;
 
   const [collapsedDirs, setCollapsedDirs] = useState<Set<string>>(new Set());
@@ -88,9 +86,14 @@ export const FileSidebar: React.FC<FileSidebarProps> = ({ style }) => {
     }
   }, [addExternalFolder, setExternalDocs]);
 
-  // Count threads per file
-  const commentCount = (path: string) =>
-    (threads.get(path) ?? []).length;
+  const threads = useReviewStore((s) => s.threads);
+  const commentCountMap = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const [path, fileThreads] of threads) {
+      if (fileThreads.length > 0) counts.set(path, fileThreads.length);
+    }
+    return counts;
+  }, [threads]);
 
   const filteredFiles = useMemo(() => {
     if (!diffResult) return [];
@@ -245,7 +248,7 @@ export const FileSidebar: React.FC<FileSidebarProps> = ({ style }) => {
       const fd = node.fileDiff!;
       const isGenCollapsed = collapsedFiles.has(fd.file.path);
       const isGenerated = fd.file.is_generated;
-      const count = commentCount(fd.file.path);
+      const count = commentCountMap.get(fd.file.path) ?? 0;
       const isFocused = focusedNodePath === node.path;
 
       return (
@@ -307,7 +310,7 @@ export const FileSidebar: React.FC<FileSidebarProps> = ({ style }) => {
       );
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [flatNodes, collapsedDirs, collapsedFiles, selectedFile, focusedNodePath, isTauri, threads],
+    [flatNodes, collapsedDirs, collapsedFiles, selectedFile, focusedNodePath, isTauri, commentCountMap],
   );
 
   const renderDocTreeNode = (node: FileTreeNode, depth: number) => {
