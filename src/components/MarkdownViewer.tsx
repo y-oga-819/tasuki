@@ -11,6 +11,10 @@ import { MermaidZoomModal } from "./MermaidZoomModal";
 import * as api from "../utils/tauri-api";
 import s from "./MarkdownViewer.module.css";
 
+function isHtmlFile(filename: string | null): boolean {
+  return filename != null && /\.html$/i.test(filename);
+}
+
 export const MarkdownViewer: React.FC = () => {
   const { tocOpen, setTocOpen, markdownViewMode, setMarkdownViewMode } = useUiStore();
   const { selectedDoc, docContent, setDocContent, docSource } = useDocStore();
@@ -40,18 +44,22 @@ export const MarkdownViewer: React.FC = () => {
           content = await api.readFile(selectedDoc);
         }
         setDocContent(content);
-        // Extract TOC from headings using github-slugger (matches rehype-slug)
-        const slugger = new GithubSlugger();
-        const headingRegex = /^(#{1,6})\s+(.+)$/gm;
-        const items: { id: string; text: string; level: number }[] = [];
-        let match;
-        while ((match = headingRegex.exec(content)) !== null) {
-          const level = match[1].length;
-          const text = match[2].trim();
-          const id = slugger.slug(text);
-          items.push({ id, text, level });
+        // Extract TOC from headings (skip for HTML files)
+        if (isHtmlFile(selectedDoc)) {
+          setTocItems([]);
+        } else {
+          const slugger = new GithubSlugger();
+          const headingRegex = /^(#{1,6})\s+(.+)$/gm;
+          const items: { id: string; text: string; level: number }[] = [];
+          let match;
+          while ((match = headingRegex.exec(content)) !== null) {
+            const level = match[1].length;
+            const text = match[2].trim();
+            const id = slugger.slug(text);
+            items.push({ id, text, level });
+          }
+          setTocItems(items);
         }
-        setTocItems(items);
       } catch (err) {
         setDocContent(`*Error loading document: ${err}*`);
       }
@@ -98,117 +106,130 @@ export const MarkdownViewer: React.FC = () => {
     );
   }
 
+  const isHtml = isHtmlFile(selectedDoc);
+
   return (
     <div className={s.viewer} role="article" aria-label="Document">
-      <header className={s.toolbar}>
-        {tocItems.length > 3 && (
-          <div className={s.tocContainer} ref={tocRef}>
-            <button
-              className={s.tocToggleBtn}
-              onClick={() => setTocOpen(!tocOpen)}
-              title="Table of Contents"
-            >
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                <path d="M1 2.75A.75.75 0 0 1 1.75 2h12.5a.75.75 0 0 1 0 1.5H1.75A.75.75 0 0 1 1 2.75zm0 5A.75.75 0 0 1 1.75 7h12.5a.75.75 0 0 1 0 1.5H1.75A.75.75 0 0 1 1 7.75zM1.75 12a.75.75 0 0 0 0 1.5h12.5a.75.75 0 0 0 0-1.5H1.75z" />
-              </svg>
-            </button>
-            {tocOpen && (
-              <nav className={s.tocDropdown}>
-                <h4 className={s.tocTitle}>Table of Contents</h4>
-                <ul className={s.tocList}>
-                  {tocItems.map((item, i) => {
-                    const levelClass = item.level >= 4 ? s.tocLevel4
-                      : item.level === 3 ? s.tocLevel3
-                      : item.level === 2 ? s.tocLevel2
-                      : s.tocItem;
-                    return (
-                      <li
-                        key={`${item.id}-${i}`}
-                        className={levelClass}
-                      >
-                        <a
-                          href={`#${item.id}`}
-                          onClick={(e) => handleTocClick(e, item.id)}
+      {!isHtml && (
+        <header className={s.toolbar}>
+          {tocItems.length > 3 && (
+            <div className={s.tocContainer} ref={tocRef}>
+              <button
+                className={s.tocToggleBtn}
+                onClick={() => setTocOpen(!tocOpen)}
+                title="Table of Contents"
+              >
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                  <path d="M1 2.75A.75.75 0 0 1 1.75 2h12.5a.75.75 0 0 1 0 1.5H1.75A.75.75 0 0 1 1 2.75zm0 5A.75.75 0 0 1 1.75 7h12.5a.75.75 0 0 1 0 1.5H1.75A.75.75 0 0 1 1 7.75zM1.75 12a.75.75 0 0 0 0 1.5h12.5a.75.75 0 0 0 0-1.5H1.75z" />
+                </svg>
+              </button>
+              {tocOpen && (
+                <nav className={s.tocDropdown}>
+                  <h4 className={s.tocTitle}>Table of Contents</h4>
+                  <ul className={s.tocList}>
+                    {tocItems.map((item, i) => {
+                      const levelClass = item.level >= 4 ? s.tocLevel4
+                        : item.level === 3 ? s.tocLevel3
+                        : item.level === 2 ? s.tocLevel2
+                        : s.tocItem;
+                      return (
+                        <li
+                          key={`${item.id}-${i}`}
+                          className={levelClass}
                         >
-                          {item.text}
-                        </a>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </nav>
-            )}
+                          <a
+                            href={`#${item.id}`}
+                            onClick={(e) => handleTocClick(e, item.id)}
+                          >
+                            {item.text}
+                          </a>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </nav>
+              )}
+            </div>
+          )}
+          <div className={s.viewToggle}>
+            <button
+              className={`layout-btn ${markdownViewMode === "preview" ? "active" : ""}`}
+              onClick={() => setMarkdownViewMode("preview")}
+            >
+              Preview
+            </button>
+            <button
+              className={`layout-btn ${markdownViewMode === "raw" ? "active" : ""}`}
+              onClick={() => setMarkdownViewMode("raw")}
+            >
+              Raw
+            </button>
           </div>
-        )}
-        <div className={s.viewToggle}>
-          <button
-            className={`layout-btn ${markdownViewMode === "preview" ? "active" : ""}`}
-            onClick={() => setMarkdownViewMode("preview")}
-          >
-            Preview
-          </button>
-          <button
-            className={`layout-btn ${markdownViewMode === "raw" ? "active" : ""}`}
-            onClick={() => setMarkdownViewMode("raw")}
-          >
-            Raw
-          </button>
-        </div>
-      </header>
-      <div className={s.scroll}>
-      {markdownViewMode === "raw" ? (
-        <pre className={s.raw}>{docContent}</pre>
-      ) : (
-      <article className={s.content}>
-        <ReactMarkdown
-          remarkPlugins={[remarkGfm]}
-          rehypePlugins={[rehypeSlug, rehypeRaw]}
-          components={{
-            code({ className, children, ...props }) {
-              const match = /language-(\w+)/.exec(className || "");
-              const language = match ? match[1] : "";
-
-              // Handle Mermaid diagrams
-              if (language === "mermaid") {
-                return (
-                  <MermaidBlock
-                    code={String(children).replace(/\n$/, "")}
-                  />
-                );
-              }
-
-              // Inline code
-              if (!className) {
-                return (
-                  <code className={s.inlineCode} {...props}>
-                    {children}
-                  </code>
-                );
-              }
-
-              // Code block with syntax highlighting
-              return (
-                <pre className={`${s.codeBlock} ${className || ""}`}>
-                  <code className={className} {...props}>
-                    {children}
-                  </code>
-                </pre>
-              );
-            },
-            table({ children }) {
-              return (
-                <div className={s.tableWrapper}>
-                  <table>{children}</table>
-                </div>
-              );
-            },
-          }}
-        >
-          {docContent}
-        </ReactMarkdown>
-      </article>
+        </header>
       )}
-      </div>
+      {isHtml ? (
+        <iframe
+          className={s.htmlFrame}
+          sandbox="allow-scripts"
+          srcDoc={docContent}
+          title={selectedDoc ?? "HTML Document"}
+        />
+      ) : (
+        <div className={s.scroll}>
+        {markdownViewMode === "raw" ? (
+          <pre className={s.raw}>{docContent}</pre>
+        ) : (
+        <article className={s.content}>
+          <ReactMarkdown
+            remarkPlugins={[remarkGfm]}
+            rehypePlugins={[rehypeSlug, rehypeRaw]}
+            components={{
+              code({ className, children, ...props }) {
+                const match = /language-(\w+)/.exec(className || "");
+                const language = match ? match[1] : "";
+
+                // Handle Mermaid diagrams
+                if (language === "mermaid") {
+                  return (
+                    <MermaidBlock
+                      code={String(children).replace(/\n$/, "")}
+                    />
+                  );
+                }
+
+                // Inline code
+                if (!className) {
+                  return (
+                    <code className={s.inlineCode} {...props}>
+                      {children}
+                    </code>
+                  );
+                }
+
+                // Code block with syntax highlighting
+                return (
+                  <pre className={`${s.codeBlock} ${className || ""}`}>
+                    <code className={className} {...props}>
+                      {children}
+                    </code>
+                  </pre>
+                );
+              },
+              table({ children }) {
+                return (
+                  <div className={s.tableWrapper}>
+                    <table>{children}</table>
+                  </div>
+                );
+              },
+            }}
+          >
+            {docContent}
+          </ReactMarkdown>
+        </article>
+        )}
+        </div>
+      )}
     </div>
   );
 };

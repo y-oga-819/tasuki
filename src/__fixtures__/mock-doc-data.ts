@@ -10,6 +10,7 @@ export const mockDocPaths: string[] = [
 export const mockDesignDocNames: string[] = [
   "0001_ui-improvements.md",
   "0002_fix-watcher-resource-leak.md",
+  "0007_html-view-mode.html",
   "adr/0001_diff-rendering.md",
   "adr/0002_state-management.md",
 ];
@@ -387,6 +388,37 @@ useEffect(() => {
 - File change events fire exactly once per change
 - CPU usage decreases in long-running sessions
 `,
+
+  "0007_html-view-mode.html": `<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>HTML View Mode</title>
+<style>
+body { font-family: system-ui, sans-serif; background: #0a0a0a; color: #e4e4e7; max-width: 900px; margin: 0 auto; padding: 2rem; }
+h1 { color: #818cf8; }
+h2 { color: #a78bfa; border-bottom: 1px solid #27272a; padding-bottom: 0.5rem; }
+table { border-collapse: collapse; width: 100%; }
+th, td { border: 1px solid #3f3f46; padding: 8px 12px; text-align: left; }
+th { background: #18181b; }
+code { background: #27272a; padding: 2px 6px; border-radius: 4px; font-size: 0.9em; }
+</style>
+</head>
+<body>
+<h1>HTML View Mode - Mock Design Doc</h1>
+<p>This is a mock HTML design document for browser development.</p>
+<h2>Overview</h2>
+<p>The HTML View Mode feature allows viewing <code>.html</code> design documents directly in Tasuki's document viewer.</p>
+<h2>Key Decisions</h2>
+<table>
+<thead><tr><th>Decision</th><th>Choice</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td>Rendering</td><td>iframe + srcdoc</td><td>CSS/JS isolation</td></tr>
+<tr><td>Sandbox</td><td>allow-scripts</td><td>Mermaid.js support</td></tr>
+</tbody>
+</table>
+</body>
+</html>`,
 
   "adr/0001_diff-rendering.md": `# ADR: Diff Rendering Library
 
