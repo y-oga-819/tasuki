@@ -38,6 +38,7 @@ dirs = "6"
 chrono = "0.4"
 portable-pty = "0.9"
 parking_lot = "0.12"
+regex = "1.12.3"
 
 [profile.dev]
 incremental = true

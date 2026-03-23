@@ -101,8 +101,15 @@ pub async fn read_external_file(file_path: String) -> Result<String, TasukiError
             ));
         }
 
-        fs::read_to_string(&path)
-            .map_err(|e| TasukiError::Io(format!("Cannot read file: {}", e)))
+        let content = fs::read_to_string(&path)
+            .map_err(|e| TasukiError::Io(format!("Cannot read file: {}", e)))?;
+
+        if path.extension().map_or(false, |ext| ext == "html") {
+            let html_dir = path.parent().unwrap_or(Path::new("."));
+            Ok(inline_local_resources(&content, html_dir))
+        } else {
+            Ok(content)
+        }
     })
     .await
     .map_err(|e| TasukiError::Io(e.to_string()))?
@@ -167,8 +174,15 @@ async fn read_claude_doc(
             }
         }
 
-        fs::read_to_string(&file_path)
-            .map_err(|e| TasukiError::Io(format!("Cannot read {} doc: {}", subdir, e)))
+        let content = fs::read_to_string(&file_path)
+            .map_err(|e| TasukiError::Io(format!("Cannot read {} doc: {}", subdir, e)))?;
+
+        if file_path.extension().map_or(false, |ext| ext == "html") {
+            let html_dir = file_path.parent().unwrap_or(&doc_dir);
+            Ok(inline_local_resources(&content, html_dir))
+        } else {
+            Ok(content)
+        }
     })
     .await
     .map_err(|e| TasukiError::Io(e.to_string()))?
@@ -210,6 +224,46 @@ fn validate_design_doc_filename(filename: &str) -> Result<(), TasukiError> {
     }
 
     Ok(())
+}
+
+/// Inline local CSS/JS resources in HTML content.
+/// Replaces relative `<link href="...css">` with `<style>` and relative `<script src="...js">` with inline `<script>`.
+/// CDN references (http:// or https://) are left untouched.
+/// If the referenced file doesn't exist, the original tag is kept (fail-open).
+fn inline_local_resources(html: &str, html_dir: &Path) -> String {
+    use regex::Regex;
+
+    // Match <link ... href="....css" ...>
+    let css_re =
+        Regex::new(r#"<link\s+[^>]*href="([^"]+\.css)"[^>]*>"#).unwrap();
+    let result = css_re.replace_all(html, |caps: &regex::Captures| {
+        let href = &caps[1];
+        if href.starts_with("http://") || href.starts_with("https://") {
+            return caps[0].to_string();
+        }
+        let file_path = html_dir.join(href);
+        match fs::read_to_string(&file_path) {
+            Ok(content) => format!("<style>{}</style>", content),
+            Err(_) => caps[0].to_string(),
+        }
+    });
+
+    // Match <script ... src="....js" ...></script>
+    let js_re =
+        Regex::new(r#"<script\s+[^>]*src="([^"]+\.js)"[^>]*>\s*</script>"#).unwrap();
+    let result = js_re.replace_all(&result, |caps: &regex::Captures| {
+        let src = &caps[1];
+        if src.starts_with("http://") || src.starts_with("https://") {
+            return caps[0].to_string();
+        }
+        let file_path = html_dir.join(src);
+        match fs::read_to_string(&file_path) {
+            Ok(content) => format!("<script>{}</script>", content),
+            Err(_) => caps[0].to_string(),
+        }
+    });
+
+    result.into_owned()
 }
 
 fn is_doc_extension(path: &Path) -> bool {
@@ -322,5 +376,75 @@ mod tests {
         assert!(validate_design_doc_filename(".").is_err());
         assert!(validate_design_doc_filename("..").is_err());
         assert!(validate_design_doc_filename("/etc/passwd").is_err());
+    }
+
+    #[test]
+    fn test_inline_local_resources_css() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let template_dir = dir.path().join("template");
+        std::fs::create_dir(&template_dir).unwrap();
+        std::fs::write(template_dir.join("design.css"), "body { color: red; }").unwrap();
+
+        let html_dir = dir.path().join("docs");
+        std::fs::create_dir(&html_dir).unwrap();
+
+        let html = r#"<link rel="stylesheet" href="../template/design.css">"#;
+        let result = inline_local_resources(html, &html_dir);
+        assert_eq!(result, "<style>body { color: red; }</style>");
+    }
+
+    #[test]
+    fn test_inline_local_resources_css_href_first() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let template_dir = dir.path().join("template");
+        std::fs::create_dir(&template_dir).unwrap();
+        std::fs::write(template_dir.join("design.css"), "h1 { font-size: 2em; }").unwrap();
+
+        let html_dir = dir.path().join("docs");
+        std::fs::create_dir(&html_dir).unwrap();
+
+        let html = r#"<link href="../template/design.css" rel="stylesheet">"#;
+        let result = inline_local_resources(html, &html_dir);
+        assert_eq!(result, "<style>h1 { font-size: 2em; }</style>");
+    }
+
+    #[test]
+    fn test_inline_local_resources_js() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let template_dir = dir.path().join("template");
+        std::fs::create_dir(&template_dir).unwrap();
+        std::fs::write(template_dir.join("design.js"), "console.log('hello');").unwrap();
+
+        let html_dir = dir.path().join("docs");
+        std::fs::create_dir(&html_dir).unwrap();
+
+        let html = r#"<script src="../template/design.js"></script>"#;
+        let result = inline_local_resources(html, &html_dir);
+        assert_eq!(result, "<script>console.log('hello');</script>");
+    }
+
+    #[test]
+    fn test_inline_local_resources_cdn_untouched() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let html = r#"<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter">"#;
+        let result = inline_local_resources(html, dir.path());
+        assert_eq!(result, html);
+    }
+
+    #[test]
+    fn test_inline_local_resources_missing_file_keeps_original() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let html = r#"<link rel="stylesheet" href="../template/missing.css">"#;
+        let result = inline_local_resources(html, dir.path());
+        assert_eq!(result, html);
+    }
+
+    #[test]
+    fn test_inline_local_resources_md_skipped() {
+        let content = "# Hello\nThis is markdown";
+        let dir = tempfile::TempDir::new().unwrap();
+        let result = inline_local_resources(content, dir.path());
+        assert_eq!(result, content);
     }
 }
