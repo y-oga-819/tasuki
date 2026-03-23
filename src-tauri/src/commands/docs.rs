@@ -74,7 +74,7 @@ pub async fn list_dir_docs(dir_path: String) -> Result<Vec<String>, TasukiError>
         }
 
         let mut files = Vec::new();
-        collect_md_files(&path, &path, &mut files)?;
+        collect_doc_files(&path, &path, &mut files)?;
         files.sort();
         Ok(files)
     })
@@ -95,8 +95,10 @@ pub async fn read_external_file(file_path: String) -> Result<String, TasukiError
             ));
         }
 
-        if path.extension().map_or(true, |ext| ext != "md") {
-            return Err(TasukiError::Io("Only .md files can be read".to_string()));
+        if !is_doc_extension(&path) {
+            return Err(TasukiError::Io(
+                "Only .md and .html files can be read".to_string(),
+            ));
         }
 
         fs::read_to_string(&path)
@@ -127,7 +129,7 @@ async fn list_claude_docs(
         }
 
         let mut files = Vec::new();
-        collect_md_files(&doc_dir, &doc_dir, &mut files)?;
+        collect_doc_files(&doc_dir, &doc_dir, &mut files)?;
         files.sort();
         Ok(files)
     })
@@ -201,18 +203,24 @@ fn validate_design_doc_filename(filename: &str) -> Result<(), TasukiError> {
         }
     }
 
-    // Only .md extension allowed
-    if path.extension().map_or(true, |ext| ext != "md") {
+    if !is_doc_extension(path) {
         return Err(TasukiError::Io(
-            "Invalid filename: only .md files are allowed".to_string(),
+            "Invalid filename: only .md and .html files are allowed".to_string(),
         ));
     }
 
     Ok(())
 }
 
-/// Recursively collect .md files under `dir`, storing paths relative to `base`.
-fn collect_md_files(base: &Path, dir: &Path, files: &mut Vec<String>) -> Result<(), TasukiError> {
+fn is_doc_extension(path: &Path) -> bool {
+    matches!(
+        path.extension().and_then(|e| e.to_str()),
+        Some("md") | Some("html")
+    )
+}
+
+/// Recursively collect .md and .html files under `dir`, storing paths relative to `base`.
+fn collect_doc_files(base: &Path, dir: &Path, files: &mut Vec<String>) -> Result<(), TasukiError> {
     let entries = fs::read_dir(dir)
         .map_err(|e| TasukiError::Io(format!("Cannot read design dir: {}", e)))?;
 
@@ -221,8 +229,8 @@ fn collect_md_files(base: &Path, dir: &Path, files: &mut Vec<String>) -> Result<
         let path = entry.path();
 
         if path.is_dir() {
-            collect_md_files(base, &path, files)?;
-        } else if path.extension().map_or(false, |ext| ext == "md") {
+            collect_doc_files(base, &path, files)?;
+        } else if is_doc_extension(&path) {
             if let Ok(rel) = path.strip_prefix(base) {
                 files.push(rel.to_string_lossy().to_string());
             }
@@ -245,6 +253,33 @@ mod tests {
     }
 
     #[test]
+    fn test_validate_design_doc_filename_html_valid() {
+        assert!(validate_design_doc_filename("0007_html-view-mode.html").is_ok());
+        assert!(validate_design_doc_filename("design.html").is_ok());
+        assert!(validate_design_doc_filename("subdir/file.html").is_ok());
+    }
+
+    #[test]
+    fn test_collect_doc_files_includes_html() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let base = dir.path();
+        std::fs::write(base.join("readme.md"), "# README").unwrap();
+        std::fs::write(base.join("design.html"), "<h1>Design</h1>").unwrap();
+        std::fs::write(base.join("notes.txt"), "notes").unwrap();
+        std::fs::create_dir(base.join("sub")).unwrap();
+        std::fs::write(base.join("sub/nested.html"), "<p>nested</p>").unwrap();
+
+        let mut files = Vec::new();
+        collect_doc_files(base, base, &mut files).unwrap();
+        files.sort();
+
+        assert!(files.contains(&"readme.md".to_string()));
+        assert!(files.contains(&"design.html".to_string()));
+        assert!(files.contains(&"sub/nested.html".to_string()));
+        assert!(!files.contains(&"notes.txt".to_string()));
+    }
+
+    #[test]
     fn test_validate_design_doc_filename_path_traversal() {
         assert!(validate_design_doc_filename("../secret.md").is_err());
         assert!(validate_design_doc_filename("../../etc/passwd").is_err());
@@ -256,6 +291,30 @@ mod tests {
         assert!(validate_design_doc_filename("file.txt").is_err());
         assert!(validate_design_doc_filename("file.rs").is_err());
         assert!(validate_design_doc_filename("file").is_err());
+        assert!(validate_design_doc_filename("file.jsx").is_err());
+    }
+
+    #[test]
+    fn test_read_external_file_accepts_html() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let html_path = dir.path().join("design.html");
+        std::fs::write(&html_path, "<h1>Hello</h1>").unwrap();
+
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        let result = rt.block_on(read_external_file(html_path.to_string_lossy().to_string()));
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "<h1>Hello</h1>");
+    }
+
+    #[test]
+    fn test_read_external_file_rejects_non_doc() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let txt_path = dir.path().join("notes.txt");
+        std::fs::write(&txt_path, "notes").unwrap();
+
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        let result = rt.block_on(read_external_file(txt_path.to_string_lossy().to_string()));
+        assert!(result.is_err());
     }
 
     #[test]
