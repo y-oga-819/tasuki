@@ -10,23 +10,26 @@ pub fn list_doc_files(repo_path: &str) -> Result<Vec<String>, TasukiError> {
 
     let mut doc_files = Vec::new();
 
-    // Search for .md files in common doc directories
+    // Search for .md and .html files in common doc directories
     let search_dirs = ["docs", "doc", "design", "."];
+    let extensions = ["md", "html"];
     for dir in &search_dirs {
         let search_path = workdir.join(dir);
         if search_path.is_dir() {
-            let pattern = format!("{}/**/*.md", search_path.display());
-            if let Ok(entries) = glob::glob(&pattern) {
-                for entry in entries.flatten() {
-                    if let Ok(relative) = entry.strip_prefix(workdir) {
-                        let path_str = relative.to_string_lossy().to_string();
-                        if !path_str.starts_with("node_modules/")
-                            && !path_str.starts_with("target/")
-                            && !path_str.starts_with(".git/")
-                            && !path_str.starts_with(".worktrees/")
-                            && !doc_files.contains(&path_str)
-                        {
-                            doc_files.push(path_str);
+            for ext in &extensions {
+                let pattern = format!("{}/**/*.{}", search_path.display(), ext);
+                if let Ok(entries) = glob::glob(&pattern) {
+                    for entry in entries.flatten() {
+                        if let Ok(relative) = entry.strip_prefix(workdir) {
+                            let path_str = relative.to_string_lossy().to_string();
+                            if !path_str.starts_with("node_modules/")
+                                && !path_str.starts_with("target/")
+                                && !path_str.starts_with(".git/")
+                                && !path_str.starts_with(".worktrees/")
+                                && !doc_files.contains(&path_str)
+                            {
+                                doc_files.push(path_str);
+                            }
                         }
                     }
                 }
@@ -79,6 +82,18 @@ mod tests {
         let docs = list_doc_files(&repo_path).unwrap();
         assert!(docs.contains(&"docs/guide.md".to_string()));
         assert!(docs.contains(&"docs/api.md".to_string()));
+    }
+
+    #[test]
+    fn test_list_doc_files_finds_html() {
+        let (dir, repo_path) = setup_repo();
+        fs::create_dir_all(dir.path().join("docs")).unwrap();
+        fs::write(dir.path().join("docs/design.html"), "<h1>Design</h1>\n").unwrap();
+        fs::write(dir.path().join("docs/guide.md"), "# Guide\n").unwrap();
+
+        let docs = list_doc_files(&repo_path).unwrap();
+        assert!(docs.contains(&"docs/design.html".to_string()));
+        assert!(docs.contains(&"docs/guide.md".to_string()));
     }
 
     #[test]

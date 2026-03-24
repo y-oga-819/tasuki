@@ -74,7 +74,7 @@ pub async fn list_dir_docs(dir_path: String) -> Result<Vec<String>, TasukiError>
         }
 
         let mut files = Vec::new();
-        collect_md_files(&path, &path, &mut files)?;
+        collect_doc_files(&path, &path, &mut files)?;
         files.sort();
         Ok(files)
     })
@@ -95,12 +95,21 @@ pub async fn read_external_file(file_path: String) -> Result<String, TasukiError
             ));
         }
 
-        if path.extension().map_or(true, |ext| ext != "md") {
-            return Err(TasukiError::Io("Only .md files can be read".to_string()));
+        if !is_doc_extension(&path) {
+            return Err(TasukiError::Io(
+                "Only .md and .html files can be read".to_string(),
+            ));
         }
 
-        fs::read_to_string(&path)
-            .map_err(|e| TasukiError::Io(format!("Cannot read file: {}", e)))
+        let content = fs::read_to_string(&path)
+            .map_err(|e| TasukiError::Io(format!("Cannot read file: {}", e)))?;
+
+        if path.extension().map_or(false, |ext| ext == "html") {
+            let html_dir = path.parent().unwrap_or(Path::new("."));
+            Ok(inline_local_resources(&content, html_dir))
+        } else {
+            Ok(content)
+        }
     })
     .await
     .map_err(|e| TasukiError::Io(e.to_string()))?
@@ -127,7 +136,7 @@ async fn list_claude_docs(
         }
 
         let mut files = Vec::new();
-        collect_md_files(&doc_dir, &doc_dir, &mut files)?;
+        collect_doc_files(&doc_dir, &doc_dir, &mut files)?;
         files.sort();
         Ok(files)
     })
@@ -165,8 +174,15 @@ async fn read_claude_doc(
             }
         }
 
-        fs::read_to_string(&file_path)
-            .map_err(|e| TasukiError::Io(format!("Cannot read {} doc: {}", subdir, e)))
+        let content = fs::read_to_string(&file_path)
+            .map_err(|e| TasukiError::Io(format!("Cannot read {} doc: {}", subdir, e)))?;
+
+        if file_path.extension().map_or(false, |ext| ext == "html") {
+            let html_dir = file_path.parent().unwrap_or(&doc_dir);
+            Ok(inline_local_resources(&content, html_dir))
+        } else {
+            Ok(content)
+        }
     })
     .await
     .map_err(|e| TasukiError::Io(e.to_string()))?
@@ -201,18 +217,64 @@ fn validate_design_doc_filename(filename: &str) -> Result<(), TasukiError> {
         }
     }
 
-    // Only .md extension allowed
-    if path.extension().map_or(true, |ext| ext != "md") {
+    if !is_doc_extension(path) {
         return Err(TasukiError::Io(
-            "Invalid filename: only .md files are allowed".to_string(),
+            "Invalid filename: only .md and .html files are allowed".to_string(),
         ));
     }
 
     Ok(())
 }
 
-/// Recursively collect .md files under `dir`, storing paths relative to `base`.
-fn collect_md_files(base: &Path, dir: &Path, files: &mut Vec<String>) -> Result<(), TasukiError> {
+/// Inline local CSS/JS resources in HTML content.
+/// Replaces relative `<link href="...css">` with `<style>` and relative `<script src="...js">` with inline `<script>`.
+/// CDN references (http:// or https://) are left untouched.
+/// If the referenced file doesn't exist, the original tag is kept (fail-open).
+fn inline_local_resources(html: &str, html_dir: &Path) -> String {
+    use regex::Regex;
+
+    // Match <link ... href="....css" ...>
+    let css_re =
+        Regex::new(r#"<link\s+[^>]*href="([^"]+\.css)"[^>]*>"#).unwrap();
+    let result = css_re.replace_all(html, |caps: &regex::Captures| {
+        let href = &caps[1];
+        if href.starts_with("http://") || href.starts_with("https://") {
+            return caps[0].to_string();
+        }
+        let file_path = html_dir.join(href);
+        match fs::read_to_string(&file_path) {
+            Ok(content) => format!("<style>{}</style>", content),
+            Err(_) => caps[0].to_string(),
+        }
+    });
+
+    // Match <script ... src="....js" ...></script>
+    let js_re =
+        Regex::new(r#"<script\s+[^>]*src="([^"]+\.js)"[^>]*>\s*</script>"#).unwrap();
+    let result = js_re.replace_all(&result, |caps: &regex::Captures| {
+        let src = &caps[1];
+        if src.starts_with("http://") || src.starts_with("https://") {
+            return caps[0].to_string();
+        }
+        let file_path = html_dir.join(src);
+        match fs::read_to_string(&file_path) {
+            Ok(content) => format!("<script>{}</script>", content),
+            Err(_) => caps[0].to_string(),
+        }
+    });
+
+    result.into_owned()
+}
+
+fn is_doc_extension(path: &Path) -> bool {
+    matches!(
+        path.extension().and_then(|e| e.to_str()),
+        Some("md") | Some("html")
+    )
+}
+
+/// Recursively collect .md and .html files under `dir`, storing paths relative to `base`.
+fn collect_doc_files(base: &Path, dir: &Path, files: &mut Vec<String>) -> Result<(), TasukiError> {
     let entries = fs::read_dir(dir)
         .map_err(|e| TasukiError::Io(format!("Cannot read design dir: {}", e)))?;
 
@@ -221,8 +283,8 @@ fn collect_md_files(base: &Path, dir: &Path, files: &mut Vec<String>) -> Result<
         let path = entry.path();
 
         if path.is_dir() {
-            collect_md_files(base, &path, files)?;
-        } else if path.extension().map_or(false, |ext| ext == "md") {
+            collect_doc_files(base, &path, files)?;
+        } else if is_doc_extension(&path) {
             if let Ok(rel) = path.strip_prefix(base) {
                 files.push(rel.to_string_lossy().to_string());
             }
@@ -245,6 +307,33 @@ mod tests {
     }
 
     #[test]
+    fn test_validate_design_doc_filename_html_valid() {
+        assert!(validate_design_doc_filename("0007_html-view-mode.html").is_ok());
+        assert!(validate_design_doc_filename("design.html").is_ok());
+        assert!(validate_design_doc_filename("subdir/file.html").is_ok());
+    }
+
+    #[test]
+    fn test_collect_doc_files_includes_html() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let base = dir.path();
+        std::fs::write(base.join("readme.md"), "# README").unwrap();
+        std::fs::write(base.join("design.html"), "<h1>Design</h1>").unwrap();
+        std::fs::write(base.join("notes.txt"), "notes").unwrap();
+        std::fs::create_dir(base.join("sub")).unwrap();
+        std::fs::write(base.join("sub/nested.html"), "<p>nested</p>").unwrap();
+
+        let mut files = Vec::new();
+        collect_doc_files(base, base, &mut files).unwrap();
+        files.sort();
+
+        assert!(files.contains(&"readme.md".to_string()));
+        assert!(files.contains(&"design.html".to_string()));
+        assert!(files.contains(&"sub/nested.html".to_string()));
+        assert!(!files.contains(&"notes.txt".to_string()));
+    }
+
+    #[test]
     fn test_validate_design_doc_filename_path_traversal() {
         assert!(validate_design_doc_filename("../secret.md").is_err());
         assert!(validate_design_doc_filename("../../etc/passwd").is_err());
@@ -256,6 +345,30 @@ mod tests {
         assert!(validate_design_doc_filename("file.txt").is_err());
         assert!(validate_design_doc_filename("file.rs").is_err());
         assert!(validate_design_doc_filename("file").is_err());
+        assert!(validate_design_doc_filename("file.jsx").is_err());
+    }
+
+    #[test]
+    fn test_read_external_file_accepts_html() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let html_path = dir.path().join("design.html");
+        std::fs::write(&html_path, "<h1>Hello</h1>").unwrap();
+
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        let result = rt.block_on(read_external_file(html_path.to_string_lossy().to_string()));
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "<h1>Hello</h1>");
+    }
+
+    #[test]
+    fn test_read_external_file_rejects_non_doc() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let txt_path = dir.path().join("notes.txt");
+        std::fs::write(&txt_path, "notes").unwrap();
+
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        let result = rt.block_on(read_external_file(txt_path.to_string_lossy().to_string()));
+        assert!(result.is_err());
     }
 
     #[test]
@@ -263,5 +376,75 @@ mod tests {
         assert!(validate_design_doc_filename(".").is_err());
         assert!(validate_design_doc_filename("..").is_err());
         assert!(validate_design_doc_filename("/etc/passwd").is_err());
+    }
+
+    #[test]
+    fn test_inline_local_resources_css() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let template_dir = dir.path().join("template");
+        std::fs::create_dir(&template_dir).unwrap();
+        std::fs::write(template_dir.join("design.css"), "body { color: red; }").unwrap();
+
+        let html_dir = dir.path().join("docs");
+        std::fs::create_dir(&html_dir).unwrap();
+
+        let html = r#"<link rel="stylesheet" href="../template/design.css">"#;
+        let result = inline_local_resources(html, &html_dir);
+        assert_eq!(result, "<style>body { color: red; }</style>");
+    }
+
+    #[test]
+    fn test_inline_local_resources_css_href_first() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let template_dir = dir.path().join("template");
+        std::fs::create_dir(&template_dir).unwrap();
+        std::fs::write(template_dir.join("design.css"), "h1 { font-size: 2em; }").unwrap();
+
+        let html_dir = dir.path().join("docs");
+        std::fs::create_dir(&html_dir).unwrap();
+
+        let html = r#"<link href="../template/design.css" rel="stylesheet">"#;
+        let result = inline_local_resources(html, &html_dir);
+        assert_eq!(result, "<style>h1 { font-size: 2em; }</style>");
+    }
+
+    #[test]
+    fn test_inline_local_resources_js() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let template_dir = dir.path().join("template");
+        std::fs::create_dir(&template_dir).unwrap();
+        std::fs::write(template_dir.join("design.js"), "console.log('hello');").unwrap();
+
+        let html_dir = dir.path().join("docs");
+        std::fs::create_dir(&html_dir).unwrap();
+
+        let html = r#"<script src="../template/design.js"></script>"#;
+        let result = inline_local_resources(html, &html_dir);
+        assert_eq!(result, "<script>console.log('hello');</script>");
+    }
+
+    #[test]
+    fn test_inline_local_resources_cdn_untouched() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let html = r#"<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter">"#;
+        let result = inline_local_resources(html, dir.path());
+        assert_eq!(result, html);
+    }
+
+    #[test]
+    fn test_inline_local_resources_missing_file_keeps_original() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let html = r#"<link rel="stylesheet" href="../template/missing.css">"#;
+        let result = inline_local_resources(html, dir.path());
+        assert_eq!(result, html);
+    }
+
+    #[test]
+    fn test_inline_local_resources_md_skipped() {
+        let content = "# Hello\nThis is markdown";
+        let dir = tempfile::TempDir::new().unwrap();
+        let result = inline_local_resources(content, dir.path());
+        assert_eq!(result, content);
     }
 }

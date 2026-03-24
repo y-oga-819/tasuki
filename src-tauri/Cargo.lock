@@ -3650,6 +3650,7 @@ dependencies = [
  "notify-debouncer-mini",
  "parking_lot",
  "portable-pty",
+ "regex",
  "serde",
  "serde_json",
  "sha2",
