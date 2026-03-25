@@ -243,7 +243,11 @@ fn inline_local_resources(html: &str, html_dir: &Path) -> String {
         }
         let file_path = html_dir.join(href);
         match fs::read_to_string(&file_path) {
-            Ok(content) => format!("<style>{}</style>", content),
+            Ok(content) => {
+                // Escape </style> in CSS content to prevent premature tag termination
+                let escaped = content.replace("</style>", "<\\/style>");
+                format!("<style>{}</style>", escaped)
+            }
             Err(_) => caps[0].to_string(),
         }
     });
@@ -258,7 +262,12 @@ fn inline_local_resources(html: &str, html_dir: &Path) -> String {
         }
         let file_path = html_dir.join(src);
         match fs::read_to_string(&file_path) {
-            Ok(content) => format!("<script>{}</script>", content),
+            Ok(content) => {
+                // Escape </script> in JS content to prevent premature tag termination
+                // Using <\/script> which is valid in JS strings and comments
+                let escaped = content.replace("</script>", "<\\/script>");
+                format!("<script>{}</script>", escaped)
+            }
             Err(_) => caps[0].to_string(),
         }
     });
@@ -438,6 +447,32 @@ mod tests {
         let html = r#"<link rel="stylesheet" href="../template/missing.css">"#;
         let result = inline_local_resources(html, dir.path());
         assert_eq!(result, html);
+    }
+
+    #[test]
+    fn test_inline_local_resources_js_escapes_closing_script_tag() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let template_dir = dir.path().join("template");
+        std::fs::create_dir(&template_dir).unwrap();
+        std::fs::write(
+            template_dir.join("design.js"),
+            "/* Usage: <script src=\"design.js\"></script> */\nconsole.log('ok');",
+        )
+        .unwrap();
+
+        let html_dir = dir.path().join("docs");
+        std::fs::create_dir(&html_dir).unwrap();
+
+        let html = r#"<script src="../template/design.js"></script>"#;
+        let result = inline_local_resources(html, &html_dir);
+        // </script> inside JS must be escaped to prevent premature tag termination
+        assert_eq!(
+            result,
+            "<script>/* Usage: <script src=\"design.js\"><\\/script> */\nconsole.log('ok');</script>"
+        );
+        // The result must not contain an unescaped </script> before the final closing tag
+        let inner = &result["<script>".len()..result.len() - "</script>".len()];
+        assert!(!inner.contains("</script>"));
     }
 
     #[test]
