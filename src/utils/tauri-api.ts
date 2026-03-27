@@ -94,6 +94,18 @@ function mockInvoke<T>(cmd: string, args?: Record<string, unknown>): T {
       console.log("[mock] openInZed", args);
       return undefined as T;
 
+    // CLI args
+    case "get_cli_args":
+      return { mode: "uncommitted", from_ref: null, to_ref: null, doc_file: null, cmux_pane: null } as T;
+
+    // cmux integration (no-op)
+    case "cmux_reject":
+      console.log("[mock] cmuxReject", args);
+      return undefined as T;
+    case "cmux_approve":
+      console.log("[mock] cmuxApprove");
+      return undefined as T;
+
     // Change detection
     case "check_changes":
       return { head_sha: mockHeadSha, has_changes: true } as T;
@@ -278,6 +290,30 @@ export async function pickFolder(): Promise<string | null> {
 
 export async function openInZed(filePath?: string, line?: number): Promise<void> {
   return invoke<void>("open_in_zed", { filePath: filePath ?? null, line: line ?? null });
+}
+
+// ---- CLI Args ----
+
+export interface CliArgs {
+  mode: string;
+  from_ref: string | null;
+  to_ref: string | null;
+  doc_file: string | null;
+  cmux_pane: string | null;
+}
+
+export async function getCliArgs(): Promise<CliArgs> {
+  return invoke<CliArgs>("get_cli_args");
+}
+
+// ---- cmux Integration ----
+
+export async function cmuxReject(reviewText: string): Promise<void> {
+  return invoke<void>("cmux_reject", { reviewText });
+}
+
+export async function cmuxApprove(): Promise<void> {
+  return invoke<void>("cmux_approve");
 }
 
 export async function readFromClipboard(): Promise<string> {

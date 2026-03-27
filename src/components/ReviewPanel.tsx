@@ -228,6 +228,12 @@ export const ReviewPanel: React.FC = () => {
   } = useReviewStore();
   const { diffResult } = useDiffStore();
 
+  // Check if cmux mode is active (--cmux-pane was passed)
+  const [cmuxEnabled, setCmuxEnabled] = useState(false);
+  useEffect(() => {
+    api.getCliArgs().then(args => setCmuxEnabled(!!args.cmux_pane)).catch(() => {});
+  }, []);
+
   // eslint-disable-next-line react-hooks/exhaustive-deps -- threads triggers recomputation
   const allThreads = useMemo(() => getAllThreads(), [threads, getAllThreads]);
 
@@ -303,8 +309,15 @@ export const ReviewPanel: React.FC = () => {
     } else {
       setVerdict("approve");
       await writeGate("approved");
+      if (cmuxEnabled) {
+        try {
+          await api.cmuxApprove();
+        } catch (err) {
+          console.error("Failed to send cmux approve:", err);
+        }
+      }
     }
-  }, [verdict, setVerdict, writeGate, setGateStatus]);
+  }, [verdict, setVerdict, writeGate, setGateStatus, cmuxEnabled]);
 
   const handleReject = useCallback(async () => {
     if (verdict === "request_changes") {
@@ -316,8 +329,16 @@ export const ReviewPanel: React.FC = () => {
     } else {
       setVerdict("request_changes");
       await writeGate("rejected");
+      if (cmuxEnabled) {
+        try {
+          const reviewText = formatReviewPrompt(allThreads, docComments, "request_changes");
+          await api.cmuxReject(reviewText);
+        } catch (err) {
+          console.error("Failed to send cmux reject:", err);
+        }
+      }
     }
-  }, [verdict, setVerdict, writeGate, setGateStatus]);
+  }, [verdict, setVerdict, writeGate, setGateStatus, cmuxEnabled, allThreads, docComments]);
 
   return (
     <div className="review-panel" role="complementary" aria-label="Review">

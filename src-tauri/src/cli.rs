@@ -11,6 +11,8 @@ pub struct CliArgs {
     pub to_ref: Option<String>,
     /// Specific doc file to open
     pub doc_file: Option<String>,
+    /// cmux pane ID for sending review results back to Claude Code
+    pub cmux_pane: Option<String>,
 }
 
 /// Parse CLI arguments into a structured form
@@ -30,62 +32,93 @@ pub fn parse_cli_args(args: &[String]) -> CliArgs {
     // Skip the binary name (args[0])
     let user_args: Vec<&str> = args.iter().skip(1).map(|s| s.as_str()).collect();
 
-    match user_args.as_slice() {
+    // Extract --cmux-pane <pane-id> from args before pattern matching
+    let mut cmux_pane: Option<String> = None;
+    let mut filtered: Vec<&str> = Vec::new();
+    let mut skip_next = false;
+    for (i, arg) in user_args.iter().enumerate() {
+        if skip_next {
+            skip_next = false;
+            continue;
+        }
+        if *arg == "--cmux-pane" {
+            if let Some(pane_id) = user_args.get(i + 1) {
+                cmux_pane = Some(pane_id.to_string());
+                skip_next = true;
+            }
+        } else {
+            filtered.push(arg);
+        }
+    }
+
+    let mut cli = match filtered.as_slice() {
         [] | ["."] => CliArgs {
             mode: "uncommitted".to_string(),
             from_ref: None,
             to_ref: None,
             doc_file: None,
+            cmux_pane: None,
         },
         ["staged"] => CliArgs {
             mode: "staged".to_string(),
             from_ref: None,
             to_ref: None,
             doc_file: None,
+            cmux_pane: None,
         },
         ["working"] => CliArgs {
             mode: "working".to_string(),
             from_ref: None,
             to_ref: None,
             doc_file: None,
+            cmux_pane: None,
         },
         ["docs"] => CliArgs {
             mode: "docs".to_string(),
             from_ref: None,
             to_ref: None,
             doc_file: None,
+            cmux_pane: None,
         },
         ["docs", file] => CliArgs {
             mode: "docs".to_string(),
             from_ref: None,
             to_ref: None,
             doc_file: Some(file.to_string()),
+            cmux_pane: None,
         },
         ["init"] => CliArgs {
             mode: "init".to_string(),
             from_ref: None,
             to_ref: None,
             doc_file: None,
+            cmux_pane: None,
         },
         [from, to] => CliArgs {
             mode: "range".to_string(),
             from_ref: Some(from.to_string()),
             to_ref: Some(to.to_string()),
             doc_file: None,
+            cmux_pane: None,
         },
         [commit_ref] => CliArgs {
             mode: "commit".to_string(),
             from_ref: Some(commit_ref.to_string()),
             to_ref: None,
             doc_file: None,
+            cmux_pane: None,
         },
         _ => CliArgs {
             mode: "uncommitted".to_string(),
             from_ref: None,
             to_ref: None,
             doc_file: None,
+            cmux_pane: None,
         },
-    }
+    };
+
+    cli.cmux_pane = cmux_pane;
+    cli
 }
 
 #[cfg(test)]
@@ -158,5 +191,50 @@ mod tests {
         let cli = parse_cli_args(&args);
         assert_eq!(cli.mode, "docs");
         assert_eq!(cli.doc_file.as_deref(), Some("architecture.md"));
+    }
+
+    #[test]
+    fn test_parse_cmux_pane() {
+        let args = vec![
+            "tasuki".to_string(),
+            "--cmux-pane".to_string(),
+            "0:1.2".to_string(),
+        ];
+        let cli = parse_cli_args(&args);
+        assert_eq!(cli.mode, "uncommitted");
+        assert_eq!(cli.cmux_pane.as_deref(), Some("0:1.2"));
+    }
+
+    #[test]
+    fn test_parse_cmux_pane_with_mode() {
+        let args = vec![
+            "tasuki".to_string(),
+            "--cmux-pane".to_string(),
+            "0:1.2".to_string(),
+            "staged".to_string(),
+        ];
+        let cli = parse_cli_args(&args);
+        assert_eq!(cli.mode, "staged");
+        assert_eq!(cli.cmux_pane.as_deref(), Some("0:1.2"));
+    }
+
+    #[test]
+    fn test_parse_cmux_pane_after_mode() {
+        let args = vec![
+            "tasuki".to_string(),
+            "staged".to_string(),
+            "--cmux-pane".to_string(),
+            "my-pane".to_string(),
+        ];
+        let cli = parse_cli_args(&args);
+        assert_eq!(cli.mode, "staged");
+        assert_eq!(cli.cmux_pane.as_deref(), Some("my-pane"));
+    }
+
+    #[test]
+    fn test_parse_no_cmux_pane() {
+        let args = vec!["tasuki".to_string()];
+        let cli = parse_cli_args(&args);
+        assert!(cli.cmux_pane.is_none());
     }
 }

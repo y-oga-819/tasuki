@@ -1,4 +1,5 @@
 pub mod cli;
+pub mod cmux;
 pub mod commands;
 pub mod error;
 pub mod git;
@@ -76,6 +77,8 @@ pub fn run() {
             commands::kill_terminal,
             commands::is_terminal_alive,
             commands::check_changes,
+            commands::cmux_reject,
+            commands::cmux_approve,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Tasuki");
