@@ -1,4 +1,4 @@
-import { test, expect, waitForAppReady } from "../fixtures/setup";
+import { test, expect, waitForAppReady, selectDocumentFromSidebar } from "../fixtures/setup";
 
 test.describe("UX5: Docs Alongside", () => {
   test.beforeEach(async ({ page }) => {
@@ -22,15 +22,15 @@ test.describe("UX5: Docs Alongside", () => {
   });
 
   test("selecting a document from sidebar shows its content", async ({ page }) => {
-    const docItem = page.locator("li.file-item").filter({ hasText: "architecture" });
-    await expect(docItem.first()).toBeVisible();
-    await docItem.first().click();
+    await selectDocumentFromSidebar(page, "architecture");
 
     const markdownViewer = page.getByRole("article", { name: "Document" });
     await expect(markdownViewer).toBeVisible();
   });
 
   test("Mermaid diagrams are rendered as SVG", async ({ page }) => {
+    await selectDocumentFromSidebar(page, "architecture");
+
     const markdownViewer = page.getByRole("article", { name: "Document" });
     await expect(markdownViewer).toBeVisible();
 

@@ -91,7 +91,32 @@ export async function addCommentViaStore(
 }
 
 /**
- * Submit a comment using the inline form (after opening it via openCommentForm).
+ * Expand a collapsed sidebar section by clicking its heading.
+ */
+export async function expandSidebarSection(
+  page: Page,
+  sectionName: string,
+): Promise<void> {
+  const heading = page.getByRole("heading", { level: 3 }).filter({ hasText: sectionName });
+  await expect(heading).toBeVisible();
+  await heading.click();
+}
+
+/**
+ * Select a document from the sidebar, expanding the Documents section if needed.
+ */
+export async function selectDocumentFromSidebar(
+  page: Page,
+  docName: string,
+): Promise<void> {
+  const docItem = page.locator("li.file-item").filter({ hasText: docName });
+  const isVisible = await docItem.first().isVisible().catch(() => false);
+  if (!isVisible) {
+    await expandSidebarSection(page, "Documents");
+  }
+  await expect(docItem.first()).toBeVisible();
+  await docItem.first().click();
+}
  * Fills the textarea and clicks the "Add Comment" button via dispatchEvent.
  *
  * Pierre's <diffs-container> Shadow DOM intercepts pointer events, so
