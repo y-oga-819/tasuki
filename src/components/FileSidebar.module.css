@@ -85,6 +85,7 @@
 
 .collapse.collapsed {
   grid-template-rows: 0fr;
+  pointer-events: none;
 }
 
 .collapseInner {
