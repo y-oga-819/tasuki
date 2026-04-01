@@ -24,12 +24,13 @@ INPUT=$(cat)
 COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // ""')
 
 # Only intercept git commit commands
-if ! echo "$COMMAND" | grep -qE 'git\s+commit'; then
+if ! echo "$COMMAND" | grep -qE '(^|[;&|]\s*)git\s+commit'; then
   exit 0
 fi
 
-# Get repository info (git-common-dir works correctly in worktrees)
-REPO_NAME=$(basename "$(dirname "$(git rev-parse --git-common-dir 2>/dev/null)")" 2>/dev/null) || exit 0
+# Get repository info (resolve to absolute path so it works in both normal repos and worktrees)
+GIT_COMMON_DIR=$(cd "$(git rev-parse --git-common-dir 2>/dev/null)" && pwd) || exit 0
+REPO_NAME=$(basename "$(dirname "$GIT_COMMON_DIR")")
 BRANCH_NAME=$(git rev-parse --abbrev-ref HEAD 2>/dev/null) || exit 0
 
 REVIEW_FILE="/tmp/tasuki/${REPO_NAME}/${BRANCH_NAME}/review.json"

@@ -13,7 +13,8 @@ test.describe("UX1: Diff Review", () => {
   });
 
   test("shows changed files in sidebar", async ({ page }) => {
-    const fileItems = page.locator("li.file-item");
+    const changedFiles = page.getByRole("tree", { name: "Changed files" });
+    const fileItems = changedFiles.locator("li.file-item");
     await expect(fileItems.first()).toBeVisible();
 
     // Mock data has at least 4 files: modified, added, deleted, renamed
@@ -22,7 +23,8 @@ test.describe("UX1: Diff Review", () => {
   });
 
   test("clicking a file scrolls to its diff", async ({ page }) => {
-    const fileItem = page.locator("li.file-item:not(.tree-dir)").first();
+    const changedFiles = page.getByRole("tree", { name: "Changed files" });
+    const fileItem = changedFiles.locator("li.file-item:not(.tree-dir)").first();
     await fileItem.click();
 
     await expect(fileItem).toHaveClass(/selected/);

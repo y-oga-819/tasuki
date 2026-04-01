@@ -36,7 +36,8 @@ test.describe("UX2: Line Comment", () => {
     // Switch to Review tab in right pane to verify the comment
     await page.getByRole("tab", { name: "Review" }).click();
 
-    await expect(page.getByText("This is a test comment")).toBeVisible();
+    const reviewPanel = page.getByRole("complementary", { name: "Review" });
+    await expect(reviewPanel.getByText("This is a test comment")).toBeVisible();
   });
 
   test("comment added via store appears in ReviewPanel", async ({ page }) => {
