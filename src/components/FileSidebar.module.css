@@ -87,6 +87,10 @@
   grid-template-rows: 0fr;
 }
 
+.collapse.collapsed > .collapseInner {
+  visibility: hidden;
+}
+
 .collapseInner {
   overflow: hidden;
   min-height: 0;

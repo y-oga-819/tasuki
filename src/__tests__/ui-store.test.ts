@@ -4,7 +4,7 @@ import { useUiStore } from "../store/uiStore";
 beforeEach(() => {
   useUiStore.setState({
     displayMode: "split",
-    rightPaneMode: "docs",
+    rightPaneMode: "review",
     diffLayout: "split",
     diffOverflow: "scroll",
     expandUnchanged: false,
@@ -17,7 +17,7 @@ describe("useUiStore", () => {
   it("has correct initial state", () => {
     const s = useUiStore.getState();
     expect(s.displayMode).toBe("split");
-    expect(s.rightPaneMode).toBe("docs");
+    expect(s.rightPaneMode).toBe("review");
     expect(s.diffLayout).toBe("split");
     expect(s.diffOverflow).toBe("scroll");
     expect(s.expandUnchanged).toBe(false);

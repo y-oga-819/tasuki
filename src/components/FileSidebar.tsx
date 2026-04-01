@@ -27,7 +27,7 @@ interface FileSidebarProps {
 }
 
 export const FileSidebar: React.FC<FileSidebarProps> = ({ style }) => {
-  const { displayMode } = useUiStore();
+  const { displayMode, setRightPaneMode } = useUiStore();
   const {
     diffResult,
     selectedFile,
@@ -52,7 +52,7 @@ export const FileSidebar: React.FC<FileSidebarProps> = ({ style }) => {
 
   const [collapsedDirs, setCollapsedDirs] = useState<Set<string>>(new Set());
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(
-    new Set(),
+    new Set(["documents", "design-docs"]),
   );
   const [fileFilter, setFileFilter] = useState("");
   const [focusedNodePath, setFocusedNodePath] = useState<string | null>(null);
@@ -351,6 +351,7 @@ export const FileSidebar: React.FC<FileSidebarProps> = ({ style }) => {
         onClick={() => {
           setDocSource("repo");
           setSelectedDoc(node.path);
+          setRightPaneMode("docs");
         }}
         title={node.path}
       >
@@ -405,6 +406,7 @@ export const FileSidebar: React.FC<FileSidebarProps> = ({ style }) => {
         onClick={() => {
           setDocSource(source);
           setSelectedDoc(docId);
+          setRightPaneMode("docs");
         }}
         title={node.path}
       >
@@ -454,6 +456,7 @@ export const FileSidebar: React.FC<FileSidebarProps> = ({ style }) => {
         onClick={() => {
           setDocSource("external");
           setSelectedDoc(docId);
+          setRightPaneMode("docs");
         }}
         title={`${folder}/${node.path}`}
       >
