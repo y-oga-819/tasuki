@@ -56,6 +56,9 @@
     "shiki": "^4.0.2",
     "zustand": "^5.0.5"
   },
+  "overrides": {
+    "esbuild": ">=0.25.0"
+  },
   "devDependencies": {
     "@eslint/js": "^9.39.4",
     "@playwright/test": "^1.58.2",
