@@ -180,7 +180,7 @@ pub fn get_commit_diff(repo_path: &str, commit_ref: &str) -> Result<DiffResult, 
 pub fn compute_diff_hash(diff_result: &DiffResult) -> String {
     let json = serde_json::to_string(diff_result).unwrap_or_default();
     let hash = Sha256::digest(json.as_bytes());
-    format!("{:x}", hash)
+    hash.iter().map(|b| format!("{:02x}", b)).collect()
 }
 
 // ---------------------------------------------------------------------------
