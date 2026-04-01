@@ -117,6 +117,7 @@ export async function selectDocumentFromSidebar(
   await expect(docItem.first()).toBeVisible();
   await docItem.first().click();
 }
+/**
  * Fills the textarea and clicks the "Add Comment" button via dispatchEvent.
  *
  * Pierre's <diffs-container> Shadow DOM intercepts pointer events, so
