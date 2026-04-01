@@ -1,4 +1,4 @@
-import { test, expect, waitForAppReady } from "../fixtures/setup";
+import { test, expect, waitForAppReady, selectDocumentFromSidebar } from "../fixtures/setup";
 
 test.describe("UX6: Viewer Mode & Mermaid Zoom", () => {
   test.beforeEach(async ({ page }) => {
@@ -70,16 +70,16 @@ test.describe("UX6: Viewer Mode & Mermaid Zoom", () => {
     const viewerTab = page.getByRole("tab", { name: "Viewer" });
     await viewerTab.click();
 
-    const docItem = page.locator("li.file-item").filter({ hasText: "architecture" });
-    await expect(docItem.first()).toBeVisible();
-    await docItem.first().click();
+    await selectDocumentFromSidebar(page, "architecture");
 
     const markdownViewer = page.getByRole("article", { name: "Document" });
     await expect(markdownViewer).toBeVisible();
   });
 
   test("Mermaid zoom button opens modal and can be closed", async ({ page }) => {
-    // Ensure we have a rendered mermaid diagram (in split mode docs pane)
+    // Select a document first to show MarkdownViewer
+    await selectDocumentFromSidebar(page, "architecture");
+
     const markdownViewer = page.getByRole("article", { name: "Document" });
     await expect(markdownViewer).toBeVisible();
 
@@ -121,6 +121,9 @@ test.describe("UX6: Viewer Mode & Mermaid Zoom", () => {
   });
 
   test("Mermaid zoom controls work correctly", async ({ page }) => {
+    // Select a document first to show MarkdownViewer
+    await selectDocumentFromSidebar(page, "architecture");
+
     const markdownViewer = page.getByRole("article", { name: "Document" });
     await expect(markdownViewer).toBeVisible();
 

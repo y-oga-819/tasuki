@@ -24,7 +24,7 @@ interface UiState {
 export const useUiStore = create<UiState>((set) => ({
   displayMode: "split",
   setDisplayMode: (mode) => set({ displayMode: mode }),
-  rightPaneMode: "docs",
+  rightPaneMode: "review",
   setRightPaneMode: (mode) => set({ rightPaneMode: mode }),
   diffLayout: "split",
   setDiffLayout: (layout) => set({ diffLayout: layout }),
