@@ -1,5 +1,5 @@
 import React, { useMemo, useCallback, useState } from "react";
-import { MultiFileDiff, PatchDiff, File as PierreFile, Virtualizer } from "@pierre/diffs/react";
+import { MultiFileDiff, PatchDiff, Virtualizer } from "@pierre/diffs/react";
 import type {
   DiffLineAnnotation,
 } from "@pierre/diffs/react";
@@ -293,27 +293,6 @@ export const DiffViewer = React.memo<DiffViewerProps>(function DiffViewer({ file
         {fileHeader}
         {!isCollapsed && (
           <div className={s.binaryBody}>Binary file changed</div>
-        )}
-      </div>
-    );
-  }
-
-  // --- Render: new files use Pierre File component for cleaner display ---
-  if (fileDiff.file.status === "added" && newFile) {
-    return (
-      <div>
-        {fileHeader}
-        {!isCollapsed && (
-          <PierreFile
-            file={newFile}
-            options={{
-              theme: { dark: "github-dark", light: "github-light" },
-              themeType: "dark",
-              disableFileHeader: true,
-              overflow: options.overflow,
-            }}
-            selectedLines={selectedLines}
-          />
         )}
       </div>
     );
