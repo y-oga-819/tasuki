@@ -18,6 +18,7 @@ struct CommitGate {
     diff_hash: String,
     resolved_comments: serde_json::Value,
     resolved_doc_comments: serde_json::Value,
+    unresolved_comments: serde_json::Value,
 }
 
 /// Build the path for the commit gate file: /tmp/tasuki/{repo}/{branch}/review.json
@@ -47,9 +48,12 @@ pub async fn write_commit_gate(
     diff_hash: String,
     resolved_threads: String,
     resolved_doc_comments: String,
-) -> Result<(), TasukiError> {
+    unresolved_threads: String,
+) -> Result<String, TasukiError> {
     let (repo_name, branch) = get_gate_context(&state)?;
     let path = gate_file_path(&repo_name, &branch);
+
+    let path_str = path.to_string_lossy().to_string();
 
     tokio::task::spawn_blocking(move || {
         if let Some(parent) = path.parent() {
@@ -68,6 +72,8 @@ pub async fn write_commit_gate(
                 .unwrap_or(serde_json::Value::Array(vec![])),
             resolved_doc_comments: serde_json::from_str(&resolved_doc_comments)
                 .unwrap_or(serde_json::Value::Array(vec![])),
+            unresolved_comments: serde_json::from_str(&unresolved_threads)
+                .unwrap_or(serde_json::Value::Array(vec![])),
         };
 
         let gate_json = serde_json::to_string(&gate)
@@ -76,7 +82,7 @@ pub async fn write_commit_gate(
         fs::write(&path, gate_json)
             .map_err(|e| TasukiError::Io(format!("Cannot write gate file: {}", e)))?;
 
-        Ok(())
+        Ok(path_str)
     })
     .await
     .map_err(|e| TasukiError::Io(e.to_string()))?

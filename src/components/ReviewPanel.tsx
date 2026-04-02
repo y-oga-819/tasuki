@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useReviewStore } from "../store/reviewStore";
 import { useDiffStore } from "../store/diffStore";
 import { formatReviewPrompt, formatSingleComment } from "../utils/format-review";
-import { copyToClipboard } from "../utils/tauri-api";
+import { copyToClipboard, sendToClaudeCode, exitApp } from "../utils/tauri-api";
 import * as api from "../utils/tauri-api";
 import type { ReviewThread, DocComment } from "../types";
 import s from "./ReviewPanel.module.css";
@@ -241,6 +241,9 @@ export const ReviewPanel: React.FC = () => {
     [allThreads],
   );
 
+  const [approveLabel, setApproveLabel] = useState("Approve");
+  const [rejectLabel, setRejectLabel] = useState("Reject");
+
   const totalCount = allThreads.length + docComments.length;
 
   const unresolvedCount = useMemo(() => {
@@ -264,14 +267,14 @@ export const ReviewPanel: React.FC = () => {
   );
 
   const writeGate = useCallback(
-    async (status: "approved" | "rejected") => {
+    async (status: "approved" | "rejected"): Promise<string> => {
       try {
         let diffHash = "";
         if (diffResult) {
           diffHash = await api.getDiffHash(diffResult);
         }
 
-        await api.writeCommitGate(
+        const gatePath = await api.writeCommitGate(
           status,
           diffHash,
           resolvedThreads.map((t) => ({
@@ -284,13 +287,41 @@ export const ReviewPanel: React.FC = () => {
             section: c.section,
             body: c.body,
           })),
+          unresolvedThreads.map((t) => ({
+            file: t.root.file_path,
+            line: t.root.line_start,
+            body: t.root.body,
+            code_snippet: t.root.code_snippet,
+          })),
         );
         setGateStatus(status);
+        return gatePath;
       } catch (err) {
         console.error("Failed to write commit gate:", err);
+        return "";
       }
     },
-    [diffResult, resolvedThreads, docComments, setGateStatus],
+    [diffResult, resolvedThreads, unresolvedThreads, docComments, setGateStatus],
+  );
+
+  const notifyClaudeCode = useCallback(
+    async (message: string, setLabel: (l: string) => void, defaultLabel: string) => {
+      try {
+        const sent = await sendToClaudeCode(message);
+        if (sent) {
+          setLabel("Sent!");
+          setTimeout(exitApp, 500);
+        } else {
+          setLabel("cmux not connected");
+          setTimeout(() => setLabel(defaultLabel), 2000);
+        }
+      } catch (err) {
+        console.error("Failed to send to Claude Code:", err);
+        setLabel("Send failed");
+        setTimeout(() => setLabel(defaultLabel), 2000);
+      }
+    },
+    [],
   );
 
   const handleApprove = useCallback(async () => {
@@ -303,8 +334,9 @@ export const ReviewPanel: React.FC = () => {
     } else {
       setVerdict("approve");
       await writeGate("approved");
+      await notifyClaudeCode("approveです。コミットしてください。", setApproveLabel, "Approve");
     }
-  }, [verdict, setVerdict, writeGate, setGateStatus]);
+  }, [verdict, setVerdict, writeGate, setGateStatus, notifyClaudeCode]);
 
   const handleReject = useCallback(async () => {
     if (verdict === "request_changes") {
@@ -315,9 +347,13 @@ export const ReviewPanel: React.FC = () => {
       setGateStatus("none");
     } else {
       setVerdict("request_changes");
-      await writeGate("rejected");
+      const gatePath = await writeGate("rejected");
+      const msg = gatePath
+        ? `rejectされました。${gatePath} のレビューコメントを確認して修正してください。`
+        : "rejectされました。レビューコメントを確認して修正してください。";
+      await notifyClaudeCode(msg, setRejectLabel, "Reject");
     }
-  }, [verdict, setVerdict, writeGate, setGateStatus]);
+  }, [verdict, setVerdict, writeGate, setGateStatus, notifyClaudeCode]);
 
   return (
     <div className="review-panel" role="complementary" aria-label="Review">
@@ -421,13 +457,13 @@ export const ReviewPanel: React.FC = () => {
             disabled={!canApprove}
             title={!canApprove ? "Resolve all threads before approving" : ""}
           >
-            Approve
+            {approveLabel}
           </button>
           <button
             className={`btn ${s.verdictBtn} ${verdict === "request_changes" ? s.verdictBtnRejectActive : ""}`}
             onClick={handleReject}
           >
-            Reject
+            {rejectLabel}
           </button>
         </div>
       </div>
