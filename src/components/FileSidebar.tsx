@@ -30,6 +30,8 @@ export const FileSidebar: React.FC<FileSidebarProps> = ({ style }) => {
   const { displayMode, setRightPaneMode } = useUiStore();
   const {
     diffResult,
+    diffSource,
+    setDiffSource,
     selectedFile,
     setSelectedFile,
     collapsedFiles,
@@ -632,6 +634,23 @@ export const FileSidebar: React.FC<FileSidebarProps> = ({ style }) => {
             className={`${s.collapse} ${collapsedSections.has("changed-files") ? s.collapsed : ""}`}
           >
             <div className={s.collapseInner}>
+              <div className={s.diffSourceToggle}>
+                {(
+                  [
+                    { type: "uncommitted", label: "All" },
+                    { type: "staged", label: "Staged" },
+                    { type: "working", label: "Unstaged" },
+                  ] as const
+                ).map(({ type, label }) => (
+                  <button
+                    key={type}
+                    className={`${s.diffSourceBtn} ${diffSource.type === type ? s.diffSourceActive : ""}`}
+                    onClick={() => setDiffSource({ type })}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
               <div className={s.filter}>
                 <input
                   ref={filterInputRef}

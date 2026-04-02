@@ -96,6 +96,46 @@
   min-height: 0;
 }
 
+/* Diff source toggle (All / Staged / Unstaged) */
+.diffSourceToggle {
+  display: flex;
+  gap: 1px;
+  padding: var(--space-1) var(--space-2);
+  background: var(--color-border-secondary);
+  border-radius: var(--radius-sm);
+  margin: var(--space-1) var(--space-2) 0;
+}
+
+.diffSourceBtn {
+  flex: 1;
+  padding: var(--space-1) 0;
+  font-size: var(--font-size-sm);
+  font-family: var(--font-sans);
+  font-weight: 500;
+  color: var(--color-text-tertiary);
+  background: var(--color-bg-secondary);
+  border: none;
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s;
+}
+
+.diffSourceBtn:first-child {
+  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+}
+
+.diffSourceBtn:last-child {
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+
+.diffSourceBtn:hover {
+  color: var(--color-text-primary);
+}
+
+.diffSourceActive {
+  color: var(--color-text-primary);
+  background: var(--color-bg-primary);
+}
+
 .filter {
   position: relative;
   padding: var(--space-1) var(--space-2);
