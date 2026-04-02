@@ -298,12 +298,18 @@ export const ReviewPanel: React.FC = () => {
 
   const notifyClaudeCode = useCallback(
     async (message: string, setLabel: (l: string) => void, defaultLabel: string) => {
-      const sent = await sendToClaudeCode(message);
-      if (sent) {
-        setLabel("Sent!");
-        setTimeout(exitApp, 500);
-      } else {
-        setLabel("cmux not connected");
+      try {
+        const sent = await sendToClaudeCode(message);
+        if (sent) {
+          setLabel("Sent!");
+          setTimeout(exitApp, 500);
+        } else {
+          setLabel("cmux not connected");
+          setTimeout(() => setLabel(defaultLabel), 2000);
+        }
+      } catch (err) {
+        console.error("Failed to send to Claude Code:", err);
+        setLabel("Send failed");
         setTimeout(() => setLabel(defaultLabel), 2000);
       }
     },
