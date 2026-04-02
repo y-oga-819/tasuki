@@ -1,5 +1,5 @@
 import type { DiffResult, CommitInfo, ReviewSession, RepoInfo, CommitGateData, ChangeStatus } from "../types";
-import { mockDiffResult, emptyDiffResult } from "../__fixtures__/mock-diff-data";
+import { mockDiffResult, mockStagedDiffResult, mockWorkingDiffResult } from "../__fixtures__/mock-diff-data";
 import { mockDocPaths, mockDesignDocNames, mockReviewDocNames, mockDocContents } from "../__fixtures__/mock-doc-data";
 import { mockRepoInfo, mockCommitLog, mockHeadSha, mockDiffHash } from "../__fixtures__/mock-repo-data";
 
@@ -17,12 +17,13 @@ function mockInvoke<T>(cmd: string, args?: Record<string, unknown>): T {
   switch (cmd) {
     // Diff APIs
     case "get_diff":
-    case "get_staged_diff":
     case "get_ref_diff":
     case "get_commit_diff":
       return mockDiffResult as T;
+    case "get_staged_diff":
+      return mockStagedDiffResult as T;
     case "get_working_diff":
-      return emptyDiffResult as T;
+      return mockWorkingDiffResult as T;
 
     // Repository info APIs
     case "get_repo_info":

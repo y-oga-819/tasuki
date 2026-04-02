@@ -673,6 +673,272 @@ const lockFile: FileDiff = {
   new_content: null,
 };
 
+// ─── Staged variant: DiffViewer.tsx (imports only) ──────────────────────
+
+const modifiedFileStaged: FileDiff = {
+  file: {
+    path: "src/components/DiffViewer.tsx",
+    old_path: null,
+    status: "modified",
+    additions: 2,
+    deletions: 0,
+    is_binary: false,
+    is_generated: false,
+  },
+  hunks: [
+    {
+      header: "@@ -1,7 +1,9 @@",
+      old_start: 1,
+      old_lines: 7,
+      new_start: 1,
+      new_lines: 9,
+      lines: [
+        { origin: " ", old_lineno: 1, new_lineno: 1, content: "import React, { useState, useCallback } from 'react';" },
+        { origin: " ", old_lineno: 2, new_lineno: 2, content: "import { DiffLayout } from '../types';" },
+        { origin: " ", old_lineno: 3, new_lineno: 3, content: "import { useStore } from '../store';" },
+        { origin: "+", old_lineno: null, new_lineno: 4, content: "import { formatLineRange } from '../utils/format-helpers';" },
+        { origin: "+", old_lineno: null, new_lineno: 5, content: "import { copyToClipboard } from '../utils/clipboard';" },
+        { origin: " ", old_lineno: 4, new_lineno: 6, content: "" },
+        { origin: " ", old_lineno: 5, new_lineno: 7, content: "export function DiffViewer() {" },
+        { origin: " ", old_lineno: 6, new_lineno: 8, content: "  const diff = useStore(s => s.diffResult);" },
+        { origin: " ", old_lineno: 7, new_lineno: 9, content: "  const files = diff?.files ?? [];" },
+      ],
+    },
+  ],
+  old_content: `\
+import React, { useState, useCallback } from 'react';
+import { DiffLayout } from '../types';
+import { useStore } from '../store';
+
+export function DiffViewer() {
+  const diff = useStore(s => s.diffResult);
+  const files = diff?.files ?? [];
+
+  // State
+  const [layout, setLayout] = useState<DiffLayout>('split');
+  const comments = useStore(s => s.comments);
+  const handleClick = () => {
+    console.log('clicked');
+  };
+
+  // TODO: implement comment submit
+  return (
+    <div className="diff-viewer">
+      {/* ... */}
+    </div>
+  );
+}`,
+  new_content: `\
+import React, { useState, useCallback } from 'react';
+import { DiffLayout } from '../types';
+import { useStore } from '../store';
+import { formatLineRange } from '../utils/format-helpers';
+import { copyToClipboard } from '../utils/clipboard';
+
+export function DiffViewer() {
+  const diff = useStore(s => s.diffResult);
+  const files = diff?.files ?? [];
+
+  // State
+  const [layout, setLayout] = useState<DiffLayout>('split');
+  const comments = useStore(s => s.comments);
+  const handleClick = () => {
+    console.log('clicked');
+  };
+
+  // TODO: implement comment submit
+  return (
+    <div className="diff-viewer">
+      {/* ... */}
+    </div>
+  );
+}`,
+};
+
+// ─── Unstaged variant: DiffViewer.tsx (handlers only) ───────────────────
+
+const modifiedFileWorking: FileDiff = {
+  file: {
+    path: "src/components/DiffViewer.tsx",
+    old_path: null,
+    status: "modified",
+    additions: 16,
+    deletions: 5,
+    is_binary: false,
+    is_generated: false,
+  },
+  hunks: [
+    {
+      header: "@@ -12,8 +12,21 @@ export function DiffViewer() {",
+      old_start: 12,
+      old_lines: 8,
+      new_start: 12,
+      new_lines: 21,
+      lines: [
+        { origin: " ", old_lineno: 12, new_lineno: 12, content: "  const [layout, setLayout] = useState<DiffLayout>('split');" },
+        { origin: " ", old_lineno: 13, new_lineno: 13, content: "  const comments = useStore(s => s.comments);" },
+        { origin: "-", old_lineno: 14, new_lineno: null, content: "  const handleClick = () => {" },
+        { origin: "-", old_lineno: 15, new_lineno: null, content: "    console.log('clicked');" },
+        { origin: "+", old_lineno: null, new_lineno: 14, content: "  const handleLineSelect = useCallback((file: string, line: number) => {" },
+        { origin: "+", old_lineno: null, new_lineno: 15, content: "    setSelectedLine({ file, line });" },
+        { origin: "+", old_lineno: null, new_lineno: 16, content: "    setCommentFormOpen(true);" },
+        { origin: " ", old_lineno: 16, new_lineno: 17, content: "  };" },
+        { origin: " ", old_lineno: 17, new_lineno: 18, content: "" },
+        { origin: "-", old_lineno: 18, new_lineno: null, content: "  // TODO: implement comment submit" },
+        { origin: "+", old_lineno: null, new_lineno: 19, content: "  const handleCommentSubmit = useCallback((body: string) => {" },
+        { origin: "+", old_lineno: null, new_lineno: 20, content: "    const range = formatLineRange(selectedLine.line, selectedLine.line);" },
+        { origin: "+", old_lineno: null, new_lineno: 21, content: "    addComment({ file: selectedLine.file, line: selectedLine.line, body });" },
+        { origin: "+", old_lineno: null, new_lineno: 22, content: "    setCommentFormOpen(false);" },
+        { origin: "+", old_lineno: null, new_lineno: 23, content: "  }, [selectedLine]);" },
+        { origin: "+", old_lineno: null, new_lineno: 24, content: "" },
+        { origin: "+", old_lineno: null, new_lineno: 25, content: "  const handleCopyComment = useCallback(async (comment: ReviewComment) => {" },
+        { origin: "+", old_lineno: null, new_lineno: 26, content: "    const text = `${comment.file}:L${comment.line} ${comment.body}`;" },
+        { origin: "+", old_lineno: null, new_lineno: 27, content: "    await copyToClipboard(text);" },
+        { origin: "+", old_lineno: null, new_lineno: 28, content: "  }, []);" },
+        { origin: "+", old_lineno: null, new_lineno: 29, content: "" },
+        { origin: " ", old_lineno: 19, new_lineno: 30, content: "  return (" },
+        { origin: " ", old_lineno: 20, new_lineno: 31, content: "    <div className=\"diff-viewer\">" },
+      ],
+    },
+  ],
+  old_content: null,
+  new_content: null,
+};
+
+// ─── Staged variant: diff.rs (sort logic only) ─────────────────────────
+
+const rustCommandFileStaged: FileDiff = {
+  file: {
+    path: "src-tauri/src/commands/diff.rs",
+    old_path: null,
+    status: "modified",
+    additions: 13,
+    deletions: 2,
+    is_binary: false,
+    is_generated: false,
+  },
+  hunks: [
+    {
+      header: "@@ -22,9 +22,19 @@ pub fn get_diff(state: State<'_, AppState>) -> Result<DiffResult, AppError> {",
+      old_start: 22,
+      old_lines: 9,
+      new_start: 22,
+      new_lines: 19,
+      lines: [
+        { origin: " ", old_lineno: 22, new_lineno: 22, content: "    let repo = state.repo.lock().map_err(|_| AppError::LockError)?;" },
+        { origin: " ", old_lineno: 23, new_lineno: 23, content: "    let diff = repo.diff_index_to_workdir(None, None)?;" },
+        { origin: " ", old_lineno: 24, new_lineno: 24, content: "" },
+        { origin: "-", old_lineno: 25, new_lineno: null, content: "    let files = parse_diff(&diff)?;" },
+        { origin: "-", old_lineno: 26, new_lineno: null, content: "    let stats = compute_stats(&files);" },
+        { origin: "+", old_lineno: null, new_lineno: 25, content: "    let mut files = parse_diff(&diff)?;" },
+        { origin: "+", old_lineno: null, new_lineno: 26, content: "" },
+        { origin: "+", old_lineno: null, new_lineno: 27, content: "    // Sort files: modified first, then added, deleted, renamed" },
+        { origin: "+", old_lineno: null, new_lineno: 28, content: "    files.sort_by(|a, b| {" },
+        { origin: "+", old_lineno: null, new_lineno: 29, content: "        let priority = |f: &FileDiff| match f.file.status {" },
+        { origin: "+", old_lineno: null, new_lineno: 30, content: "            FileStatus::Modified => 0," },
+        { origin: "+", old_lineno: null, new_lineno: 31, content: "            FileStatus::Added => 1," },
+        { origin: "+", old_lineno: null, new_lineno: 32, content: "            FileStatus::Deleted => 2," },
+        { origin: "+", old_lineno: null, new_lineno: 33, content: "            _ => 3," },
+        { origin: "+", old_lineno: null, new_lineno: 34, content: "        };" },
+        { origin: "+", old_lineno: null, new_lineno: 35, content: "        priority(a).cmp(&priority(b))" },
+        { origin: "+", old_lineno: null, new_lineno: 36, content: "    });" },
+        { origin: "+", old_lineno: null, new_lineno: 37, content: "" },
+        { origin: "+", old_lineno: null, new_lineno: 38, content: "    let stats = compute_stats(&files);" },
+        { origin: " ", old_lineno: 27, new_lineno: 39, content: "" },
+        { origin: " ", old_lineno: 28, new_lineno: 40, content: "    Ok(DiffResult { files, stats })" },
+        { origin: " ", old_lineno: 29, new_lineno: 41, content: "}" },
+      ],
+    },
+  ],
+  old_content: null,
+  new_content: null,
+};
+
+// ─── Unstaged variant: diff.rs (log line only) ─────────────────────────
+
+const rustCommandFileWorking: FileDiff = {
+  file: {
+    path: "src-tauri/src/commands/diff.rs",
+    old_path: null,
+    status: "modified",
+    additions: 2,
+    deletions: 1,
+    is_binary: false,
+    is_generated: false,
+  },
+  hunks: [
+    {
+      header: "@@ -37,7 +37,8 @@",
+      old_start: 37,
+      old_lines: 4,
+      new_start: 37,
+      new_lines: 5,
+      lines: [
+        { origin: " ", old_lineno: 37, new_lineno: 37, content: "    let stats = compute_stats(&files);" },
+        { origin: " ", old_lineno: 38, new_lineno: 38, content: "" },
+        { origin: "-", old_lineno: 39, new_lineno: null, content: "    Ok(DiffResult { files, stats })" },
+        { origin: "+", old_lineno: null, new_lineno: 39, content: "    log::info!(\"Computed diff: {} files changed\", stats.files_changed);" },
+        { origin: "+", old_lineno: null, new_lineno: 40, content: "    Ok(DiffResult { files, stats })" },
+        { origin: " ", old_lineno: 40, new_lineno: 41, content: "}" },
+      ],
+    },
+  ],
+  old_content: null,
+  new_content: null,
+};
+
+// ─── Unstaged-only new file ─────────────────────────────────────────────
+
+const newUnstagedFile: FileDiff = {
+  file: {
+    path: "src/utils/logger.ts",
+    old_path: null,
+    status: "added",
+    additions: 12,
+    deletions: 0,
+    is_binary: false,
+    is_generated: false,
+  },
+  hunks: [
+    {
+      header: "@@ -0,0 +1,12 @@",
+      old_start: 0,
+      old_lines: 0,
+      new_start: 1,
+      new_lines: 12,
+      lines: [
+        { origin: "+", old_lineno: null, new_lineno: 1, content: "type LogLevel = 'debug' | 'info' | 'warn' | 'error';" },
+        { origin: "+", old_lineno: null, new_lineno: 2, content: "" },
+        { origin: "+", old_lineno: null, new_lineno: 3, content: "const LOG_LEVELS: Record<LogLevel, number> = {" },
+        { origin: "+", old_lineno: null, new_lineno: 4, content: "  debug: 0, info: 1, warn: 2, error: 3," },
+        { origin: "+", old_lineno: null, new_lineno: 5, content: "};" },
+        { origin: "+", old_lineno: null, new_lineno: 6, content: "" },
+        { origin: "+", old_lineno: null, new_lineno: 7, content: "let currentLevel: LogLevel = 'info';" },
+        { origin: "+", old_lineno: null, new_lineno: 8, content: "" },
+        { origin: "+", old_lineno: null, new_lineno: 9, content: "export function log(level: LogLevel, message: string): void {" },
+        { origin: "+", old_lineno: null, new_lineno: 10, content: "  if (LOG_LEVELS[level] >= LOG_LEVELS[currentLevel]) {" },
+        { origin: "+", old_lineno: null, new_lineno: 11, content: "    console[level](`[${level.toUpperCase()}] ${message}`);" },
+        { origin: "+", old_lineno: null, new_lineno: 12, content: "  }" },
+      ],
+    },
+  ],
+  old_content: null,
+  new_content: `\
+type LogLevel = 'debug' | 'info' | 'warn' | 'error';
+
+const LOG_LEVELS: Record<LogLevel, number> = {
+  debug: 0, info: 1, warn: 2, error: 3,
+};
+
+let currentLevel: LogLevel = 'info';
+
+export function log(level: LogLevel, message: string): void {
+  if (LOG_LEVELS[level] >= LOG_LEVELS[currentLevel]) {
+    console[level](\`[\${level.toUpperCase()}] \${message}\`);
+  }
+}`,
+};
+
 // ─── Assemble ────────────────────────────────────────────────────────────
 
 const allFiles: FileDiff[] = [
@@ -688,6 +954,33 @@ const allFiles: FileDiff[] = [
   lockFile,
 ];
 
+// Staged = HEAD vs index
+// - staged-only: addedFile, deletedFile, cssTokensFile
+// - both (staged part): modifiedFileStaged, rustCommandFileStaged
+// - renamed (staged): renamedFile
+// - package.json staged
+const stagedFiles: FileDiff[] = [
+  modifiedFileStaged,
+  addedFile,
+  deletedFile,
+  renamedFile,
+  cssTokensFile,
+  rustCommandFileStaged,
+  packageJsonFile,
+];
+
+// Working = index vs workdir
+// - unstaged-only: hookFile, docsFile, lockFile, newUnstagedFile
+// - both (unstaged part): modifiedFileWorking, rustCommandFileWorking
+const workingFiles: FileDiff[] = [
+  modifiedFileWorking,
+  rustCommandFileWorking,
+  hookFile,
+  docsFile,
+  newUnstagedFile,
+  lockFile,
+];
+
 function computeStats(files: FileDiff[]): DiffStats {
   return {
     files_changed: files.length,
@@ -699,6 +992,16 @@ function computeStats(files: FileDiff[]): DiffStats {
 export const mockDiffResult: DiffResult = {
   files: allFiles,
   stats: computeStats(allFiles),
+};
+
+export const mockStagedDiffResult: DiffResult = {
+  files: stagedFiles,
+  stats: computeStats(stagedFiles),
+};
+
+export const mockWorkingDiffResult: DiffResult = {
+  files: workingFiles,
+  stats: computeStats(workingFiles),
 };
 
 export const emptyDiffResult: DiffResult = {
