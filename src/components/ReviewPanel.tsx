@@ -267,14 +267,14 @@ export const ReviewPanel: React.FC = () => {
   );
 
   const writeGate = useCallback(
-    async (status: "approved" | "rejected") => {
+    async (status: "approved" | "rejected"): Promise<string> => {
       try {
         let diffHash = "";
         if (diffResult) {
           diffHash = await api.getDiffHash(diffResult);
         }
 
-        await api.writeCommitGate(
+        const gatePath = await api.writeCommitGate(
           status,
           diffHash,
           resolvedThreads.map((t) => ({
@@ -287,13 +287,21 @@ export const ReviewPanel: React.FC = () => {
             section: c.section,
             body: c.body,
           })),
+          unresolvedThreads.map((t) => ({
+            file: t.root.file_path,
+            line: t.root.line_start,
+            body: t.root.body,
+            code_snippet: t.root.code_snippet,
+          })),
         );
         setGateStatus(status);
+        return gatePath;
       } catch (err) {
         console.error("Failed to write commit gate:", err);
+        return "";
       }
     },
-    [diffResult, resolvedThreads, docComments, setGateStatus],
+    [diffResult, resolvedThreads, unresolvedThreads, docComments, setGateStatus],
   );
 
   const notifyClaudeCode = useCallback(
@@ -339,11 +347,13 @@ export const ReviewPanel: React.FC = () => {
       setGateStatus("none");
     } else {
       setVerdict("request_changes");
-      await writeGate("rejected");
-      const prompt = formatReviewPrompt(allThreads, docComments, "request_changes");
-      await notifyClaudeCode(prompt, setRejectLabel, "Reject");
+      const gatePath = await writeGate("rejected");
+      const msg = gatePath
+        ? `rejectされました。${gatePath} のレビューコメントを確認して修正してください。`
+        : "rejectされました。レビューコメントを確認して修正してください。";
+      await notifyClaudeCode(msg, setRejectLabel, "Reject");
     }
-  }, [verdict, setVerdict, writeGate, setGateStatus, allThreads, docComments, notifyClaudeCode]);
+  }, [verdict, setVerdict, writeGate, setGateStatus, notifyClaudeCode]);
 
   return (
     <div className="review-panel" role="complementary" aria-label="Review">

@@ -84,7 +84,7 @@ function mockInvoke<T>(cmd: string, args?: Record<string, unknown>): T {
     // Commit gate APIs (no-op)
     case "write_commit_gate":
       console.log("[mock] writeCommitGate", args);
-      return undefined as T;
+      return "/tmp/tasuki/mock-repo/mock-branch/review.json" as T;
     case "read_commit_gate":
       return null as T;
     case "clear_commit_gate":
@@ -242,14 +242,17 @@ export async function writeCommitGate(
   diffHash: string,
   resolvedThreads: Array<{ file: string; line: number; body: string }>,
   resolvedDocComments: Array<{ file: string; section: string; body: string }>,
-): Promise<void> {
+  unresolvedThreads: Array<{ file: string; line: number; body: string; code_snippet?: string }> = [],
+): Promise<string> {
   const resolvedThreadsJson = JSON.stringify(resolvedThreads);
   const resolvedDocCommentsJson = JSON.stringify(resolvedDocComments);
-  return invoke<void>("write_commit_gate", {
+  const unresolvedThreadsJson = JSON.stringify(unresolvedThreads);
+  return invoke<string>("write_commit_gate", {
     status,
     diffHash,
     resolvedThreads: resolvedThreadsJson,
     resolvedDocComments: resolvedDocCommentsJson,
+    unresolvedThreads: unresolvedThreadsJson,
   });
 }
 
