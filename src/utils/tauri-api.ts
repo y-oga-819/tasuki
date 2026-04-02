@@ -90,6 +90,14 @@ function mockInvoke<T>(cmd: string, args?: Record<string, unknown>): T {
     case "clear_commit_gate":
       return undefined as T;
 
+    // Claude Code communication (no-op in browser)
+    case "send_to_claude_code":
+      console.log("[mock] sendToClaudeCode", args);
+      return false as T;
+    case "exit_app":
+      console.log("[mock] exitApp");
+      return undefined as T;
+
     // Zed integration (no-op)
     case "open_in_zed":
       console.log("[mock] openInZed", args);
@@ -253,6 +261,16 @@ export async function readCommitGate(): Promise<CommitGateData | null> {
 
 export async function clearCommitGate(): Promise<void> {
   return invoke<void>("clear_commit_gate");
+}
+
+// ---- Claude Code Communication ----
+
+export async function sendToClaudeCode(message: string): Promise<boolean> {
+  return invoke<boolean>("send_to_claude_code", { message });
+}
+
+export async function exitApp(): Promise<void> {
+  return invoke<void>("exit_app");
 }
 
 // ---- External Docs ----
