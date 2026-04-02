@@ -326,7 +326,7 @@ export const ReviewPanel: React.FC = () => {
     } else {
       setVerdict("approve");
       await writeGate("approved");
-      await notifyClaudeCode("前回のコミットをやり直してください", setApproveLabel, "Approve");
+      await notifyClaudeCode("approveです。コミットしてください。", setApproveLabel, "Approve");
     }
   }, [verdict, setVerdict, writeGate, setGateStatus, notifyClaudeCode]);
 
