@@ -21,6 +21,23 @@ pub struct RepoInfo {
     pub is_worktree: bool,
 }
 
+/// Discover the git workdir root from an arbitrary path.
+///
+/// Walks up the directory tree to find the `.git` directory, then returns
+/// the workdir path. This correctly resolves the repo root even when the
+/// starting path is a subdirectory (e.g. `src-tauri/` during `tauri dev`)
+/// or inside a git worktree.
+pub fn discover_repo_root(start: &std::path::Path) -> Result<String, TasukiError> {
+    let repo = Repository::discover(start)?;
+    let workdir = repo
+        .workdir()
+        .ok_or_else(|| TasukiError::Git("Bare repository".to_string()))?;
+    Ok(workdir
+        .to_string_lossy()
+        .trim_end_matches('/')
+        .to_string())
+}
+
 /// Open a git repository at the given path
 pub fn open_repo(repo_path: &str) -> Result<Repository, TasukiError> {
     Ok(Repository::open(repo_path)?)
@@ -151,5 +168,29 @@ mod tests {
         let (_dir, repo_path) = setup_repo();
         let info = get_repo_info(&repo_path).unwrap();
         assert!(!info.is_worktree);
+    }
+
+    /// Canonicalize a path for comparison (resolves symlinks like /var → /private/var on macOS)
+    fn canonical(p: &str) -> String {
+        std::fs::canonicalize(p)
+            .unwrap()
+            .to_string_lossy()
+            .to_string()
+    }
+
+    #[test]
+    fn test_discover_repo_root_from_root() {
+        let (_dir, repo_path) = setup_repo();
+        let root = discover_repo_root(Path::new(&repo_path)).unwrap();
+        assert_eq!(canonical(&root), canonical(&repo_path));
+    }
+
+    #[test]
+    fn test_discover_repo_root_from_subdirectory() {
+        let (dir, repo_path) = setup_repo();
+        let subdir = dir.path().join("subdir");
+        fs::create_dir(&subdir).unwrap();
+        let root = discover_repo_root(&subdir).unwrap();
+        assert_eq!(canonical(&root), canonical(&repo_path));
     }
 }
