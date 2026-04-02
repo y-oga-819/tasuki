@@ -82,6 +82,8 @@ pub fn run() {
             commands::kill_terminal,
             commands::is_terminal_alive,
             commands::check_changes,
+            commands::send_to_claude_code,
+            commands::exit_app,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Tasuki");
