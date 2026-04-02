@@ -9,14 +9,20 @@ pub mod watcher;
 use parking_lot::Mutex;
 use state::AppState;
 
+/// Resolve the git repository root from the current working directory.
+/// Falls back to CWD if discovery fails (e.g. not inside a git repo).
+fn resolve_repo_root() -> String {
+    let cwd = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+    git::discover_repo_root(&cwd)
+        .unwrap_or_else(|_| cwd.to_string_lossy().to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let args: Vec<String> = std::env::args().collect();
     let cli_args = cli::parse_cli_args(&args);
 
-    let repo_path = std::env::current_dir()
-        .map(|p| p.to_string_lossy().to_string())
-        .unwrap_or_else(|_| ".".to_string());
+    let repo_path = resolve_repo_root();
 
     tauri::Builder::default()
         .plugin(tauri_plugin_clipboard_manager::init())
