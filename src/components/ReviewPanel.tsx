@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useReviewStore } from "../store/reviewStore";
 import { useDiffStore } from "../store/diffStore";
 import { formatReviewPrompt, formatSingleComment } from "../utils/format-review";
-import { copyToClipboard } from "../utils/tauri-api";
+import { copyToClipboard, sendToClaudeCode, exitApp } from "../utils/tauri-api";
 import * as api from "../utils/tauri-api";
 import type { ReviewThread, DocComment } from "../types";
 import s from "./ReviewPanel.module.css";
@@ -241,6 +241,9 @@ export const ReviewPanel: React.FC = () => {
     [allThreads],
   );
 
+  const [approveLabel, setApproveLabel] = useState("Approve");
+  const [rejectLabel, setRejectLabel] = useState("Reject");
+
   const totalCount = allThreads.length + docComments.length;
 
   const unresolvedCount = useMemo(() => {
@@ -293,6 +296,20 @@ export const ReviewPanel: React.FC = () => {
     [diffResult, resolvedThreads, docComments, setGateStatus],
   );
 
+  const notifyClaudeCode = useCallback(
+    async (message: string, setLabel: (l: string) => void, defaultLabel: string) => {
+      const sent = await sendToClaudeCode(message);
+      if (sent) {
+        setLabel("Sent!");
+        setTimeout(exitApp, 500);
+      } else {
+        setLabel("cmux not connected");
+        setTimeout(() => setLabel(defaultLabel), 2000);
+      }
+    },
+    [],
+  );
+
   const handleApprove = useCallback(async () => {
     if (verdict === "approve") {
       setVerdict(null);
@@ -303,8 +320,9 @@ export const ReviewPanel: React.FC = () => {
     } else {
       setVerdict("approve");
       await writeGate("approved");
+      await notifyClaudeCode("前回のコミットをやり直してください", setApproveLabel, "Approve");
     }
-  }, [verdict, setVerdict, writeGate, setGateStatus]);
+  }, [verdict, setVerdict, writeGate, setGateStatus, notifyClaudeCode]);
 
   const handleReject = useCallback(async () => {
     if (verdict === "request_changes") {
@@ -316,8 +334,10 @@ export const ReviewPanel: React.FC = () => {
     } else {
       setVerdict("request_changes");
       await writeGate("rejected");
+      const prompt = formatReviewPrompt(allThreads, docComments, "request_changes");
+      await notifyClaudeCode(prompt, setRejectLabel, "Reject");
     }
-  }, [verdict, setVerdict, writeGate, setGateStatus]);
+  }, [verdict, setVerdict, writeGate, setGateStatus, allThreads, docComments, notifyClaudeCode]);
 
   return (
     <div className="review-panel" role="complementary" aria-label="Review">
@@ -421,13 +441,13 @@ export const ReviewPanel: React.FC = () => {
             disabled={!canApprove}
             title={!canApprove ? "Resolve all threads before approving" : ""}
           >
-            Approve
+            {approveLabel}
           </button>
           <button
             className={`btn ${s.verdictBtn} ${verdict === "request_changes" ? s.verdictBtnRejectActive : ""}`}
             onClick={handleReject}
           >
-            Reject
+            {rejectLabel}
           </button>
         </div>
       </div>
