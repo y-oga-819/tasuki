@@ -1,6 +1,6 @@
 [package]
 name = "tasuki"
-version = "0.2.0"
+version = "1.0.0"
 description = "Tasuki — A review assistant tool for Claude Code workflows"
 license = "MIT"
 repository = "https://github.com/y-oga-819/tasuki"
