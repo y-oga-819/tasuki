@@ -54,7 +54,7 @@ export const FileSidebar: React.FC<FileSidebarProps> = ({ style }) => {
 
   const [collapsedDirs, setCollapsedDirs] = useState<Set<string>>(new Set());
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(
-    new Set(["documents", "design-docs"]),
+    new Set(["documents", "design-docs", "reviews"]),
   );
   const [fileFilter, setFileFilter] = useState("");
   const [focusedNodePath, setFocusedNodePath] = useState<string | null>(null);
