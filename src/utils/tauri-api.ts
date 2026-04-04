@@ -2,6 +2,7 @@ import type { DiffResult, CommitInfo, ReviewSession, RepoInfo, CommitGateData, C
 import { mockDiffResult, mockStagedDiffResult, mockWorkingDiffResult } from "../__fixtures__/mock-diff-data";
 import { mockDocPaths, mockDesignDocNames, mockReviewDocNames, mockDocContents } from "../__fixtures__/mock-doc-data";
 import { mockRepoInfo, mockCommitLog, mockHeadSha, mockDiffHash } from "../__fixtures__/mock-repo-data";
+import { mockSourceFiles, mockInspectorResults } from "../__fixtures__/mock-inspector-data";
 
 /**
  * Bridge to Tauri backend commands.
@@ -40,7 +41,7 @@ function mockInvoke<T>(cmd: string, args?: Record<string, unknown>): T {
       return mockDocPaths as T;
     case "read_file": {
       const filePath = args?.filePath as string;
-      return (mockDocContents[filePath] ?? `# ${filePath}\n\nMock content for ${filePath}`) as T;
+      return (mockDocContents[filePath] ?? mockSourceFiles[filePath] ?? `# ${filePath}\n\nMock content for ${filePath}`) as T;
     }
     case "list_design_docs":
       return mockDesignDocNames as T;
@@ -103,106 +104,27 @@ function mockInvoke<T>(cmd: string, args?: Record<string, unknown>): T {
     case "lsp_stop":
       return undefined as T;
     case "lsp_analyze_diff":
-      return [
-        {
-          name: "handleSubmit",
-          file_path: "src/App.tsx",
-          start_line: 42,
-          end_line: 48,
-          changed_lines: [44, 46],
-          change_type: "modified",
-          definition_code:
-            "async function handleSubmit(\n  data: FormData,\n): Promise<Result> {\n  const validated = validate(data);\n  return await saveToDb(validated);\n}",
-          callers: [
-            {
-              name: "onFormSubmit",
-              kind: "function",
-              file_path: "src/pages/Form.tsx",
-              line: 88,
-              character: 4,
-              code_snippet: "    handleSubmit(data);",
-            },
-            {
-              name: "processQueue",
-              kind: "function",
-              file_path: "src/worker/queue.ts",
-              line: 15,
-              character: 8,
-              code_snippet: "        handleSubmit(item.data);",
-            },
-          ],
-          callees: [
-            {
-              name: "validate",
-              kind: "function",
-              file_path: "src/utils/validate.ts",
-              line: 10,
-              character: 0,
-              code_snippet: "  const validated = validate(data);",
-            },
-            {
-              name: "saveToDb",
-              kind: "function",
-              file_path: "src/db/client.ts",
-              line: 67,
-              character: 0,
-              code_snippet: "  return await saveToDb(validated);",
-            },
-          ],
-          hover_info: "function handleSubmit(data: FormData): Promise<Result>",
-        },
-        {
-          name: "processItem",
-          file_path: "src/worker.ts",
-          start_line: 25,
-          end_line: 40,
-          changed_lines: [28, 30, 32],
-          change_type: "added",
-          definition_code:
-            "function processItem(item: QueueItem): void {\n  const result = transform(item);\n  emit(result);\n}",
-          callers: [
-            {
-              name: "mainLoop",
-              kind: "function",
-              file_path: "src/worker.ts",
-              line: 5,
-              character: 0,
-              code_snippet: "    processItem(item);",
-            },
-          ],
-          callees: [
-            {
-              name: "transform",
-              kind: "function",
-              file_path: "src/utils/transform.ts",
-              line: 3,
-              character: 0,
-              code_snippet: "  const result = transform(item);",
-            },
-          ],
-          hover_info: "function processItem(item: QueueItem): void",
-        },
-      ] as T;
+      return mockInspectorResults as T;
     case "lsp_incoming_calls":
       return [
         {
-          name: "onFormSubmit",
+          name: "DiffViewer",
           kind: "function",
-          file_path: "src/pages/Form.tsx",
-          line: 88,
-          character: 4,
-          code_snippet: "    handleSubmit(data);",
+          file_path: "src/components/DiffViewer.tsx",
+          line: 6,
+          character: 0,
+          code_snippet: "export function DiffViewer() {",
         },
       ] as T;
     case "lsp_outgoing_calls":
       return [
         {
-          name: "validate",
+          name: "formatLineRange",
           kind: "function",
-          file_path: "src/utils/validate.ts",
-          line: 10,
+          file_path: "src/utils/format-helpers.ts",
+          line: 5,
           character: 0,
-          code_snippet: "  const validated = validate(data);",
+          code_snippet: "export function formatLineRange(start: number, end: number): string {",
         },
       ] as T;
 
