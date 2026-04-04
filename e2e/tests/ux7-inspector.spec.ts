@@ -55,8 +55,10 @@ test.describe("UX7: Code Inspector", () => {
     await openInspectorWithCards(page);
     const panel = inspectorPanel(page);
 
-    const firstCard = panel.locator('[class*="card"]').first();
-    const secondCard = panel.locator('[class*="card"]').nth(1);
+    // Each card is a parent div that contains a cardHeader child.
+    // Use cardHeader to locate cards, then go to parent.
+    const firstCard = panel.locator('[class*="cardHeader"]').first().locator('..');
+    const secondCard = panel.locator('[class*="cardHeader"]').nth(1).locator('..');
 
     const firstHeader = firstCard.locator('[class*="cardHeader"]');
     const firstDef = firstCard.locator('[class*="sectionTitle"]').filter({ hasText: "Definition" });
