@@ -165,6 +165,18 @@
   font-family: var(--font-mono);
 }
 
+.callItemClickable {
+  composes: callItem;
+  cursor: pointer;
+  padding: 3px var(--space-1);
+  margin: 0 calc(-1 * var(--space-1));
+  border-radius: 3px;
+}
+
+.callItemClickable:hover {
+  background: var(--color-bg-tertiary);
+}
+
 .callName {
   color: var(--color-text-primary);
   font-weight: 500;

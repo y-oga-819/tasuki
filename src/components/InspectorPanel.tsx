@@ -1,15 +1,23 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useInspectorStore, type MethodCard } from "../store/inspectorStore";
 import { useDiffStore } from "../store/diffStore";
 import { highlightCode } from "../utils/shiki";
+import { CodePreviewModal } from "./CodePreviewModal";
 import type { CallHierarchyCall } from "../types";
 import s from "./InspectorPanel.module.css";
 
 /** Right-pane panel showing auto-analyzed method inspections. */
+interface PreviewTarget {
+  filePath: string;
+  line: number;
+  name: string;
+}
+
 export const InspectorPanel: React.FC = () => {
   const { methods, analyzing, progress, error, analyzeAll, setDefinitionHtml } =
     useInspectorStore();
   const diffResult = useDiffStore((state) => state.diffResult);
+  const [previewTarget, setPreviewTarget] = useState<PreviewTarget | null>(null);
 
   // Auto-trigger analysis when diff data is available
   useEffect(() => {
@@ -68,16 +76,34 @@ export const InspectorPanel: React.FC = () => {
 
       <div className={s.cardList}>
         {methods.map((method, index) => (
-          <MethodCardView key={`${method.file_path}:${method.start_line}`} method={method} index={index} />
+          <MethodCardView
+            key={`${method.file_path}:${method.start_line}`}
+            method={method}
+            index={index}
+            onPreview={setPreviewTarget}
+          />
         ))}
       </div>
+
+      {previewTarget && (
+        <CodePreviewModal
+          filePath={previewTarget.filePath}
+          line={previewTarget.line}
+          name={previewTarget.name}
+          onClose={() => setPreviewTarget(null)}
+        />
+      )}
     </div>
   );
 };
 
 // ---- Method Card ----
 
-const MethodCardView: React.FC<{ method: MethodCard; index: number }> = ({ method, index }) => {
+const MethodCardView: React.FC<{
+  method: MethodCard;
+  index: number;
+  onPreview: (target: PreviewTarget) => void;
+}> = ({ method, index, onPreview }) => {
   const toggleCollapse = useInspectorStore((state) => state.toggleCollapse);
 
   const changeClass =
@@ -119,10 +145,10 @@ const MethodCardView: React.FC<{ method: MethodCard; index: number }> = ({ metho
           )}
 
           {/* Callers */}
-          <CallSection title="Callers" calls={method.callers} />
+          <CallSection title="Callers" calls={method.callers} onClickCall={onPreview} />
 
           {/* Callees */}
-          <CallSection title="Callees" calls={method.callees} />
+          <CallSection title="Callees" calls={method.callees} onClickCall={onPreview} />
         </div>
       )}
     </div>
@@ -131,10 +157,11 @@ const MethodCardView: React.FC<{ method: MethodCard; index: number }> = ({ metho
 
 // ---- Call Section ----
 
-const CallSection: React.FC<{ title: string; calls: CallHierarchyCall[] }> = ({
-  title,
-  calls,
-}) => {
+const CallSection: React.FC<{
+  title: string;
+  calls: CallHierarchyCall[];
+  onClickCall: (target: PreviewTarget) => void;
+}> = ({ title, calls, onClickCall }) => {
   if (calls.length === 0) return null;
 
   return (
@@ -144,7 +171,18 @@ const CallSection: React.FC<{ title: string; calls: CallHierarchyCall[] }> = ({
       </div>
       <ul className={s.callList}>
         {calls.map((call, i) => (
-          <li key={`${call.file_path}:${call.line}:${i}`} className={s.callItem}>
+          <li
+            key={`${call.file_path}:${call.line}:${i}`}
+            className={s.callItemClickable}
+            onClick={() =>
+              onClickCall({
+                filePath: call.file_path,
+                line: call.line,
+                name: call.name,
+              })
+            }
+            title="Click to preview code"
+          >
             <span className={s.callName}>{call.name}()</span>
             <span className={s.callLocation}>
               {call.file_path}:{call.line}
