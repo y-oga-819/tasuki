@@ -55,8 +55,10 @@ test.describe("UX7: Code Inspector", () => {
     await openInspectorWithCards(page);
     const panel = inspectorPanel(page);
 
-    const cardHeader = panel.locator('[class*="cardHeader"]').first();
-    const definitionSection = panel.locator('[class*="sectionTitle"]').filter({ hasText: "Definition" }).first();
+    // Scope to the first card only
+    const firstCard = panel.locator('[class*="card"]').first();
+    const cardHeader = firstCard.locator('[class*="cardHeader"]');
+    const definitionSection = firstCard.locator('[class*="sectionTitle"]').filter({ hasText: "Definition" });
 
     // Initially expanded
     await expect(definitionSection).toBeVisible();
