@@ -1,4 +1,4 @@
-import type { DiffResult, CommitInfo, ReviewSession, RepoInfo, CommitGateData, ChangeStatus } from "../types";
+import type { DiffResult, CommitInfo, ReviewSession, RepoInfo, CommitGateData, ChangeStatus, MethodInspectionResult, CallHierarchyCall } from "../types";
 import { mockDiffResult, mockStagedDiffResult, mockWorkingDiffResult } from "../__fixtures__/mock-diff-data";
 import { mockDocPaths, mockDesignDocNames, mockReviewDocNames, mockDocContents } from "../__fixtures__/mock-doc-data";
 import { mockRepoInfo, mockCommitLog, mockHeadSha, mockDiffHash } from "../__fixtures__/mock-repo-data";
@@ -97,6 +97,114 @@ function mockInvoke<T>(cmd: string, args?: Record<string, unknown>): T {
     case "exit_app":
       console.log("[mock] exitApp");
       return undefined as T;
+
+    // LSP / Inspector APIs
+    case "lsp_start":
+    case "lsp_stop":
+      return undefined as T;
+    case "lsp_analyze_diff":
+      return [
+        {
+          name: "handleSubmit",
+          file_path: "src/App.tsx",
+          start_line: 42,
+          end_line: 48,
+          changed_lines: [44, 46],
+          change_type: "modified",
+          definition_code:
+            "async function handleSubmit(\n  data: FormData,\n): Promise<Result> {\n  const validated = validate(data);\n  return await saveToDb(validated);\n}",
+          callers: [
+            {
+              name: "onFormSubmit",
+              kind: "function",
+              file_path: "src/pages/Form.tsx",
+              line: 88,
+              character: 4,
+              code_snippet: "    handleSubmit(data);",
+            },
+            {
+              name: "processQueue",
+              kind: "function",
+              file_path: "src/worker/queue.ts",
+              line: 15,
+              character: 8,
+              code_snippet: "        handleSubmit(item.data);",
+            },
+          ],
+          callees: [
+            {
+              name: "validate",
+              kind: "function",
+              file_path: "src/utils/validate.ts",
+              line: 10,
+              character: 0,
+              code_snippet: "  const validated = validate(data);",
+            },
+            {
+              name: "saveToDb",
+              kind: "function",
+              file_path: "src/db/client.ts",
+              line: 67,
+              character: 0,
+              code_snippet: "  return await saveToDb(validated);",
+            },
+          ],
+          hover_info: "function handleSubmit(data: FormData): Promise<Result>",
+        },
+        {
+          name: "processItem",
+          file_path: "src/worker.ts",
+          start_line: 25,
+          end_line: 40,
+          changed_lines: [28, 30, 32],
+          change_type: "added",
+          definition_code:
+            "function processItem(item: QueueItem): void {\n  const result = transform(item);\n  emit(result);\n}",
+          callers: [
+            {
+              name: "mainLoop",
+              kind: "function",
+              file_path: "src/worker.ts",
+              line: 5,
+              character: 0,
+              code_snippet: "    processItem(item);",
+            },
+          ],
+          callees: [
+            {
+              name: "transform",
+              kind: "function",
+              file_path: "src/utils/transform.ts",
+              line: 3,
+              character: 0,
+              code_snippet: "  const result = transform(item);",
+            },
+          ],
+          hover_info: "function processItem(item: QueueItem): void",
+        },
+      ] as T;
+    case "lsp_incoming_calls":
+      return [
+        {
+          name: "onFormSubmit",
+          kind: "function",
+          file_path: "src/pages/Form.tsx",
+          line: 88,
+          character: 4,
+          code_snippet: "    handleSubmit(data);",
+        },
+      ] as T;
+    case "lsp_outgoing_calls":
+      return [
+        {
+          name: "validate",
+          kind: "function",
+          file_path: "src/utils/validate.ts",
+          line: 10,
+          character: 0,
+          code_snippet: "  const validated = validate(data);",
+        },
+      ] as T;
 
     // Zed integration (no-op)
     case "open_in_zed":
@@ -317,4 +425,32 @@ export async function copyToClipboard(text: string): Promise<void> {
   } else {
     await navigator.clipboard.writeText(text);
   }
+}
+
+// ---- LSP / Inspector ----
+
+export async function lspStart(languageId: string): Promise<void> {
+  return invoke<void>("lsp_start", { languageId });
+}
+
+export interface ChangedFileInfo {
+  file_path: string;
+  added_lines: number[];
+  deleted_lines: number[];
+}
+
+export async function lspAnalyzeDiff(changedFiles: ChangedFileInfo[]): Promise<MethodInspectionResult[]> {
+  return invoke<MethodInspectionResult[]>("lsp_analyze_diff", { changedFiles });
+}
+
+export async function lspIncomingCalls(
+  filePath: string,
+  line: number,
+  character: number,
+): Promise<CallHierarchyCall[]> {
+  return invoke<CallHierarchyCall[]>("lsp_incoming_calls", { filePath, line, character });
+}
+
+export async function lspStop(): Promise<void> {
+  return invoke<void>("lsp_stop");
 }
