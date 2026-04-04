@@ -51,25 +51,30 @@ test.describe("UX7: Code Inspector", () => {
     expect(await addedBadges.count()).toBeGreaterThan(0);
   });
 
-  test("clicking card header collapses/expands the card", async ({ page }) => {
+  test("clicking card header collapses/expands the card independently", async ({ page }) => {
     await openInspectorWithCards(page);
     const panel = inspectorPanel(page);
 
-    // Scope to the first card only
     const firstCard = panel.locator('[class*="card"]').first();
-    const cardHeader = firstCard.locator('[class*="cardHeader"]');
-    const definitionSection = firstCard.locator('[class*="sectionTitle"]').filter({ hasText: "Definition" });
+    const secondCard = panel.locator('[class*="card"]').nth(1);
 
-    // Initially expanded
-    await expect(definitionSection).toBeVisible();
+    const firstHeader = firstCard.locator('[class*="cardHeader"]');
+    const firstDef = firstCard.locator('[class*="sectionTitle"]').filter({ hasText: "Definition" });
+    const secondDef = secondCard.locator('[class*="sectionTitle"]').filter({ hasText: "Definition" });
 
-    // Click to collapse
-    await cardHeader.click();
-    await expect(definitionSection).not.toBeVisible();
+    // Both initially expanded
+    await expect(firstDef).toBeVisible();
+    await expect(secondDef).toBeVisible();
 
-    // Click again to expand
-    await cardHeader.click();
-    await expect(definitionSection).toBeVisible();
+    // Collapse first card — second card stays open
+    await firstHeader.click();
+    await expect(firstDef).not.toBeVisible();
+    await expect(secondDef).toBeVisible();
+
+    // Expand first card again — both visible
+    await firstHeader.click();
+    await expect(firstDef).toBeVisible();
+    await expect(secondDef).toBeVisible();
   });
 
   test("callers section shows caller entries", async ({ page }) => {
