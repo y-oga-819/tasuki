@@ -28,11 +28,18 @@ export const InspectorPanel: React.FC = () => {
 
   // Highlight definition code with Shiki after methods load
   useEffect(() => {
-    for (let i = 0; i < methods.length; i++) {
-      const m = methods[i];
+    for (const m of methods) {
       if (m.definition_code && !m.definitionHtml) {
+        const key = `${m.file_path}:${m.start_line}`;
         highlightCode(m.definition_code, m.file_path).then((html) => {
-          setDefinitionHtml(i, html);
+          // Use stable key to find the method, not array index
+          const current = useInspectorStore.getState().methods;
+          const idx = current.findIndex(
+            (c) => `${c.file_path}:${c.start_line}` === key,
+          );
+          if (idx >= 0 && !current[idx].definitionHtml) {
+            setDefinitionHtml(idx, html);
+          }
         });
       }
     }
@@ -119,7 +126,7 @@ const MethodCardView: React.FC<{
         <span className={`${s.changeTag} ${changeClass}`}>{method.change_type}</span>
         <span className={s.methodName}>{method.name}()</span>
         <span className={s.filePath}>
-          {method.file_path}:{method.start_line}
+          {method.file_path}:{method.start_line + 1}
         </span>
       </div>
 
@@ -185,7 +192,7 @@ const CallSection: React.FC<{
           >
             <span className={s.callName}>{call.name}()</span>
             <span className={s.callLocation}>
-              {call.file_path}:{call.line}
+              {call.file_path}:{call.line + 1}
             </span>
           </li>
         ))}

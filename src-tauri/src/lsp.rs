@@ -528,11 +528,23 @@ impl LspState {
         let (tx, rx) = oneshot::channel();
         self.pending.lock().insert(id, tx);
 
-        self.write_message(&msg)?;
+        if let Err(e) = self.write_message(&msg) {
+            // Clean up orphaned pending entry on write failure
+            self.pending.lock().remove(&id);
+            return Err(e);
+        }
 
-        rx.await.map_err(|_| {
-            TasukiError::Lsp(format!("LSP request {method} (id={id}) got no response"))
-        })
+        // Timeout after 30 seconds to avoid indefinite hangs
+        match tokio::time::timeout(std::time::Duration::from_secs(30), rx).await {
+            Ok(Ok(val)) => Ok(val),
+            Ok(Err(_)) => {
+                Err(TasukiError::Lsp(format!("LSP request {method} (id={id}) got no response")))
+            }
+            Err(_) => {
+                self.pending.lock().remove(&id);
+                Err(TasukiError::Lsp(format!("LSP request {method} (id={id}) timed out after 30s")))
+            }
+        }
     }
 
     fn write_message(&self, msg: &Value) -> Result<(), TasukiError> {
@@ -840,13 +852,29 @@ fn uri_to_path(uri: &str) -> String {
 
 /// Read method code from a source file given line range.
 fn read_method_code(root_path: &str, file_path: &str, start_line: u32, end_line: u32) -> String {
+    use std::path::PathBuf;
+
+    let root = PathBuf::from(root_path);
     let full_path = if file_path.starts_with('/') {
-        file_path.to_string()
+        PathBuf::from(file_path)
     } else {
-        format!("{root_path}/{file_path}")
+        root.join(file_path)
     };
 
-    let content = match std::fs::read_to_string(&full_path) {
+    // Verify the resolved path stays within the repo root
+    let canonical = match full_path.canonicalize() {
+        Ok(p) => p,
+        Err(_) => return String::new(),
+    };
+    let canonical_root = match root.canonicalize() {
+        Ok(p) => p,
+        Err(_) => return String::new(),
+    };
+    if !canonical.starts_with(&canonical_root) {
+        return String::new();
+    }
+
+    let content = match std::fs::read_to_string(&canonical) {
         Ok(c) => c,
         Err(_) => return String::new(),
     };
