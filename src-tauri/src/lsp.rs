@@ -430,15 +430,20 @@ impl LspState {
         root_path: &str,
     ) -> Result<Vec<MethodInspection>, TasukiError> {
         let changed_files = Self::extract_changed_lines(diff_text);
-        self.analyze_diff_from_changed(&changed_files, root_path).await
+        self.analyze_diff_from_changed(&changed_files, root_path, |_, _| {}).await
     }
 
     /// Run the full diff analysis pipeline from pre-extracted changed lines.
-    pub async fn analyze_diff_from_changed(
+    /// The `on_progress` callback is invoked with (done, total) after each method is analyzed.
+    pub async fn analyze_diff_from_changed<F>(
         &self,
         changed_files: &HashMap<String, ChangedLines>,
         root_path: &str,
-    ) -> Result<Vec<MethodInspection>, TasukiError> {
+        on_progress: F,
+    ) -> Result<Vec<MethodInspection>, TasukiError>
+    where
+        F: Fn(usize, usize),
+    {
         if changed_files.is_empty() {
             return Ok(vec![]);
         }
@@ -456,10 +461,13 @@ impl LspState {
             all_methods.extend(methods);
         }
 
+        let total = all_methods.len();
+        on_progress(0, total);
+
         // Phase 2: For each method, get definition code and call hierarchy
         let mut inspections: Vec<MethodInspection> = Vec::new();
 
-        for method in &all_methods {
+        for (i, method) in all_methods.iter().enumerate() {
             // Read definition code from file
             let definition_code = read_method_code(root_path, &method.file_path, method.start_line, method.end_line);
 
@@ -491,6 +499,8 @@ impl LspState {
                 callees,
                 hover_info,
             });
+
+            on_progress(i + 1, total);
         }
 
         Ok(inspections)

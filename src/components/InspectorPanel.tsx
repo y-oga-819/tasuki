@@ -3,7 +3,7 @@ import { useInspectorStore, type MethodCard } from "../store/inspectorStore";
 import { useDiffStore } from "../store/diffStore";
 import { highlightCode } from "../utils/shiki";
 import { CodePreviewModal } from "./CodePreviewModal";
-import type { CallHierarchyCall } from "../types";
+import type { CallHierarchyCall, InspectorProgress } from "../types";
 import s from "./InspectorPanel.module.css";
 
 /** Right-pane panel showing auto-analyzed method inspections. */
@@ -18,6 +18,26 @@ export const InspectorPanel: React.FC = () => {
     useInspectorStore();
   const diffResult = useDiffStore((state) => state.diffResult);
   const [previewTarget, setPreviewTarget] = useState<PreviewTarget | null>(null);
+
+  const updateProgress = useInspectorStore((state) => state.updateProgress);
+
+  // Listen to inspector:progress events from Tauri backend
+  useEffect(() => {
+    if (typeof window === "undefined" || !("__TAURI__" in window)) return;
+    let unlisten: (() => void) | null = null;
+
+    import("@tauri-apps/api/event").then(({ listen }) => {
+      listen<InspectorProgress>("inspector:progress", (event) => {
+        updateProgress(event.payload);
+      }).then((fn) => {
+        unlisten = fn;
+      });
+    });
+
+    return () => {
+      unlisten?.();
+    };
+  }, [updateProgress]);
 
   // Auto-trigger analysis when diff data is available
   useEffect(() => {

@@ -105,18 +105,15 @@ pub async fn lsp_analyze_diff(
         })
         .collect();
 
-    let total = file_paths.len();
-    let _ = app_handle.emit(
-        "inspector:progress",
-        InspectorProgress { done: 0, total },
-    );
-
-    let result = lsp.analyze_diff_from_changed(&changed_map, &root_path).await?;
-
-    let _ = app_handle.emit(
-        "inspector:progress",
-        InspectorProgress { done: total, total },
-    );
+    let handle = app_handle.clone();
+    let result = lsp
+        .analyze_diff_from_changed(&changed_map, &root_path, move |done, total| {
+            let _ = handle.emit(
+                "inspector:progress",
+                InspectorProgress { done, total },
+            );
+        })
+        .await?;
 
     Ok(result)
 }
