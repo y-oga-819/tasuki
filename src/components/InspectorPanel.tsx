@@ -24,18 +24,25 @@ export const InspectorPanel: React.FC = () => {
   // Listen to inspector:progress events from Tauri backend
   useEffect(() => {
     if (typeof window === "undefined" || !("__TAURI__" in window)) return;
-    let unlisten: (() => void) | null = null;
+    let disposed = false;
+    let unlistenFn: (() => void) | null = null;
 
     import("@tauri-apps/api/event").then(({ listen }) => {
+      if (disposed) return;
       listen<InspectorProgress>("inspector:progress", (event) => {
         updateProgress(event.payload);
       }).then((fn) => {
-        unlisten = fn;
+        if (disposed) {
+          fn();
+        } else {
+          unlistenFn = fn;
+        }
       });
     });
 
     return () => {
-      unlisten?.();
+      disposed = true;
+      unlistenFn?.();
     };
   }, [updateProgress]);
 

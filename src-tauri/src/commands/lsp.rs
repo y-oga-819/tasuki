@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use serde::Deserialize;
 use tauri::{AppHandle, Emitter, State};
 
@@ -7,6 +9,28 @@ use crate::lsp::{
     MethodInspection,
 };
 use crate::state::AppState;
+
+/// Validate that file_path resolves to a location inside the repo root.
+fn validate_file_path(file_path: &str, root_path: &str) -> Result<(), TasukiError> {
+    let root = PathBuf::from(root_path);
+    let full = if file_path.starts_with('/') {
+        PathBuf::from(file_path)
+    } else {
+        root.join(file_path)
+    };
+    let canonical = full
+        .canonicalize()
+        .map_err(|_| TasukiError::Lsp(format!("Cannot resolve path: {file_path}")))?;
+    let canonical_root = root
+        .canonicalize()
+        .map_err(|_| TasukiError::Lsp("Cannot resolve repo root".to_string()))?;
+    if !canonical.starts_with(&canonical_root) {
+        return Err(TasukiError::Lsp(format!(
+            "Path traversal denied: {file_path}"
+        )));
+    }
+    Ok(())
+}
 
 /// Changed file info passed from frontend (extracted from DiffResult).
 #[derive(Debug, Deserialize)]
@@ -31,38 +55,46 @@ pub async fn lsp_start(
 #[tauri::command]
 pub async fn lsp_document_symbols(
     lsp: State<'_, LspState>,
+    app_state: State<'_, AppState>,
     file_path: String,
 ) -> Result<Vec<DocumentSymbol>, TasukiError> {
+    validate_file_path(&file_path, &app_state.repo_path)?;
     lsp.document_symbols(&file_path).await
 }
 
 #[tauri::command]
 pub async fn lsp_hover(
     lsp: State<'_, LspState>,
+    app_state: State<'_, AppState>,
     file_path: String,
     line: u32,
     character: u32,
 ) -> Result<Option<String>, TasukiError> {
+    validate_file_path(&file_path, &app_state.repo_path)?;
     lsp.hover(&file_path, line, character).await
 }
 
 #[tauri::command]
 pub async fn lsp_incoming_calls(
     lsp: State<'_, LspState>,
+    app_state: State<'_, AppState>,
     file_path: String,
     line: u32,
     character: u32,
 ) -> Result<Vec<CallHierarchyCall>, TasukiError> {
+    validate_file_path(&file_path, &app_state.repo_path)?;
     lsp.incoming_calls(&file_path, line, character).await
 }
 
 #[tauri::command]
 pub async fn lsp_outgoing_calls(
     lsp: State<'_, LspState>,
+    app_state: State<'_, AppState>,
     file_path: String,
     line: u32,
     character: u32,
 ) -> Result<Vec<CallHierarchyCall>, TasukiError> {
+    validate_file_path(&file_path, &app_state.repo_path)?;
     lsp.outgoing_calls(&file_path, line, character).await
 }
 

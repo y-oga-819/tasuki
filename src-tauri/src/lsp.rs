@@ -1,7 +1,7 @@
 use parking_lot::Mutex;
 use serde::Serialize;
 use serde_json::{json, Value};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::io::{BufRead, BufReader, Write};
 use std::process::{Child, ChildStdin, Command, Stdio};
 use std::sync::Arc;
@@ -91,6 +91,7 @@ pub struct LspState {
     pending: Arc<Mutex<HashMap<i64, oneshot::Sender<Value>>>>,
     next_id: Mutex<i64>,
     root_uri: Mutex<String>,
+    opened_files: Mutex<HashSet<String>>,
 }
 
 impl LspState {
@@ -103,6 +104,7 @@ impl LspState {
             pending: Arc::new(Mutex::new(HashMap::new())),
             next_id: Mutex::new(1),
             root_uri: Mutex::new(String::new()),
+            opened_files: Mutex::new(HashSet::new()),
         }
     }
 
@@ -111,8 +113,14 @@ impl LspState {
     }
 
     /// Start an LSP server for the given language.
+    /// Safe to call concurrently — if already alive, returns Ok immediately.
     pub fn start(&self, language_id: &str, root_path: &str) -> Result<(), TasukiError> {
-        // Kill existing session
+        // Re-check inside the lock to prevent TOCTOU race
+        if *self.alive.lock() {
+            return Ok(());
+        }
+
+        // Kill existing session (in case of partially initialized state)
         self.stop();
 
         let (cmd, args) = detect_lsp_command(language_id)
@@ -323,6 +331,7 @@ impl LspState {
         }
 
         self.pending.lock().clear();
+        self.opened_files.lock().clear();
         *self.alive.lock() = false;
     }
 
@@ -335,17 +344,18 @@ impl LspState {
         let mut new_line: u32 = 0;
         let mut old_line: u32 = 0;
 
+        let mut pending_old_file: Option<String> = None;
+
         for line in diff_text.lines() {
-            if line.starts_with("+++ b/") {
+            if line.starts_with("--- a/") {
+                // Remember the old file name; will be used if +++ /dev/null (deleted file)
+                pending_old_file = Some(line[6..].to_string());
+            } else if line.starts_with("+++ b/") {
                 current_file = Some(line[6..].to_string());
+                pending_old_file = None;
             } else if line.starts_with("+++ /dev/null") {
-                current_file = None;
-            } else if line.starts_with("--- a/") {
-                // Track old file for deletions
-                let old_file = line[6..].to_string();
-                if current_file.is_none() {
-                    current_file = Some(old_file);
-                }
+                // Deleted file — use the old file name from --- header
+                current_file = pending_old_file.take();
             } else if line.starts_with("@@ ") {
                 // Parse hunk header: @@ -old_start,old_count +new_start,new_count @@
                 if let Some((old_start, new_start)) = parse_hunk_header(line) {
@@ -609,6 +619,15 @@ impl LspState {
 
     /// Send textDocument/didOpen so the LSP knows about the file.
     fn open_document(&self, file_path: &str, uri: &str) -> Result<(), TasukiError> {
+        // Skip if already opened to avoid duplicate didOpen notifications
+        {
+            let mut opened = self.opened_files.lock();
+            if opened.contains(uri) {
+                return Ok(());
+            }
+            opened.insert(uri.to_string());
+        }
+
         let root_uri = self.root_uri.lock().clone();
         let root_path = root_uri.strip_prefix("file://").unwrap_or(&root_uri);
         let full_path = if file_path.starts_with('/') {
