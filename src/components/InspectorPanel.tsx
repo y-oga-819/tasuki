@@ -48,10 +48,10 @@ export const InspectorPanel: React.FC = () => {
 
   // Auto-trigger analysis when diff data is available
   useEffect(() => {
-    if (diffResult && methods.length === 0 && !analyzing && !error) {
+    if (diffResult && !analyzing) {
       analyzeAll(diffResult);
     }
-  }, [diffResult, methods.length, analyzing, error, analyzeAll]);
+  }, [diffResult, analyzing, analyzeAll]);
 
   // Highlight definition code with Shiki after methods load
   useEffect(() => {

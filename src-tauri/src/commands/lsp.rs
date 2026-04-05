@@ -111,6 +111,11 @@ pub async fn lsp_analyze_diff(
         return Ok(vec![]);
     }
 
+    // Validate all file paths before processing
+    for f in &changed_files {
+        validate_file_path(&f.file_path, &root_path)?;
+    }
+
     let file_paths: Vec<String> = changed_files.iter().map(|f| f.file_path.clone()).collect();
 
     let language = crate::lsp::detect_primary_language(&file_paths);

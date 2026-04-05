@@ -45,6 +45,7 @@ beforeEach(() => {
     analyzing: false,
     progress: { done: 0, total: 0 },
     error: null,
+    analyzedDiffId: null,
   });
 });
 

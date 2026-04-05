@@ -13,6 +13,8 @@ interface InspectorState {
   analyzing: boolean;
   progress: InspectorProgress;
   error: string | null;
+  /** Tracks which DiffResult has been analyzed to prevent re-execution loops. */
+  analyzedDiffId: string | null;
 
   analyzeAll: (diffResult: DiffResult) => Promise<void>;
   updateMethodCallers: (index: number, callers: CallHierarchyCall[], callees: CallHierarchyCall[]) => void;
@@ -20,6 +22,11 @@ interface InspectorState {
   toggleCollapse: (index: number) => void;
   setDefinitionHtml: (index: number, html: string) => void;
   reset: () => void;
+}
+
+/** Generate a stable identity for a DiffResult to detect re-analysis of the same diff. */
+function diffResultId(diffResult: DiffResult): string {
+  return diffResult.files.map((f) => f.file.path).sort().join("\0");
 }
 
 /** Extract changed file info from a DiffResult for the backend. */
@@ -51,9 +58,12 @@ export const useInspectorStore = create<InspectorState>((set, get) => ({
   analyzing: false,
   progress: { done: 0, total: 0 },
   error: null,
+  analyzedDiffId: null,
 
   analyzeAll: async (diffResult: DiffResult) => {
-    set({ analyzing: true, error: null, methods: [], progress: { done: 0, total: 0 } });
+    const id = diffResultId(diffResult);
+    if (get().analyzedDiffId === id) return;
+    set({ analyzing: true, error: null, methods: [], progress: { done: 0, total: 0 }, analyzedDiffId: id });
 
     try {
       const changedFiles = extractChangedFiles(diffResult);
@@ -100,5 +110,5 @@ export const useInspectorStore = create<InspectorState>((set, get) => ({
     }
   },
 
-  reset: () => set({ methods: [], analyzing: false, progress: { done: 0, total: 0 }, error: null }),
+  reset: () => set({ methods: [], analyzing: false, progress: { done: 0, total: 0 }, error: null, analyzedDiffId: null }),
 }));

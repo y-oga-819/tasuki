@@ -337,56 +337,6 @@ impl LspState {
 
     // ---- Diff analysis ----
 
-    /// Parse unified diff text to extract changed files and line numbers.
-    pub fn extract_changed_lines(diff_text: &str) -> HashMap<String, ChangedLines> {
-        let mut result: HashMap<String, ChangedLines> = HashMap::new();
-        let mut current_file: Option<String> = None;
-        let mut new_line: u32 = 0;
-        let mut old_line: u32 = 0;
-
-        let mut pending_old_file: Option<String> = None;
-
-        for line in diff_text.lines() {
-            if line.starts_with("--- a/") {
-                // Remember the old file name; will be used if +++ /dev/null (deleted file)
-                pending_old_file = Some(line[6..].to_string());
-            } else if line.starts_with("+++ b/") {
-                current_file = Some(line[6..].to_string());
-                pending_old_file = None;
-            } else if line.starts_with("+++ /dev/null") {
-                // Deleted file — use the old file name from --- header
-                current_file = pending_old_file.take();
-            } else if line.starts_with("@@ ") {
-                // Parse hunk header: @@ -old_start,old_count +new_start,new_count @@
-                if let Some((old_start, new_start)) = parse_hunk_header(line) {
-                    old_line = old_start;
-                    new_line = new_start;
-                }
-            } else if let Some(ref file) = current_file {
-                let entry = result
-                    .entry(file.clone())
-                    .or_insert_with(|| ChangedLines {
-                        added: vec![],
-                        deleted: vec![],
-                    });
-
-                if line.starts_with('+') && !line.starts_with("+++") {
-                    entry.added.push(new_line);
-                    new_line += 1;
-                } else if line.starts_with('-') && !line.starts_with("---") {
-                    entry.deleted.push(old_line);
-                    old_line += 1;
-                } else {
-                    // Context line
-                    new_line += 1;
-                    old_line += 1;
-                }
-            }
-        }
-
-        result
-    }
-
     /// Match changed lines to document symbols to find affected methods.
     pub fn match_lines_to_symbols(
         file_path: &str,
@@ -431,16 +381,6 @@ impl LspState {
         let mut result: Vec<ChangedMethod> = methods.into_values().collect();
         result.sort_by_key(|m| (m.file_path.clone(), m.start_line));
         result
-    }
-
-    /// Run the full diff analysis pipeline from raw diff text.
-    pub async fn analyze_diff(
-        &self,
-        diff_text: &str,
-        root_path: &str,
-    ) -> Result<Vec<MethodInspection>, TasukiError> {
-        let changed_files = Self::extract_changed_lines(diff_text);
-        self.analyze_diff_from_changed(&changed_files, root_path, |_, _| {}).await
     }
 
     /// Run the full diff analysis pipeline from pre-extracted changed lines.
@@ -708,22 +648,6 @@ fn path_to_uri(file_path: &str, root_uri: &str) -> String {
     }
 }
 
-fn parse_hunk_header(line: &str) -> Option<(u32, u32)> {
-    // @@ -old_start[,old_count] +new_start[,new_count] @@
-    let parts: Vec<&str> = line.split_whitespace().collect();
-    if parts.len() < 4 {
-        return None;
-    }
-
-    let old_part = parts[1].trim_start_matches('-');
-    let new_part = parts[2].trim_start_matches('+');
-
-    let old_start: u32 = old_part.split(',').next()?.parse().ok()?;
-    let new_start: u32 = new_part.split(',').next()?.parse().ok()?;
-
-    Some((old_start, new_start))
-}
-
 /// Read LSP JSON-RPC message from a buffered reader.
 fn read_lsp_message(reader: &mut BufReader<impl std::io::Read>) -> Result<Option<Value>, TasukiError> {
     let mut content_length: usize = 0;
@@ -926,43 +850,6 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_extract_changed_lines_basic() {
-        let diff = "\
-diff --git a/src/app.ts b/src/app.ts
---- a/src/app.ts
-+++ b/src/app.ts
-@@ -10,4 +10,5 @@ function foo() {
-   const a = 1;
-   const b = 2;
-+  const c = 3;
-   return a + b;
-+  // extra
-";
-        let result = LspState::extract_changed_lines(diff);
-        assert!(result.contains_key("src/app.ts"));
-        let lines = &result["src/app.ts"];
-        assert_eq!(lines.added, vec![12, 14]);
-        assert!(lines.deleted.is_empty());
-    }
-
-    #[test]
-    fn test_extract_changed_lines_deletion() {
-        let diff = "\
-diff --git a/src/utils.ts b/src/utils.ts
---- a/src/utils.ts
-+++ b/src/utils.ts
-@@ -5,4 +5,3 @@ function bar() {
-   const x = 1;
--  const y = 2;
-   return x;
-";
-        let result = LspState::extract_changed_lines(diff);
-        let lines = &result["src/utils.ts"];
-        assert!(lines.added.is_empty());
-        assert_eq!(lines.deleted, vec![6]);
-    }
-
-    #[test]
     fn test_match_lines_to_symbols() {
         let symbols = vec![
             DocumentSymbol {
@@ -1022,13 +909,6 @@ diff --git a/src/utils.ts b/src/utils.ts
         assert_eq!(methods.len(), 1);
         assert_eq!(methods[0].change_type, "modified");
         assert_eq!(methods[0].changed_lines.len(), 4);
-    }
-
-    #[test]
-    fn test_parse_hunk_header() {
-        assert_eq!(parse_hunk_header("@@ -10,4 +10,5 @@ function foo()"), Some((10, 10)));
-        assert_eq!(parse_hunk_header("@@ -1 +1,3 @@ header"), Some((1, 1)));
-        assert_eq!(parse_hunk_header("@@ -0,0 +1,42 @@"), Some((0, 1)));
     }
 
     #[test]
