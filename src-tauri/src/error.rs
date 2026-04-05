@@ -17,6 +17,9 @@ pub enum TasukiError {
 
     #[error("PTY error: {0}")]
     Pty(String),
+
+    #[error("LSP error: {0}")]
+    Lsp(String),
 }
 
 // Tauri requires errors to be serializable

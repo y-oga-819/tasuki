@@ -13,6 +13,9 @@ const ReviewPanel = lazy(() =>
 const TerminalPanel = lazy(() =>
   import("../Terminal").then((m) => ({ default: m.TerminalPanel })),
 );
+const InspectorPanel = lazy(() =>
+  import("../InspectorPanel").then((m) => ({ default: m.InspectorPanel })),
+);
 
 const DEFAULT_SPLIT_RATIO = MIN_SPLIT_RATIO;
 
@@ -153,6 +156,16 @@ export const SplitLayout: React.FC = () => {
           >
             Review
           </button>
+          <button
+            role="tab"
+            id="tab-inspector"
+            aria-selected={rightPaneMode === "inspector"}
+            aria-controls="panel-inspector"
+            className={rightPaneMode === "inspector" ? l.rightPaneTabActive : l.rightPaneTab}
+            onClick={() => setRightPaneMode("inspector")}
+          >
+            Inspector
+          </button>
         </div>
         <div
           className={l.rightPaneBody}
@@ -164,6 +177,7 @@ export const SplitLayout: React.FC = () => {
             {rightPaneMode === "docs" && <MarkdownViewer />}
             {rightPaneMode === "terminal" && <TerminalPanel visible />}
             {rightPaneMode === "review" && <ReviewPanel />}
+            {rightPaneMode === "inspector" && <InspectorPanel />}
           </Suspense>
         </div>
       </div>

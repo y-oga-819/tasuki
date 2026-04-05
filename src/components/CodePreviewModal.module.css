@@ -1,0 +1,139 @@
+/* CodePreviewModal — syntax-highlighted code preview popup */
+
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+}
+
+.container {
+  width: min(90vw, 800px);
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border-primary);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--color-border-secondary);
+  background: var(--color-bg-secondary);
+  min-height: 2.25rem;
+}
+
+.funcName {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.location {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  margin-right: auto;
+}
+
+.closeBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-base);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.closeBtn:hover {
+  background: var(--color-bg-tertiary);
+  border-color: var(--color-border-secondary);
+  color: var(--color-text-primary);
+}
+
+.codeArea {
+  overflow: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+.codeBlock {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.6;
+  counter-reset: line var(--start-line);
+}
+
+/* Override Shiki's pre background */
+.codeBlock :global(pre) {
+  margin: 0;
+  padding: var(--space-3) 0;
+  background: var(--color-bg-primary) !important;
+}
+
+/* Line numbers via CSS counters */
+.codeBlock :global(.line) {
+  display: inline-block;
+  width: 100%;
+  padding: 0 var(--space-3) 0 3.5rem;
+  position: relative;
+}
+
+.codeBlock :global(.line)::before {
+  counter-increment: line;
+  content: counter(line);
+  position: absolute;
+  left: 0;
+  width: 3rem;
+  text-align: right;
+  padding-right: var(--space-2);
+  color: var(--color-text-muted);
+  opacity: 0.5;
+  font-size: 12px;
+  user-select: none;
+}
+
+/* Highlighted target line */
+.codeBlock :global(.line[data-highlight="true"]) {
+  background: rgba(210, 153, 34, 0.15);
+  border-left: 3px solid #d29922;
+  padding-left: calc(3.5rem - 3px);
+}
+
+.codeBlock :global(.line[data-highlight="true"])::before {
+  color: #d29922;
+  opacity: 1;
+  font-weight: 600;
+}
+
+.loading {
+  padding: var(--space-8);
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.error {
+  padding: var(--space-4);
+  text-align: center;
+  color: var(--color-diff-del-text, #f85149);
+  font-size: var(--font-size-sm);
+}
