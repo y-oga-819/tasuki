@@ -646,6 +646,7 @@ fn detect_lsp_command(language_id: &str) -> Option<(&'static str, Vec<&'static s
         "rust" => Some(("rust-analyzer", vec![])),
         "python" => Some(("pyright-langserver", vec!["--stdio"])),
         "go" => Some(("gopls", vec!["serve"])),
+        "php" => Some(("intelephense", vec!["--stdio"])),
         _ => None,
     }
 }
@@ -659,6 +660,7 @@ fn detect_language_id(file_path: &str) -> &'static str {
         Some("rs") => "rust",
         Some("py") => "python",
         Some("go") => "go",
+        Some("php") => "php",
         _ => "plaintext",
     }
 }

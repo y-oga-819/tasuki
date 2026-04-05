@@ -6,7 +6,7 @@ function getHighlighter(): Promise<Highlighter> {
   if (!highlighterPromise) {
     highlighterPromise = createHighlighter({
       themes: ["github-dark"],
-      langs: ["typescript", "javascript", "rust", "python", "go", "tsx", "jsx"],
+      langs: ["typescript", "javascript", "rust", "python", "go", "tsx", "jsx", "php"],
     });
   }
   return highlighterPromise;
@@ -20,6 +20,7 @@ const LANG_MAP: Record<string, string> = {
   rs: "rust",
   py: "python",
   go: "go",
+  php: "php",
 };
 
 function detectLang(filePath: string): string {
