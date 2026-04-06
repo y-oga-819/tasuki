@@ -356,8 +356,8 @@ export const ReviewPanel: React.FC = () => {
       setStatus("rejected");
       const gatePath = await writeGate("rejected");
       const msg = gatePath
-        ? `rejectされました。${gatePath} のレビューコメントを確認して修正してください。`
-        : "rejectされました。レビューコメントを確認して修正してください。";
+        ? `rejectされました。${gatePath} のレビューコメントを確認して修正してください。質問があれば /tasuki-comment で返信できます。`
+        : "rejectされました。レビューコメントを確認して修正してください。質問があれば /tasuki-comment で返信できます。";
       await notifyClaudeCode(msg, setRejectLabel, "Reject");
     }
   }, [status, setStatus, writeGate, setGateStatus, notifyClaudeCode]);
