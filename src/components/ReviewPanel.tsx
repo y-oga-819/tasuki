@@ -1,9 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useReviewStore } from "../store/reviewStore";
-import { useDiffStore } from "../store/diffStore";
 import { formatReviewPrompt, formatSingleComment } from "../utils/format-review";
 import { copyToClipboard, sendToClaudeCode, exitApp } from "../utils/tauri-api";
 import * as api from "../utils/tauri-api";
+import { threadsToGate, docCommentsToGateDoc } from "../store/gate-convert";
 import type { ReviewThread, DocComment } from "../types";
 import s from "./ReviewPanel.module.css";
 
@@ -226,7 +226,6 @@ export const ReviewPanel: React.FC = () => {
     getAllThreads,
     threads,
   } = useReviewStore();
-  const { diffResult } = useDiffStore();
 
   // eslint-disable-next-line react-hooks/exhaustive-deps -- threads triggers recomputation
   const allThreads = useMemo(() => getAllThreads(), [threads, getAllThreads]);
@@ -267,41 +266,24 @@ export const ReviewPanel: React.FC = () => {
   );
 
   const writeGate = useCallback(
-    async (status: "approved" | "rejected"): Promise<string> => {
+    async (gateStatus: "approved" | "rejected"): Promise<string> => {
       try {
-        let diffHash = "";
-        if (diffResult) {
-          diffHash = await api.getDiffHash(diffResult);
-        }
+        const gateThreads = threadsToGate(allThreads);
+        const gateDocThreads = docCommentsToGateDoc(docComments);
 
         const gatePath = await api.writeCommitGate(
-          status,
-          diffHash,
-          resolvedThreads.map((t) => ({
-            file: t.root.file_path,
-            line: t.root.line_start,
-            body: t.root.body,
-          })),
-          docComments.filter((c) => c.resolved).map((c) => ({
-            file: c.file_path,
-            section: c.section,
-            body: c.body,
-          })),
-          unresolvedThreads.map((t) => ({
-            file: t.root.file_path,
-            line: t.root.line_start,
-            body: t.root.body,
-            code_snippet: t.root.code_snippet,
-          })),
+          gateStatus,
+          gateThreads,
+          gateDocThreads,
         );
-        setGateStatus(status);
+        setGateStatus(gateStatus);
         return gatePath;
       } catch (err) {
         console.error("Failed to write commit gate:", err);
         return "";
       }
     },
-    [diffResult, resolvedThreads, unresolvedThreads, docComments, setGateStatus],
+    [allThreads, docComments, setGateStatus],
   );
 
   const notifyClaudeCode = useCallback(

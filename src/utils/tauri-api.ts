@@ -1,4 +1,4 @@
-import type { DiffResult, CommitInfo, RepoInfo, CommitGateData, ChangeStatus } from "../types";
+import type { DiffResult, CommitInfo, RepoInfo, CommitGateData, ChangeStatus, GateThread, GateDocThread } from "../types";
 import { mockDiffResult, mockStagedDiffResult, mockWorkingDiffResult } from "../__fixtures__/mock-diff-data";
 import { mockDocPaths, mockDesignDocNames, mockReviewDocNames, mockDocContents } from "../__fixtures__/mock-doc-data";
 import { mockRepoInfo, mockCommitLog, mockHeadSha, mockDiffHash } from "../__fixtures__/mock-repo-data";
@@ -216,20 +216,13 @@ export async function isTerminalAlive(): Promise<boolean> {
 
 export async function writeCommitGate(
   status: "approved" | "rejected",
-  diffHash: string,
-  resolvedThreads: Array<{ file: string; line: number; body: string }>,
-  resolvedDocComments: Array<{ file: string; section: string; body: string }>,
-  unresolvedThreads: Array<{ file: string; line: number; body: string; code_snippet?: string }> = [],
+  threads: GateThread[],
+  docThreads: GateDocThread[],
 ): Promise<string> {
-  const resolvedThreadsJson = JSON.stringify(resolvedThreads);
-  const resolvedDocCommentsJson = JSON.stringify(resolvedDocComments);
-  const unresolvedThreadsJson = JSON.stringify(unresolvedThreads);
   return invoke<string>("write_commit_gate", {
     status,
-    diffHash,
-    resolvedThreads: resolvedThreadsJson,
-    resolvedDocComments: resolvedDocCommentsJson,
-    unresolvedThreads: unresolvedThreadsJson,
+    threads: JSON.stringify(threads),
+    docThreads: JSON.stringify(docThreads),
   });
 }
 
