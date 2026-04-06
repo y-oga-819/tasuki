@@ -27,6 +27,9 @@ impl Drop for WatcherHandle {
 /// Event emitted when files change
 const FILE_CHANGED_EVENT: &str = "files-changed";
 
+/// Event emitted when the gate file changes
+const GATE_FILE_CHANGED_EVENT: &str = "gate-file-changed";
+
 /// Paths to always ignore when watching
 const IGNORE_PATTERNS: &[&str] = &[
     "node_modules",
@@ -111,6 +114,7 @@ fn resolve_worktree_git_dirs(repo_path: &Path) -> Vec<PathBuf> {
 pub fn start_watching(
     app_handle: AppHandle,
     watch_path: String,
+    gate_file_path: Option<PathBuf>,
 ) -> Result<WatcherHandle, TasukiError> {
     let path = PathBuf::from(&watch_path);
     if !path.exists() {
@@ -137,6 +141,19 @@ pub fn start_watching(
         }
     }
 
+    // Watch gate file's parent directory for external changes (e.g. Claude Code writes)
+    if let Some(ref gfp) = gate_file_path {
+        if let Some(parent) = gfp.parent() {
+            if parent.exists() {
+                let _ = debouncer.watcher().watch(parent, RecursiveMode::NonRecursive);
+            } else {
+                // Create the directory so we can watch it
+                let _ = std::fs::create_dir_all(parent);
+                let _ = debouncer.watcher().watch(parent, RecursiveMode::NonRecursive);
+            }
+        }
+    }
+
     let stop_flag = Arc::new(AtomicBool::new(false));
     let flag_clone = Arc::clone(&stop_flag);
 
@@ -148,15 +165,27 @@ pub fn start_watching(
             }
             match rx.recv_timeout(Duration::from_millis(200)) {
                 Ok(Ok(events)) => {
-                    let changed_paths: Vec<String> = events
-                        .iter()
-                        .filter(|e| e.kind == DebouncedEventKind::Any)
-                        .filter(|e| !should_ignore(&e.path, &git_dirs))
-                        .map(|e| e.path.to_string_lossy().to_string())
-                        .collect();
+                    let mut file_changed = Vec::new();
+                    let mut gate_changed = false;
 
-                    if !changed_paths.is_empty() {
-                        let _ = app_handle.emit(FILE_CHANGED_EVENT, &changed_paths);
+                    for event in events.iter().filter(|e| e.kind == DebouncedEventKind::Any) {
+                        // Check if this event is for the gate file
+                        if let Some(ref gfp) = gate_file_path {
+                            if event.path == *gfp {
+                                gate_changed = true;
+                                continue;
+                            }
+                        }
+                        if !should_ignore(&event.path, &git_dirs) {
+                            file_changed.push(event.path.to_string_lossy().to_string());
+                        }
+                    }
+
+                    if !file_changed.is_empty() {
+                        let _ = app_handle.emit(FILE_CHANGED_EVENT, &file_changed);
+                    }
+                    if gate_changed {
+                        let _ = app_handle.emit(GATE_FILE_CHANGED_EVENT, ());
                     }
                 }
                 Ok(Err(errors)) => {

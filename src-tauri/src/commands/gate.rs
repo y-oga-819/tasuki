@@ -20,7 +20,7 @@ struct CommitGate {
 }
 
 /// Build the path for the commit gate file: /tmp/tasuki/{repo}/{branch}/review.json
-fn gate_file_path(repo_name: &str, branch_name: &str) -> PathBuf {
+pub fn gate_file_path(repo_name: &str, branch_name: &str) -> PathBuf {
     PathBuf::from("/tmp/tasuki")
         .join(repo_name)
         .join(branch_name)
