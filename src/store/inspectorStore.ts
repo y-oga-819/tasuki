@@ -80,7 +80,8 @@ export const useInspectorStore = create<InspectorState>((set, get) => ({
       set({ methods: cards, analyzing: false });
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
-      set({ analyzing: false, error: message });
+      // Reset analyzedDiffId so retry is possible after failure
+      set({ analyzing: false, error: message, analyzedDiffId: null });
     }
   },
 

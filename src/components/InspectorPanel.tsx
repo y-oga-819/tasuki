@@ -55,10 +55,13 @@ export const InspectorPanel: React.FC = () => {
 
   // Highlight definition code with Shiki after methods load
   useEffect(() => {
+    let cancelled = false;
+
     for (const m of methods) {
       if (m.definition_code && !m.definitionHtml) {
         const key = `${m.file_path}:${m.start_line}`;
         highlightCode(m.definition_code, m.file_path).then((html) => {
+          if (cancelled) return;
           // Use stable key to find the method, not array index
           const current = useInspectorStore.getState().methods;
           const idx = current.findIndex(
@@ -70,6 +73,10 @@ export const InspectorPanel: React.FC = () => {
         });
       }
     }
+
+    return () => {
+      cancelled = true;
+    };
   }, [methods, setDefinitionHtml]);
 
   return (
@@ -149,13 +156,13 @@ const MethodCardView: React.FC<{
 
   return (
     <div className={s.card}>
-      <div className={s.cardHeader} onClick={() => toggleCollapse(index)}>
+      <button type="button" className={s.cardHeader} onClick={() => toggleCollapse(index)}>
         <span className={`${s.changeTag} ${changeClass}`}>{method.change_type}</span>
         <span className={s.methodName}>{method.name}()</span>
         <span className={s.filePath}>
           {method.file_path}:{method.start_line + 1}
         </span>
-      </div>
+      </button>
 
       {!method.collapsed && (
         <div className={s.cardBody}>
@@ -205,22 +212,24 @@ const CallSection: React.FC<{
       </div>
       <ul className={s.callList}>
         {calls.map((call, i) => (
-          <li
-            key={`${call.file_path}:${call.line}:${i}`}
-            className={s.callItemClickable}
-            onClick={() =>
-              onClickCall({
-                filePath: call.file_path,
-                line: call.line,
-                name: call.name,
-              })
-            }
-            title="Click to preview code"
-          >
-            <span className={s.callName}>{call.name}()</span>
-            <span className={s.callLocation}>
-              {call.file_path}:{call.line + 1}
-            </span>
+          <li key={`${call.file_path}:${call.line}:${i}`}>
+            <button
+              type="button"
+              className={s.callItemClickable}
+              onClick={() =>
+                onClickCall({
+                  filePath: call.file_path,
+                  line: call.line,
+                  name: call.name,
+                })
+              }
+              title="Click to preview code"
+            >
+              <span className={s.callName}>{call.name}()</span>
+              <span className={s.callLocation}>
+                {call.file_path}:{call.line + 1}
+              </span>
+            </button>
           </li>
         ))}
       </ul>
