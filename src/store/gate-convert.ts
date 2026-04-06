@@ -9,7 +9,7 @@ import type {
 
 /** Convert GateThread[] (gate file) → ReviewThread[] (store) */
 export function gateToThreads(gateThreads: GateThread[]): ReviewThread[] {
-  return gateThreads.map((gt) => {
+  return gateThreads.filter((gt) => gt.comments.length > 0).map((gt) => {
     const [first, ...rest] = gt.comments;
     const root: ReviewComment = {
       id: first.id,
@@ -67,7 +67,7 @@ export function threadsToGate(threads: ReviewThread[]): GateThread[] {
 
 /** Convert GateDocThread[] (gate file) → DocComment[] (store) */
 export function gateDocToDocComments(gateDocThreads: GateDocThread[]): DocComment[] {
-  return gateDocThreads.map((gdt) => {
+  return gateDocThreads.filter((gdt) => gdt.comments.length > 0).map((gdt) => {
     const first = gdt.comments[0];
     return {
       id: first.id,

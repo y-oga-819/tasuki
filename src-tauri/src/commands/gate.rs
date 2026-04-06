@@ -63,9 +63,9 @@ pub async fn write_commit_gate(
             repository: repo_name,
             branch,
             threads: serde_json::from_str(&threads)
-                .unwrap_or(serde_json::Value::Array(vec![])),
+                .map_err(|e| TasukiError::Io(format!("Invalid threads JSON: {}", e)))?,
             doc_threads: serde_json::from_str(&doc_threads)
-                .unwrap_or(serde_json::Value::Array(vec![])),
+                .map_err(|e| TasukiError::Io(format!("Invalid doc_threads JSON: {}", e)))?,
         };
 
         let gate_json = serde_json::to_string(&gate)

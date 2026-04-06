@@ -333,31 +333,31 @@ export const ReviewPanel: React.FC = () => {
 
   const handleApprove = useCallback(async () => {
     if (status === "approved") {
-      setStatus(null);
       try {
         await api.clearCommitGate();
       } catch { /* ignore */ }
+      setStatus(null);
       setGateStatus("none");
     } else {
+      const gatePath = await writeGate("approved");
+      if (!gatePath) return;
       setStatus("approved");
-      await writeGate("approved");
       await notifyClaudeCode("approveです。コミットしてください。", setApproveLabel, "Approve");
     }
   }, [status, setStatus, writeGate, setGateStatus, notifyClaudeCode]);
 
   const handleReject = useCallback(async () => {
     if (status === "rejected") {
-      setStatus(null);
       try {
         await api.clearCommitGate();
       } catch { /* ignore */ }
+      setStatus(null);
       setGateStatus("none");
     } else {
-      setStatus("rejected");
       const gatePath = await writeGate("rejected");
-      const msg = gatePath
-        ? `rejectされました。${gatePath} のレビューコメントを確認して修正してください。質問があれば /tasuki-comment で返信できます。`
-        : "rejectされました。レビューコメントを確認して修正してください。質問があれば /tasuki-comment で返信できます。";
+      if (!gatePath) return;
+      setStatus("rejected");
+      const msg = `rejectされました。${gatePath} のレビューコメントを確認して修正してください。質問があれば /tasuki-comment で返信できます。`;
       await notifyClaudeCode(msg, setRejectLabel, "Reject");
     }
   }, [status, setStatus, writeGate, setGateStatus, notifyClaudeCode]);

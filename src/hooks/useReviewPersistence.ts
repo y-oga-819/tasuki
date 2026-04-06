@@ -20,6 +20,7 @@ export function useReviewPersistence() {
     setThreads,
     setDocComments,
     setStatus,
+    setGateStatus,
     getAllThreads,
   } = useReviewStore();
 
@@ -46,10 +47,11 @@ export function useReviewPersistence() {
       setThreads(reviewThreads);
       setDocComments(loadedDocComments);
       setStatus(gateData.status);
+      setGateStatus(gateData.status);
     } catch {
       // Failed to load (e.g. outside Tauri) — start fresh
     }
-  }, [setThreads, setDocComments, setStatus]);
+  }, [setThreads, setDocComments, setStatus, setGateStatus]);
 
   // Load from gate file on startup
   useEffect(() => {
@@ -101,10 +103,20 @@ export function useReviewPersistence() {
 
     (async () => {
       unlisten = await eventBus.listen("gate-file-changed", async () => {
-        // Read the gate file to check if it differs from what we last wrote
         try {
           const gateData = await api.readCommitGate();
-          if (!gateData || gateData.version < 3) return;
+
+          // Gate file deleted — reset state
+          if (!gateData) {
+            setThreads([]);
+            setDocComments([]);
+            setStatus(null);
+            setGateStatus("none");
+            lastWrittenHashRef.current = null;
+            return;
+          }
+
+          if (gateData.version < 3) return;
 
           const contentHash = JSON.stringify({
             gateThreads: gateData.threads,
@@ -122,6 +134,7 @@ export function useReviewPersistence() {
           setThreads(reviewThreads);
           setDocComments(loadedDocComments);
           setStatus(gateData.status);
+          setGateStatus(gateData.status);
         } catch (err) {
           appLogger.warn("persistence", "Failed to reload gate file", err);
         }
@@ -129,5 +142,5 @@ export function useReviewPersistence() {
     })();
 
     return () => unlisten?.();
-  }, [setThreads, setDocComments, setStatus]);
+  }, [setThreads, setDocComments, setStatus, setGateStatus]);
 }
