@@ -63,8 +63,6 @@ pub fn run() {
             commands::get_cli_args,
             commands::get_head_sha,
             commands::get_diff_hash,
-            commands::save_review,
-            commands::load_review,
             commands::get_repo_info,
             commands::list_design_docs,
             commands::read_design_doc,

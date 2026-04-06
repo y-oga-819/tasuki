@@ -36,7 +36,7 @@ beforeEach(() => {
   useReviewStore.setState({
     threads: new Map(),
     docComments: [],
-    verdict: null,
+    status: null,
     gateStatus: "none",
   });
 });
@@ -191,16 +191,16 @@ describe("useReviewStore - docComments", () => {
   });
 });
 
-describe("useReviewStore - verdict & gate", () => {
-  it("setVerdict sets the review verdict", () => {
-    useReviewStore.getState().setVerdict("approve");
-    expect(useReviewStore.getState().verdict).toBe("approve");
+describe("useReviewStore - status & gate", () => {
+  it("setStatus sets the review status", () => {
+    useReviewStore.getState().setStatus("approved");
+    expect(useReviewStore.getState().status).toBe("approved");
 
-    useReviewStore.getState().setVerdict("request_changes");
-    expect(useReviewStore.getState().verdict).toBe("request_changes");
+    useReviewStore.getState().setStatus("rejected");
+    expect(useReviewStore.getState().status).toBe("rejected");
 
-    useReviewStore.getState().setVerdict(null);
-    expect(useReviewStore.getState().verdict).toBeNull();
+    useReviewStore.getState().setStatus(null);
+    expect(useReviewStore.getState().status).toBeNull();
   });
 
   it("setGateStatus changes gate status", () => {

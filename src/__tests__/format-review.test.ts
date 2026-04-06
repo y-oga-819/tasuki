@@ -141,21 +141,21 @@ describe("formatReviewPrompt", () => {
     expect(result).toContain("Overview: This section needs more detail.");
   });
 
-  it("formats verdict=approve with Approve header and LGTM summary", () => {
-    const result = formatReviewPrompt([makeThread()], [], "approve");
+  it("formats status=approved with Approve header and LGTM summary", () => {
+    const result = formatReviewPrompt([makeThread()], [], "approved");
     expect(result).toContain("## Review Result: Approve");
     expect(result).toContain("### Summary");
     expect(result).toContain("LGTM");
   });
 
-  it("formats verdict=request_changes with Request Changes header", () => {
-    const result = formatReviewPrompt([makeThread()], [], "request_changes");
+  it("formats status=rejected with Request Changes header", () => {
+    const result = formatReviewPrompt([makeThread()], [], "rejected");
     expect(result).toContain("## Review Result: Request Changes");
     expect(result).toContain("### Summary");
     expect(result).toContain("Please address the above comments");
   });
 
-  it("formats verdict=null with Comments header and no summary", () => {
+  it("formats status=null with Comments header and no summary", () => {
     const result = formatReviewPrompt([makeThread()], [], null);
     expect(result).toContain("## Review Result: Comments");
     expect(result).not.toContain("### Summary");

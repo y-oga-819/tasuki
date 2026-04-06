@@ -23,7 +23,7 @@ export function useFileWatcher(refetch: () => void, debounceMs = 400) {
   const {
     setThreads,
     setDocComments,
-    setVerdict,
+    setStatus,
     setGateStatus,
   } = useReviewStore();
 
@@ -43,9 +43,9 @@ export function useFileWatcher(refetch: () => void, debounceMs = 400) {
         /* ignore */
       }
       setGateStatus("invalidated");
-      setVerdict(null);
+      setStatus(null);
     }
-  }, [setGateStatus, setVerdict]);
+  }, [setGateStatus, setStatus]);
 
   useEffect(() => {
     let unlisten: (() => void) | undefined;
@@ -68,7 +68,7 @@ export function useFileWatcher(refetch: () => void, debounceMs = 400) {
           appLogger.warn("file-watcher", "HEAD SHA changed, refreshing and clearing comments");
           setThreads([]);
           setDocComments([]);
-          setVerdict(null);
+          setStatus(null);
           refreshAndClearStale();
           await invalidateGate();
         } else if (status.has_changes) {

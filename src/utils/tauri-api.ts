@@ -1,4 +1,4 @@
-import type { DiffResult, CommitInfo, ReviewSession, RepoInfo, CommitGateData, ChangeStatus } from "../types";
+import type { DiffResult, CommitInfo, RepoInfo, CommitGateData, ChangeStatus } from "../types";
 import { mockDiffResult, mockStagedDiffResult, mockWorkingDiffResult } from "../__fixtures__/mock-diff-data";
 import { mockDocPaths, mockDesignDocNames, mockReviewDocNames, mockDocContents } from "../__fixtures__/mock-doc-data";
 import { mockRepoInfo, mockCommitLog, mockHeadSha, mockDiffHash } from "../__fixtures__/mock-repo-data";
@@ -66,11 +66,6 @@ function mockInvoke<T>(cmd: string, args?: Record<string, unknown>): T {
     // Review persistence APIs
     case "get_diff_hash":
       return mockDiffHash as T;
-    case "save_review":
-      console.log("[mock] saveReview", args);
-      return undefined as T;
-    case "load_review":
-      return null as T;
 
     // Terminal APIs (no-op)
     case "spawn_terminal":
@@ -179,24 +174,6 @@ export async function checkChanges(): Promise<ChangeStatus> {
 
 export async function getDiffHash(diffResult: DiffResult): Promise<string> {
   return invoke<string>("get_diff_hash", { diffResult });
-}
-
-export async function saveReview(
-  headSha: string,
-  sourceType: string,
-  session: ReviewSession,
-): Promise<void> {
-  const jsonData = JSON.stringify(session);
-  return invoke<void>("save_review", { headSha, sourceType, jsonData });
-}
-
-export async function loadReview(
-  headSha: string,
-  sourceType: string,
-): Promise<ReviewSession | null> {
-  const json = await invoke<string | null>("load_review", { headSha, sourceType });
-  if (json === null) return null;
-  return JSON.parse(json) as ReviewSession;
 }
 
 export async function listDesignDocs(): Promise<string[]> {

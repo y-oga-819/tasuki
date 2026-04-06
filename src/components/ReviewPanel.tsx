@@ -216,8 +216,8 @@ const DocCommentItem: React.FC<{
 export const ReviewPanel: React.FC = () => {
   const {
     docComments,
-    verdict,
-    setVerdict,
+    status,
+    setStatus,
     removeDocComment,
     resolveDocComment,
     unresolveDocComment,
@@ -254,9 +254,9 @@ export const ReviewPanel: React.FC = () => {
   const canApprove = unresolvedCount === 0;
 
   const handleCopyAll = useCallback(async () => {
-    const prompt = formatReviewPrompt(allThreads, docComments, verdict);
+    const prompt = formatReviewPrompt(allThreads, docComments, status);
     await copyToClipboard(prompt);
-  }, [allThreads, docComments, verdict]);
+  }, [allThreads, docComments, status]);
 
   const handleCopyThread = useCallback(
     async (thread: ReviewThread) => {
@@ -325,35 +325,35 @@ export const ReviewPanel: React.FC = () => {
   );
 
   const handleApprove = useCallback(async () => {
-    if (verdict === "approve") {
-      setVerdict(null);
+    if (status === "approved") {
+      setStatus(null);
       try {
         await api.clearCommitGate();
       } catch { /* ignore */ }
       setGateStatus("none");
     } else {
-      setVerdict("approve");
+      setStatus("approved");
       await writeGate("approved");
       await notifyClaudeCode("approveです。コミットしてください。", setApproveLabel, "Approve");
     }
-  }, [verdict, setVerdict, writeGate, setGateStatus, notifyClaudeCode]);
+  }, [status, setStatus, writeGate, setGateStatus, notifyClaudeCode]);
 
   const handleReject = useCallback(async () => {
-    if (verdict === "request_changes") {
-      setVerdict(null);
+    if (status === "rejected") {
+      setStatus(null);
       try {
         await api.clearCommitGate();
       } catch { /* ignore */ }
       setGateStatus("none");
     } else {
-      setVerdict("request_changes");
+      setStatus("rejected");
       const gatePath = await writeGate("rejected");
       const msg = gatePath
         ? `rejectされました。${gatePath} のレビューコメントを確認して修正してください。`
         : "rejectされました。レビューコメントを確認して修正してください。";
       await notifyClaudeCode(msg, setRejectLabel, "Reject");
     }
-  }, [verdict, setVerdict, writeGate, setGateStatus, notifyClaudeCode]);
+  }, [status, setStatus, writeGate, setGateStatus, notifyClaudeCode]);
 
   return (
     <div className="review-panel" role="complementary" aria-label="Review">
@@ -379,7 +379,7 @@ export const ReviewPanel: React.FC = () => {
           <button
             className={`btn btn-primary ${s.copyAllBtn}`}
             onClick={handleCopyAll}
-            disabled={totalCount === 0 && !verdict}
+            disabled={totalCount === 0 && !status}
             title="Copy all comments as structured review prompt"
           >
             Copy All
@@ -452,7 +452,7 @@ export const ReviewPanel: React.FC = () => {
         </div>
         <div className={s.verdictButtons}>
           <button
-            className={`btn ${s.verdictBtn} ${verdict === "approve" ? s.verdictBtnActive : ""}`}
+            className={`btn ${s.verdictBtn} ${status === "approved" ? s.verdictBtnActive : ""}`}
             onClick={handleApprove}
             disabled={!canApprove}
             title={!canApprove ? "Resolve all threads before approving" : ""}
@@ -460,7 +460,7 @@ export const ReviewPanel: React.FC = () => {
             {approveLabel}
           </button>
           <button
-            className={`btn ${s.verdictBtn} ${verdict === "request_changes" ? s.verdictBtnRejectActive : ""}`}
+            className={`btn ${s.verdictBtn} ${status === "rejected" ? s.verdictBtnRejectActive : ""}`}
             onClick={handleReject}
           >
             {rejectLabel}
