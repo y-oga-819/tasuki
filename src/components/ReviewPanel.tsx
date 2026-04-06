@@ -85,6 +85,9 @@ const ThreadCard: React.FC<{
           </div>
         </div>
       </div>
+      <span className={c.author === "claude" ? s.authorClaude : s.authorHuman}>
+        {c.author === "claude" ? "Claude" : "Human"}
+      </span>
       {c.code_snippet && (
         <pre className={s.commentSnippet}>
           <code>{c.code_snippet}</code>
@@ -94,10 +97,16 @@ const ThreadCard: React.FC<{
 
       {/* Replies */}
       {thread.replies.map((reply) => (
-        <div key={reply.id} className={s.threadReply}>
-          <span className={s.threadReplyArrow}>{"\u21B3"}</span>
-          <span className={s.threadReplyBody}>{reply.body}</span>
-          <span className={s.threadReplyAuthor}>{reply.author}</span>
+        <div
+          key={reply.id}
+          className={`${s.threadReply} ${reply.author === "claude" ? s.threadReplyClaude : ""}`}
+        >
+          <div className={s.threadReplyContent}>
+            <span className={reply.author === "claude" ? s.authorClaude : s.authorHuman}>
+              {reply.author === "claude" ? "Claude" : "Human"}
+            </span>
+            <div className={s.threadReplyBody}>{reply.body}</div>
+          </div>
         </div>
       ))}
 
@@ -157,7 +166,23 @@ const ResolvedThreadCard: React.FC<{
           {"\u21A9"}
         </button>
       </div>
+      <span className={c.author === "claude" ? s.authorClaude : s.authorHuman}>
+        {c.author === "claude" ? "Claude" : "Human"}
+      </span>
       <div className={s.commentBody}>{c.body}</div>
+      {thread.replies.map((reply) => (
+        <div
+          key={reply.id}
+          className={`${s.threadReply} ${reply.author === "claude" ? s.threadReplyClaude : ""}`}
+        >
+          <div className={s.threadReplyContent}>
+            <span className={reply.author === "claude" ? s.authorClaude : s.authorHuman}>
+              {reply.author === "claude" ? "Claude" : "Human"}
+            </span>
+            <div className={s.threadReplyBody}>{reply.body}</div>
+          </div>
+        </div>
+      ))}
     </li>
   );
 };
