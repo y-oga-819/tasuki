@@ -72,7 +72,7 @@ pub struct ChangedLines {
 }
 
 #[derive(Debug, Clone)]
-struct ChangedMethod {
+pub(crate) struct ChangedMethod {
     name: String,
     file_path: String,
     start_line: u32,
@@ -338,7 +338,7 @@ impl LspState {
     // ---- Diff analysis ----
 
     /// Match changed lines to document symbols to find affected methods.
-    pub fn match_lines_to_symbols(
+    pub(crate) fn match_lines_to_symbols(
         file_path: &str,
         changed_lines: &ChangedLines,
         symbols: &[DocumentSymbol],
