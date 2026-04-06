@@ -496,7 +496,20 @@ impl LspState {
 
         // Timeout after 30 seconds to avoid indefinite hangs
         match tokio::time::timeout(std::time::Duration::from_secs(30), rx).await {
-            Ok(Ok(val)) => Ok(val),
+            Ok(Ok(val)) => {
+                // Check for JSON-RPC error responses from the LSP server
+                if let Some(error) = val.get("error") {
+                    let code = error.get("code").and_then(Value::as_i64).unwrap_or_default();
+                    let message = error
+                        .get("message")
+                        .and_then(Value::as_str)
+                        .unwrap_or("Unknown LSP error");
+                    return Err(TasukiError::Lsp(format!(
+                        "LSP error on {method} (code={code}): {message}"
+                    )));
+                }
+                Ok(val)
+            }
             Ok(Err(_)) => {
                 Err(TasukiError::Lsp(format!("LSP request {method} (id={id}) got no response")))
             }
