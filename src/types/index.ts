@@ -132,7 +132,7 @@ export interface GateDocThread {
 export type DisplayMode = "diff" | "split" | "viewer";
 
 /** Which content is shown in the right pane of split mode */
-export type RightPaneMode = "docs" | "terminal" | "review";
+export type RightPaneMode = "docs" | "terminal" | "review" | "inspector";
 
 /** Diff view layout (matches Pierre's diffStyle naming) */
 export type DiffLayout = "split" | "unified";
@@ -171,3 +171,56 @@ export type DiffSource =
   | { type: "working" }
   | { type: "commit"; ref: string }
   | { type: "range"; from: string; to: string };
+
+// ---- LSP / Inspector types ----
+
+/** LSP location result */
+export interface LspLocation {
+  file_path: string;
+  line: number;
+  character: number;
+  end_line: number;
+  end_character: number;
+}
+
+/** LSP document symbol */
+export interface DocumentSymbolInfo {
+  name: string;
+  kind: string;
+  file_path: string;
+  start_line: number;
+  start_character: number;
+  end_line: number;
+  end_character: number;
+  children: DocumentSymbolInfo[];
+}
+
+/** Call hierarchy entry */
+export interface CallHierarchyCall {
+  name: string;
+  kind: string;
+  file_path: string;
+  line: number;
+  character: number;
+  code_snippet: string;
+}
+
+/** Result of automatic diff analysis — one per changed method */
+export interface MethodInspectionResult {
+  name: string;
+  file_path: string;
+  start_line: number;
+  end_line: number;
+  changed_lines: number[];
+  change_type: "added" | "deleted" | "modified";
+  definition_code: string;
+  callers: CallHierarchyCall[];
+  callees: CallHierarchyCall[];
+  hover_info: string | null;
+}
+
+/** Progress event from backend analysis */
+export interface InspectorProgress {
+  done: number;
+  total: number;
+}

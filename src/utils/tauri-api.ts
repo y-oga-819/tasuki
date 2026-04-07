@@ -1,7 +1,8 @@
-import type { DiffResult, CommitInfo, RepoInfo, CommitGateData, ChangeStatus, GateThread, GateDocThread } from "../types";
+import type { DiffResult, CommitInfo, RepoInfo, CommitGateData, ChangeStatus, GateThread, GateDocThread, MethodInspectionResult, CallHierarchyCall } from "../types";
 import { mockDiffResult, mockStagedDiffResult, mockWorkingDiffResult } from "../__fixtures__/mock-diff-data";
 import { mockDocPaths, mockDesignDocNames, mockReviewDocNames, mockDocContents } from "../__fixtures__/mock-doc-data";
 import { mockRepoInfo, mockCommitLog, mockHeadSha, mockDiffHash } from "../__fixtures__/mock-repo-data";
+import { mockSourceFiles, mockInspectorResults } from "../__fixtures__/mock-inspector-data";
 
 /**
  * Bridge to Tauri backend commands.
@@ -40,7 +41,7 @@ function mockInvoke<T>(cmd: string, args?: Record<string, unknown>): T {
       return mockDocPaths as T;
     case "read_file": {
       const filePath = args?.filePath as string;
-      return (mockDocContents[filePath] ?? `# ${filePath}\n\nMock content for ${filePath}`) as T;
+      return (mockDocContents[filePath] ?? mockSourceFiles[filePath] ?? `# ${filePath}\n\nMock content for ${filePath}`) as T;
     }
     case "list_design_docs":
       return mockDesignDocNames as T;
@@ -92,6 +93,35 @@ function mockInvoke<T>(cmd: string, args?: Record<string, unknown>): T {
     case "exit_app":
       console.log("[mock] exitApp");
       return undefined as T;
+
+    // LSP / Inspector APIs
+    case "lsp_start":
+    case "lsp_stop":
+      return undefined as T;
+    case "lsp_analyze_diff":
+      return mockInspectorResults as T;
+    case "lsp_incoming_calls":
+      return [
+        {
+          name: "DiffViewer",
+          kind: "function",
+          file_path: "src/components/DiffViewer.tsx",
+          line: 6,
+          character: 0,
+          code_snippet: "export function DiffViewer() {",
+        },
+      ] as T;
+    case "lsp_outgoing_calls":
+      return [
+        {
+          name: "formatLineRange",
+          kind: "function",
+          file_path: "src/utils/format-helpers.ts",
+          line: 5,
+          character: 0,
+          code_snippet: "export function formatLineRange(start: number, end: number): string {",
+        },
+      ] as T;
 
     // Zed integration (no-op)
     case "open_in_zed":
@@ -287,4 +317,32 @@ export async function copyToClipboard(text: string): Promise<void> {
   } else {
     await navigator.clipboard.writeText(text);
   }
+}
+
+// ---- LSP / Inspector ----
+
+export async function lspStart(languageId: string): Promise<void> {
+  return invoke<void>("lsp_start", { languageId });
+}
+
+export interface ChangedFileInfo {
+  file_path: string;
+  added_lines: number[];
+  deleted_lines: number[];
+}
+
+export async function lspAnalyzeDiff(changedFiles: ChangedFileInfo[]): Promise<MethodInspectionResult[]> {
+  return invoke<MethodInspectionResult[]>("lsp_analyze_diff", { changedFiles });
+}
+
+export async function lspIncomingCalls(
+  filePath: string,
+  line: number,
+  character: number,
+): Promise<CallHierarchyCall[]> {
+  return invoke<CallHierarchyCall[]>("lsp_incoming_calls", { filePath, line, character });
+}
+
+export async function lspStop(): Promise<void> {
+  return invoke<void>("lsp_stop");
 }

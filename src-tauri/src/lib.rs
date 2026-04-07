@@ -2,6 +2,7 @@ pub mod cli;
 pub mod commands;
 pub mod error;
 pub mod git;
+pub mod lsp;
 pub mod pty;
 pub mod state;
 pub mod watcher;
@@ -48,6 +49,7 @@ pub fn run() {
             watcher_handle: Mutex::new(None),
         })
         .manage(pty::PtyState::new())
+        .manage(lsp::LspState::new())
         .manage(cli_args)
         .invoke_handler(tauri::generate_handler![
             commands::get_diff,
@@ -82,6 +84,13 @@ pub fn run() {
             commands::check_changes,
             commands::send_to_claude_code,
             commands::exit_app,
+            commands::lsp_start,
+            commands::lsp_document_symbols,
+            commands::lsp_hover,
+            commands::lsp_incoming_calls,
+            commands::lsp_outgoing_calls,
+            commands::lsp_analyze_diff,
+            commands::lsp_stop,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Tasuki");
