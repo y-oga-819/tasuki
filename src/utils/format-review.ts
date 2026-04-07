@@ -1,22 +1,23 @@
-import type { ReviewComment, ReviewThread, DocComment, ReviewVerdict } from "../types";
+import type { ReviewComment, ReviewThread, DocComment } from "../types";
+import type { ReviewStatus } from "../store/reviewStore";
 import { formatLineRef } from "./diff-utils";
 
 /** Generate the structured review prompt for Copy All */
 export function formatReviewPrompt(
   threads: ReviewThread[],
   docComments: DocComment[],
-  verdict: ReviewVerdict,
+  status: ReviewStatus,
 ): string {
   const parts: string[] = [];
 
-  // Header with verdict
-  const verdictLabel =
-    verdict === "approve"
+  // Header with status
+  const statusLabel =
+    status === "approved"
       ? "Approve"
-      : verdict === "request_changes"
+      : status === "rejected"
         ? "Request Changes"
         : "Comments";
-  parts.push(`## Review Result: ${verdictLabel}\n`);
+  parts.push(`## Review Result: ${statusLabel}\n`);
 
   // Group threads by file
   const byFile = new Map<string, ReviewThread[]>();
@@ -75,10 +76,10 @@ export function formatReviewPrompt(
   }
 
   // Summary
-  if (verdict === "approve") {
+  if (status === "approved") {
     parts.push("### Summary");
     parts.push("LGTM. Changes look good.");
-  } else if (verdict === "request_changes") {
+  } else if (status === "rejected") {
     parts.push("### Summary");
     parts.push("Please address the above comments and request re-review.");
   }

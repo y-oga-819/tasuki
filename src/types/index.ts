@@ -95,20 +95,38 @@ export interface DocComment {
   resolved_at: number | null;
 }
 
-/** Persisted review session */
-export interface ReviewSession {
-  head_commit: string;
-  diff_hash: string;
-  diff_source: DiffSource;
+// ---- Gate File v3 types ----
+
+/** A single comment in a gate file thread */
+export interface GateComment {
+  id: string;
+  body: string;
+  author: "human" | "claude";
+  type: "comment" | "suggestion" | "question" | "approval";
   created_at: number;
-  updated_at: number;
-  verdict: ReviewVerdict;
-  threads: ReviewThread[];
-  doc_comments: DocComment[];
 }
 
-/** Overall review verdict */
-export type ReviewVerdict = "approve" | "request_changes" | null;
+/** A code review thread in the gate file */
+export interface GateThread {
+  id: string;
+  file: string;
+  line_start: number;
+  line_end: number;
+  code_snippet: string;
+  resolved: boolean;
+  resolved_at: number | null;
+  comments: GateComment[];
+}
+
+/** A document review thread in the gate file */
+export interface GateDocThread {
+  id: string;
+  file: string;
+  section: string;
+  resolved: boolean;
+  resolved_at: number | null;
+  comments: GateComment[];
+}
 
 /** Display mode for the main content area */
 export type DisplayMode = "diff" | "split" | "viewer";
@@ -129,24 +147,15 @@ export interface RepoInfo {
 /** Commit gate status */
 export type GateStatus = "none" | "approved" | "rejected" | "invalidated";
 
-/** Commit gate file data returned from backend */
+/** Commit gate file data (v3) */
 export interface CommitGateData {
   version: number;
   status: "approved" | "rejected";
   timestamp: string;
   repository: string;
   branch: string;
-  diff_hash: string;
-  resolved_threads: Array<{
-    file: string;
-    line: number;
-    body: string;
-  }>;
-  resolved_doc_comments: Array<{
-    file: string;
-    section: string;
-    body: string;
-  }>;
+  threads: GateThread[];
+  doc_threads: GateDocThread[];
 }
 
 /** Lightweight change status from check_changes command */

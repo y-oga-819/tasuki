@@ -1,102 +1,82 @@
 import { useCallback, useEffect, useRef } from "react";
-import { useDiffStore } from "../store/diffStore";
 import { useReviewStore } from "../store/reviewStore";
+import { gateToThreads, gateDocToDocComments, threadsToGate, docCommentsToGateDoc } from "../store/gate-convert";
+import { eventBus } from "../utils/tauri-events";
 import * as api from "../utils/tauri-api";
+import { writeGateFile, getLastWrittenHash, clearLastWrittenHash } from "../utils/gate-writer";
 import { appLogger } from "../utils/app-logger";
-import type { DiffSource, ReviewSession } from "../types";
-
-/** Derive a stable key string from a DiffSource for file naming */
-function sourceTypeKey(source: DiffSource): string {
-  switch (source.type) {
-    case "uncommitted":
-      return "uncommitted";
-    case "staged":
-      return "staged";
-    case "working":
-      return "working";
-    case "commit":
-      return "commit";
-    case "range":
-      return "range";
-  }
-}
 
 /**
- * Hook that persists review threads to /tmp/tasuki/{repo}/reviews/ and
- * restores them on app startup based on HEAD SHA + diff hash.
+ * Hook that persists review state to the gate file and restores on startup.
+ *
+ * - On mount: reads gate file → converts to store format → sets store state
+ * - On state change: converts store → gate file format → writes gate file (debounced)
+ * - On gate-file-changed event: re-reads gate file and updates store (unless self-write)
  */
 export function useReviewPersistence() {
-  const { diffSource, diffResult } = useDiffStore();
   const {
     threads,
     docComments,
-    verdict,
+    status,
     setThreads,
     setDocComments,
-    setVerdict,
+    setStatus,
+    setGateStatus,
     getAllThreads,
   } = useReviewStore();
 
-  const headShaRef = useRef<string | null>(null);
-  const diffHashRef = useRef<string | null>(null);
   const loadedRef = useRef(false);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Load saved review on startup (once diffResult is available)
-  useEffect(() => {
-    if (!diffResult || loadedRef.current) return;
-    loadedRef.current = true;
+  /** Read gate file and update store */
+  const loadGateFile = useCallback(async () => {
+    try {
+      const gateData = await api.readCommitGate();
+      if (!gateData) return;
 
-    (async () => {
-      try {
-        const headSha = await api.getHeadSha();
-        headShaRef.current = headSha;
-
-        const currentHash = await api.getDiffHash(diffResult);
-        diffHashRef.current = currentHash;
-
-        const sourceKey = sourceTypeKey(diffSource);
-        const saved = await api.loadReview(headSha, sourceKey);
-
-        if (!saved) {
-          return;
-        }
-
-        setThreads(saved.threads);
-        setDocComments(saved.doc_comments);
-        setVerdict(saved.verdict);
-      } catch {
-        // Failed to load (e.g. outside Tauri) — start fresh
+      // Ignore v2 or older gate files
+      if (gateData.version < 3) {
+        appLogger.warn("persistence", "Ignoring gate file with version < 3");
+        return;
       }
-    })();
-  }, [diffResult, diffSource, setThreads, setDocComments, setVerdict]);
 
-  // Save review (debounced) whenever threads/verdict change
+      const reviewThreads = gateToThreads(gateData.threads);
+      const loadedDocComments = gateDocToDocComments(gateData.doc_threads);
+
+      setThreads(reviewThreads);
+      setDocComments(loadedDocComments);
+      setStatus(gateData.status);
+      setGateStatus(gateData.status);
+    } catch {
+      // Failed to load (e.g. outside Tauri) — start fresh
+    }
+  }, [setThreads, setDocComments, setStatus, setGateStatus]);
+
+  // Load from gate file on startup
+  useEffect(() => {
+    if (loadedRef.current) return;
+    loadedRef.current = true;
+    loadGateFile();
+  }, [loadGateFile]);
+
+  // Save to gate file (debounced) whenever state changes
   const save = useCallback(async () => {
-    const headSha = headShaRef.current;
-    const diffHash = diffHashRef.current;
-    if (!headSha || !diffHash) return;
+    const currentStatus = useReviewStore.getState().status;
+    if (!currentStatus) return;
 
-    const session: ReviewSession = {
-      head_commit: headSha,
-      diff_hash: diffHash,
-      diff_source: diffSource,
-      created_at: Date.now(),
-      updated_at: Date.now(),
-      verdict,
-      threads: getAllThreads(),
-      doc_comments: docComments,
-    };
+    const allThreads = getAllThreads();
+    const currentDocComments = useReviewStore.getState().docComments;
 
-    const sourceKey = sourceTypeKey(diffSource);
+    const gateThreads = threadsToGate(allThreads);
+    const gateDocThreads = docCommentsToGateDoc(currentDocComments);
 
     try {
-      await api.saveReview(headSha, sourceKey, session);
+      await writeGateFile(currentStatus, gateThreads, gateDocThreads);
     } catch (err) {
-      appLogger.warn("persistence", "Failed to save review session", err);
+      appLogger.warn("persistence", "Failed to save gate file", err);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- threads triggers recomputation
-  }, [threads, docComments, verdict, diffSource, getAllThreads]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- threads/docComments/status trigger recomputation
+  }, [threads, docComments, status, getAllThreads]);
 
   // Debounced auto-save on state changes
   useEffect(() => {
@@ -113,4 +93,51 @@ export function useReviewPersistence() {
       }
     };
   }, [save]);
+
+  // Listen for gate-file-changed events from Tauri watcher
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+
+    (async () => {
+      unlisten = await eventBus.listen("gate-file-changed", async () => {
+        try {
+          const gateData = await api.readCommitGate();
+
+          // Gate file deleted — reset state
+          if (!gateData) {
+            setThreads([]);
+            setDocComments([]);
+            setStatus(null);
+            setGateStatus("none");
+            clearLastWrittenHash();
+            return;
+          }
+
+          if (gateData.version < 3) return;
+
+          const contentHash = JSON.stringify({
+            gateThreads: gateData.threads,
+            gateDocThreads: gateData.doc_threads,
+            status: gateData.status,
+          });
+
+          // Skip if this is our own write
+          if (contentHash === getLastWrittenHash()) return;
+
+          appLogger.warn("persistence", "Gate file changed externally, reloading");
+          const reviewThreads = gateToThreads(gateData.threads);
+          const loadedDocComments = gateDocToDocComments(gateData.doc_threads);
+
+          setThreads(reviewThreads);
+          setDocComments(loadedDocComments);
+          setStatus(gateData.status);
+          setGateStatus(gateData.status);
+        } catch (err) {
+          appLogger.warn("persistence", "Failed to reload gate file", err);
+        }
+      });
+    })();
+
+    return () => unlisten?.();
+  }, [setThreads, setDocComments, setStatus, setGateStatus]);
 }

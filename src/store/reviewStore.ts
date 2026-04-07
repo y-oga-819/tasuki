@@ -3,9 +3,11 @@ import type {
   ReviewComment,
   ReviewThread,
   DocComment,
-  ReviewVerdict,
   GateStatus,
 } from "../types";
+
+/** Review status: approved or rejected (maps to gate file status) */
+export type ReviewStatus = "approved" | "rejected" | null;
 
 /** Empty array singleton to avoid unnecessary re-renders */
 const EMPTY_THREADS: ReviewThread[] = [];
@@ -32,9 +34,9 @@ interface ReviewState {
   unresolveDocComment: (id: string) => void;
   setDocComments: (comments: DocComment[]) => void;
 
-  // Review verdict
-  verdict: ReviewVerdict;
-  setVerdict: (verdict: ReviewVerdict) => void;
+  // Review status
+  status: ReviewStatus;
+  setStatus: (status: ReviewStatus) => void;
 
   // Commit gate
   gateStatus: GateStatus;
@@ -182,9 +184,9 @@ export const useReviewStore = create<ReviewState>((set, get) => ({
     })),
   setDocComments: (docComments) => set({ docComments }),
 
-  // Review verdict
-  verdict: null,
-  setVerdict: (verdict) => set({ verdict }),
+  // Review status
+  status: null,
+  setStatus: (status) => set({ status }),
 
   // Commit gate
   gateStatus: "none",

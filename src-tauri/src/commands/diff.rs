@@ -122,11 +122,19 @@ pub async fn start_watching(
 ) -> Result<(), TasukiError> {
     let repo_path = state.repo_path.clone();
 
+    // Resolve gate file path for watching
+    let gate_path = {
+        let info = crate::git::get_repo_info(&repo_path)?;
+        info.branch_name.map(|branch| {
+            super::gate::gate_file_path(&info.repo_name, &branch)
+        })
+    };
+
     // Stop the previous watcher (if any) before creating a new one
     let mut watcher_guard = state.watcher_handle.lock();
     watcher_guard.take();
 
-    let handle = watcher::start_watching(app_handle, repo_path)?;
+    let handle = watcher::start_watching(app_handle, repo_path, gate_path)?;
     *watcher_guard = Some(handle);
     Ok(())
 }

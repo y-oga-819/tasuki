@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useReviewStore } from "../store/reviewStore";
-import { useDiffStore } from "../store/diffStore";
 import { formatReviewPrompt, formatSingleComment } from "../utils/format-review";
 import { copyToClipboard, sendToClaudeCode, exitApp } from "../utils/tauri-api";
 import * as api from "../utils/tauri-api";
+import { threadsToGate, docCommentsToGateDoc } from "../store/gate-convert";
+import { writeGateFile } from "../utils/gate-writer";
 import type { ReviewThread, DocComment } from "../types";
 import s from "./ReviewPanel.module.css";
 
@@ -85,6 +86,9 @@ const ThreadCard: React.FC<{
           </div>
         </div>
       </div>
+      <span className={c.author === "claude" ? s.authorClaude : s.authorHuman}>
+        {c.author === "claude" ? "Claude" : "Human"}
+      </span>
       {c.code_snippet && (
         <pre className={s.commentSnippet}>
           <code>{c.code_snippet}</code>
@@ -94,10 +98,16 @@ const ThreadCard: React.FC<{
 
       {/* Replies */}
       {thread.replies.map((reply) => (
-        <div key={reply.id} className={s.threadReply}>
-          <span className={s.threadReplyArrow}>{"\u21B3"}</span>
-          <span className={s.threadReplyBody}>{reply.body}</span>
-          <span className={s.threadReplyAuthor}>{reply.author}</span>
+        <div
+          key={reply.id}
+          className={`${s.threadReply} ${reply.author === "claude" ? s.threadReplyClaude : ""}`}
+        >
+          <div className={s.threadReplyContent}>
+            <span className={reply.author === "claude" ? s.authorClaude : s.authorHuman}>
+              {reply.author === "claude" ? "Claude" : "Human"}
+            </span>
+            <div className={s.threadReplyBody}>{reply.body}</div>
+          </div>
         </div>
       ))}
 
@@ -157,7 +167,23 @@ const ResolvedThreadCard: React.FC<{
           {"\u21A9"}
         </button>
       </div>
+      <span className={c.author === "claude" ? s.authorClaude : s.authorHuman}>
+        {c.author === "claude" ? "Claude" : "Human"}
+      </span>
       <div className={s.commentBody}>{c.body}</div>
+      {thread.replies.map((reply) => (
+        <div
+          key={reply.id}
+          className={`${s.threadReply} ${reply.author === "claude" ? s.threadReplyClaude : ""}`}
+        >
+          <div className={s.threadReplyContent}>
+            <span className={reply.author === "claude" ? s.authorClaude : s.authorHuman}>
+              {reply.author === "claude" ? "Claude" : "Human"}
+            </span>
+            <div className={s.threadReplyBody}>{reply.body}</div>
+          </div>
+        </div>
+      ))}
     </li>
   );
 };
@@ -216,8 +242,8 @@ const DocCommentItem: React.FC<{
 export const ReviewPanel: React.FC = () => {
   const {
     docComments,
-    verdict,
-    setVerdict,
+    status,
+    setStatus,
     removeDocComment,
     resolveDocComment,
     unresolveDocComment,
@@ -226,7 +252,6 @@ export const ReviewPanel: React.FC = () => {
     getAllThreads,
     threads,
   } = useReviewStore();
-  const { diffResult } = useDiffStore();
 
   // eslint-disable-next-line react-hooks/exhaustive-deps -- threads triggers recomputation
   const allThreads = useMemo(() => getAllThreads(), [threads, getAllThreads]);
@@ -254,9 +279,9 @@ export const ReviewPanel: React.FC = () => {
   const canApprove = unresolvedCount === 0;
 
   const handleCopyAll = useCallback(async () => {
-    const prompt = formatReviewPrompt(allThreads, docComments, verdict);
+    const prompt = formatReviewPrompt(allThreads, docComments, status);
     await copyToClipboard(prompt);
-  }, [allThreads, docComments, verdict]);
+  }, [allThreads, docComments, status]);
 
   const handleCopyThread = useCallback(
     async (thread: ReviewThread) => {
@@ -267,41 +292,20 @@ export const ReviewPanel: React.FC = () => {
   );
 
   const writeGate = useCallback(
-    async (status: "approved" | "rejected"): Promise<string> => {
+    async (gateStatus: "approved" | "rejected"): Promise<string> => {
       try {
-        let diffHash = "";
-        if (diffResult) {
-          diffHash = await api.getDiffHash(diffResult);
-        }
+        const gateThreads = threadsToGate(allThreads);
+        const gateDocThreads = docCommentsToGateDoc(docComments);
 
-        const gatePath = await api.writeCommitGate(
-          status,
-          diffHash,
-          resolvedThreads.map((t) => ({
-            file: t.root.file_path,
-            line: t.root.line_start,
-            body: t.root.body,
-          })),
-          docComments.filter((c) => c.resolved).map((c) => ({
-            file: c.file_path,
-            section: c.section,
-            body: c.body,
-          })),
-          unresolvedThreads.map((t) => ({
-            file: t.root.file_path,
-            line: t.root.line_start,
-            body: t.root.body,
-            code_snippet: t.root.code_snippet,
-          })),
-        );
-        setGateStatus(status);
+        const gatePath = await writeGateFile(gateStatus, gateThreads, gateDocThreads);
+        setGateStatus(gateStatus);
         return gatePath;
       } catch (err) {
         console.error("Failed to write commit gate:", err);
         return "";
       }
     },
-    [diffResult, resolvedThreads, unresolvedThreads, docComments, setGateStatus],
+    [allThreads, docComments, setGateStatus],
   );
 
   const notifyClaudeCode = useCallback(
@@ -325,35 +329,35 @@ export const ReviewPanel: React.FC = () => {
   );
 
   const handleApprove = useCallback(async () => {
-    if (verdict === "approve") {
-      setVerdict(null);
+    if (status === "approved") {
       try {
         await api.clearCommitGate();
       } catch { /* ignore */ }
+      setStatus(null);
       setGateStatus("none");
     } else {
-      setVerdict("approve");
-      await writeGate("approved");
+      const gatePath = await writeGate("approved");
+      if (!gatePath) return;
+      setStatus("approved");
       await notifyClaudeCode("approveです。コミットしてください。", setApproveLabel, "Approve");
     }
-  }, [verdict, setVerdict, writeGate, setGateStatus, notifyClaudeCode]);
+  }, [status, setStatus, writeGate, setGateStatus, notifyClaudeCode]);
 
   const handleReject = useCallback(async () => {
-    if (verdict === "request_changes") {
-      setVerdict(null);
+    if (status === "rejected") {
       try {
         await api.clearCommitGate();
       } catch { /* ignore */ }
+      setStatus(null);
       setGateStatus("none");
     } else {
-      setVerdict("request_changes");
       const gatePath = await writeGate("rejected");
-      const msg = gatePath
-        ? `rejectされました。${gatePath} のレビューコメントを確認して修正してください。`
-        : "rejectされました。レビューコメントを確認して修正してください。";
+      if (!gatePath) return;
+      setStatus("rejected");
+      const msg = `rejectされました。${gatePath} のレビューコメントを確認して修正してください。質問があれば /tasuki-comment で返信できます。`;
       await notifyClaudeCode(msg, setRejectLabel, "Reject");
     }
-  }, [verdict, setVerdict, writeGate, setGateStatus, notifyClaudeCode]);
+  }, [status, setStatus, writeGate, setGateStatus, notifyClaudeCode]);
 
   return (
     <div className="review-panel" role="complementary" aria-label="Review">
@@ -379,7 +383,7 @@ export const ReviewPanel: React.FC = () => {
           <button
             className={`btn btn-primary ${s.copyAllBtn}`}
             onClick={handleCopyAll}
-            disabled={totalCount === 0 && !verdict}
+            disabled={totalCount === 0 && !status}
             title="Copy all comments as structured review prompt"
           >
             Copy All
@@ -452,7 +456,7 @@ export const ReviewPanel: React.FC = () => {
         </div>
         <div className={s.verdictButtons}>
           <button
-            className={`btn ${s.verdictBtn} ${verdict === "approve" ? s.verdictBtnActive : ""}`}
+            className={`btn ${s.verdictBtn} ${status === "approved" ? s.verdictBtnActive : ""}`}
             onClick={handleApprove}
             disabled={!canApprove}
             title={!canApprove ? "Resolve all threads before approving" : ""}
@@ -460,7 +464,7 @@ export const ReviewPanel: React.FC = () => {
             {approveLabel}
           </button>
           <button
-            className={`btn ${s.verdictBtn} ${verdict === "request_changes" ? s.verdictBtnRejectActive : ""}`}
+            className={`btn ${s.verdictBtn} ${status === "rejected" ? s.verdictBtnRejectActive : ""}`}
             onClick={handleReject}
           >
             {rejectLabel}

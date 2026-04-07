@@ -7,7 +7,7 @@ use crate::error::TasukiError;
 use crate::git;
 use crate::state::AppState;
 
-/// Commit gate data written to disk via serde
+/// Commit gate data (v3) written to disk via serde
 #[derive(Serialize)]
 struct CommitGate {
     version: u32,
@@ -15,14 +15,12 @@ struct CommitGate {
     timestamp: String,
     repository: String,
     branch: String,
-    diff_hash: String,
-    resolved_comments: serde_json::Value,
-    resolved_doc_comments: serde_json::Value,
-    unresolved_comments: serde_json::Value,
+    threads: serde_json::Value,
+    doc_threads: serde_json::Value,
 }
 
 /// Build the path for the commit gate file: /tmp/tasuki/{repo}/{branch}/review.json
-fn gate_file_path(repo_name: &str, branch_name: &str) -> PathBuf {
+pub fn gate_file_path(repo_name: &str, branch_name: &str) -> PathBuf {
     PathBuf::from("/tmp/tasuki")
         .join(repo_name)
         .join(branch_name)
@@ -39,16 +37,13 @@ fn get_gate_context(state: &State<AppState>) -> Result<(String, String), TasukiE
     Ok((info.repo_name, branch))
 }
 
-/// Write a commit gate file (approve or reject).
-/// Uses serde for safe JSON serialization (no injection risk).
+/// Write a commit gate file (v3: thread-based).
 #[tauri::command]
 pub async fn write_commit_gate(
     state: State<'_, AppState>,
     status: String,
-    diff_hash: String,
-    resolved_threads: String,
-    resolved_doc_comments: String,
-    unresolved_threads: String,
+    threads: String,
+    doc_threads: String,
 ) -> Result<String, TasukiError> {
     let (repo_name, branch) = get_gate_context(&state)?;
     let path = gate_file_path(&repo_name, &branch);
@@ -62,18 +57,15 @@ pub async fn write_commit_gate(
         }
 
         let gate = CommitGate {
-            version: 2,
+            version: 3,
             status,
             timestamp: chrono::Utc::now().to_rfc3339(),
             repository: repo_name,
             branch,
-            diff_hash,
-            resolved_comments: serde_json::from_str(&resolved_threads)
-                .unwrap_or(serde_json::Value::Array(vec![])),
-            resolved_doc_comments: serde_json::from_str(&resolved_doc_comments)
-                .unwrap_or(serde_json::Value::Array(vec![])),
-            unresolved_comments: serde_json::from_str(&unresolved_threads)
-                .unwrap_or(serde_json::Value::Array(vec![])),
+            threads: serde_json::from_str(&threads)
+                .map_err(|e| TasukiError::Io(format!("Invalid threads JSON: {}", e)))?,
+            doc_threads: serde_json::from_str(&doc_threads)
+                .map_err(|e| TasukiError::Io(format!("Invalid doc_threads JSON: {}", e)))?,
         };
 
         let gate_json = serde_json::to_string(&gate)
