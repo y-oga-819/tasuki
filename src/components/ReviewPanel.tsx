@@ -4,6 +4,7 @@ import { formatReviewPrompt, formatSingleComment } from "../utils/format-review"
 import { copyToClipboard, sendToClaudeCode, exitApp } from "../utils/tauri-api";
 import * as api from "../utils/tauri-api";
 import { threadsToGate, docCommentsToGateDoc } from "../store/gate-convert";
+import { writeGateFile } from "../utils/gate-writer";
 import type { ReviewThread, DocComment } from "../types";
 import s from "./ReviewPanel.module.css";
 
@@ -296,11 +297,7 @@ export const ReviewPanel: React.FC = () => {
         const gateThreads = threadsToGate(allThreads);
         const gateDocThreads = docCommentsToGateDoc(docComments);
 
-        const gatePath = await api.writeCommitGate(
-          gateStatus,
-          gateThreads,
-          gateDocThreads,
-        );
+        const gatePath = await writeGateFile(gateStatus, gateThreads, gateDocThreads);
         setGateStatus(gateStatus);
         return gatePath;
       } catch (err) {

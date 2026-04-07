@@ -3,6 +3,7 @@ import { useReviewStore } from "../store/reviewStore";
 import { gateToThreads, gateDocToDocComments, threadsToGate, docCommentsToGateDoc } from "../store/gate-convert";
 import { eventBus } from "../utils/tauri-events";
 import * as api from "../utils/tauri-api";
+import { writeGateFile, getLastWrittenHash, clearLastWrittenHash } from "../utils/gate-writer";
 import { appLogger } from "../utils/app-logger";
 
 /**
@@ -26,8 +27,6 @@ export function useReviewPersistence() {
 
   const loadedRef = useRef(false);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  /** Hash of the last gate file content we wrote, to skip self-triggered events */
-  const lastWrittenHashRef = useRef<string | null>(null);
 
   /** Read gate file and update store */
   const loadGateFile = useCallback(async () => {
@@ -72,9 +71,7 @@ export function useReviewPersistence() {
     const gateDocThreads = docCommentsToGateDoc(currentDocComments);
 
     try {
-      await api.writeCommitGate(currentStatus, gateThreads, gateDocThreads);
-      // Store a hash of what we wrote so we can skip self-triggered watcher events
-      lastWrittenHashRef.current = JSON.stringify({ gateThreads, gateDocThreads, status: currentStatus });
+      await writeGateFile(currentStatus, gateThreads, gateDocThreads);
     } catch (err) {
       appLogger.warn("persistence", "Failed to save gate file", err);
     }
@@ -112,7 +109,7 @@ export function useReviewPersistence() {
             setDocComments([]);
             setStatus(null);
             setGateStatus("none");
-            lastWrittenHashRef.current = null;
+            clearLastWrittenHash();
             return;
           }
 
@@ -125,7 +122,7 @@ export function useReviewPersistence() {
           });
 
           // Skip if this is our own write
-          if (contentHash === lastWrittenHashRef.current) return;
+          if (contentHash === getLastWrittenHash()) return;
 
           appLogger.warn("persistence", "Gate file changed externally, reloading");
           const reviewThreads = gateToThreads(gateData.threads);
