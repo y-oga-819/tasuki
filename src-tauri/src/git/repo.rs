@@ -50,7 +50,7 @@ pub fn get_repo_info(repo_path: &str) -> Result<RepoInfo, TasukiError> {
     let branch_name = repo
         .head()
         .ok()
-        .and_then(|h| h.shorthand().map(|s| s.to_string()));
+        .and_then(|h| h.shorthand().ok().map(|s| s.to_string()));
     let is_worktree = repo.is_worktree();
     Ok(RepoInfo {
         repo_name,
